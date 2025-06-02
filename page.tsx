@@ -1,10 +1,4 @@
-import { supabase } from '@/lib/supabase'
-
 export default function Home() {
-  // Test des variables d'environnement
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24 space-y-4">
       <h1 className="text-4xl font-bold text-center">
@@ -16,25 +10,29 @@ export default function Home() {
         
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            {supabaseUrl ? (
+            {process.env.NEXT_PUBLIC_SUPABASE_URL ? (
               <span className="text-green-600">✅</span>
             ) : (
               <span className="text-red-600">❌</span>
             )}
-            <span>Supabase URL: {supabaseUrl ? 'Configured' : 'Missing'}</span>
+            <span>
+              Supabase URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Configured' : 'Missing'}
+            </span>
           </div>
           
           <div className="flex items-center gap-2">
-            {supabaseKey ? (
+            {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? (
               <span className="text-green-600">✅</span>
             ) : (
               <span className="text-red-600">❌</span>
             )}
-            <span>Supabase Key: {supabaseKey ? 'Configured' : 'Missing'}</span>
+            <span>
+              Supabase Key: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Configured' : 'Missing'}
+            </span>
           </div>
         </div>
 
-        {supabaseUrl && supabaseKey && (
+        {process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && (
           <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
             <p className="text-green-800 font-medium">
               🎉 Supabase is ready to use!
@@ -43,19 +41,12 @@ export default function Home() {
         )}
       </div>
 
-      <TestSupabaseConnection />
+      <div className="bg-blue-50 p-4 rounded-lg">
+        <h3 className="font-semibold mb-2">Next Step:</h3>
+        <p className="text-sm text-gray-600">
+          Test your Supabase connection
+        </p>
+      </div>
     </main>
-  )
-}
-
-// Composant pour tester la connexion Supabase
-function TestSupabaseConnection() {
-  return (
-    <div className="bg-blue-50 p-4 rounded-lg">
-      <h3 className="font-semibold mb-2">Next Step:</h3>
-      <p className="text-sm text-gray-600">
-        Run the app to test the Supabase connection
-      </p>
-    </div>
   )
 }
