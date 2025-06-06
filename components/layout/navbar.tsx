@@ -12,18 +12,34 @@ const supabase = createClient(
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
+      if (user) {
+        setUser(user)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_type, full_name')
+          .eq('id', user.id)
+          .single()
+        setUserProfile(profile)
+      }
       setLoading(false)
     }
     getUser()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user || null)
+      if (session?.user) {
+        setUser(session.user)
+        // Récupérer le profil à nouveau
+        getUser()
+      } else {
+        setUser(null)
+        setUserProfile(null)
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -47,14 +63,36 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Navigation */}
+          {/* Navigation principale */}
+          <div className="hidden md:flex items-center space-x-6">
+            <Link href="/developers" className="text-slate-300 hover:text-white transition-colors">
+              Développeurs
+            </Link>
+            <Link href="/projects" className="text-slate-300 hover:text-white transition-colors">
+              Projets
+            </Link>
+            
+            {user && userProfile && (
+              <Link 
+                href={userProfile.user_type === 'client' ? '/dashboard/client' : '/dashboard/developer'} 
+                className="text-cyan-400 hover:text-cyan-300 transition-colors"
+              >
+                Dashboard
+              </Link>
+            )}
+          </div>
+
+          {/* Actions utilisateur */}
           <div className="flex items-center space-x-4">
             {loading ? (
               <div className="w-16 h-8 bg-slate-800 animate-pulse rounded"></div>
             ) : user ? (
               <div className="flex items-center space-x-4">
-                <span className="text-slate-300">
-                  Bonjour, <span className="text-cyan-400">{user.email}</span>
+                <span className="text-slate-300 hidden md:block">
+                  Bonjour, <span className="text-cyan-400">{userProfile?.full_name || user.email}</span>
+                </span>
+                <span className="px-2 py-1 bg-slate-800 text-slate-300 rounded text-xs">
+                  {userProfile?.user_type === 'client' ? '�� Client' : '💻 Dev'}
                 </span>
                 <Button 
                   onClick={handleLogout} 
