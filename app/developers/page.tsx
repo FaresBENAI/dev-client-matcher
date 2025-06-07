@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import ContactDeveloperModal from '../../components/messaging/contact-developer-modal'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,6 +28,7 @@ interface Developer {
   github_url: string
   linkedin_url: string
   portfolio_url: string
+  availability: string
 }
 
 export default function DevelopersPage() {
@@ -37,6 +39,9 @@ export default function DevelopersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSpecialization, setSelectedSpecialization] = useState('')
   const [maxBudget, setMaxBudget] = useState('')
+  const [selectedDeveloper, setSelectedDeveloper] = useState<Developer | null>(null)
+  const [showContactModal, setShowContactModal] = useState(false)
+  const [debugInfo, setDebugInfo] = useState('')
   const router = useRouter()
 
   const specializationOptions = [
@@ -64,33 +69,65 @@ export default function DevelopersPage() {
   }
 
   const fetchDevelopers = async () => {
-    const { data, error } = await supabase
-      .from('developer_profiles')
-      .select(`
-        id,
-        title,
-        bio,
-        skills,
-        specializations,
-        experience_years,
-        hourly_rate,
-        github_url,
-        linkedin_url,
-        portfolio_url,
-        profiles (
-          full_name,
-          email
-        )
-      `)
-      .eq('availability', 'available')
+    setDebugInfo('�� Début de la requête...')
+    
+    try {
+      // Étape 1: Récupérer tous les developer_profiles
+      const { data: devProfiles, error: devError } = await supabase
+        .from('developer_profiles')
+        .select('*')
 
-    if (data) {
-      setDevelopers(data as any)
+      setDebugInfo(prev => prev + `\n📊 Developer profiles: ${devProfiles?.length || 0} trouvés`)
+      
+      if (devError) {
+        setDebugInfo(prev => prev + `\n❌ Erreur dev profiles: ${devError.message}`)
+        setLoading(false)
+        return
+      }
+
+      if (!devProfiles || devProfiles.length === 0) {
+        setDebugInfo(prev => prev + `\n❌ Aucun developer_profile trouvé`)
+        setLoading(false)
+        return
+      }
+
+      // Étape 2: Récupérer les profils correspondants
+      const devIds = devProfiles.map(dev => dev.id)
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', devIds)
+
+      setDebugInfo(prev => prev + `\n👤 Profiles: ${profiles?.length || 0} trouvés`)
+      
+      if (profilesError) {
+        setDebugInfo(prev => prev + `\n❌ Erreur profiles: ${profilesError.message}`)
+      }
+
+      // Étape 3: Combiner les données manuellement
+      const combinedData = devProfiles.map(dev => {
+        const profile = profiles?.find(p => p.id === dev.id)
+        return {
+          ...dev,
+          profiles: profile || { full_name: 'Nom manquant', email: 'Email manquant' }
+        }
+      })
+
+      setDebugInfo(prev => prev + `\n🔗 Données combinées: ${combinedData.length}`)
+      setDebugInfo(prev => prev + `\n✅ Premier dev: ${combinedData[0]?.profiles?.full_name || 'Aucun'}`)
+
+      if (combinedData) {
+        setDevelopers(combinedData as any)
+      }
+
+    } catch (error) {
+      setDebugInfo(prev => prev + `\n💥 Erreur générale: ${error}`)
     }
+    
     setLoading(false)
   }
 
-  const handleContactDeveloper = (developerId: string) => {
+  const handleContactDeveloper = (developer: Developer) => {
     if (!user) {
       router.push('/auth/login')
       return
@@ -101,18 +138,18 @@ export default function DevelopersPage() {
       return
     }
     
-    // Rediriger vers une page de contact ou modal
-    router.push(`/contact-developer/${developerId}`)
+    setSelectedDeveloper(developer)
+    setShowContactModal(true)
   }
 
   const filteredDevelopers = developers.filter(dev => {
     const matchesSearch = !searchTerm || 
-      dev.profiles.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dev.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dev.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
+      dev.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dev.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dev.skills?.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
 
     const matchesSpecialization = !selectedSpecialization ||
-      dev.specializations.includes(selectedSpecialization)
+      dev.specializations?.includes(selectedSpecialization)
 
     const matchesBudget = !maxBudget || 
       dev.hourly_rate <= parseInt(maxBudget)
@@ -144,7 +181,7 @@ export default function DevelopersPage() {
           {!user ? (
             <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 rounded-xl p-4">
               <p className="text-slate-300 mb-3">
-                💡 <strong>Clients :</strong> Inscrivez-vous pour contacter directement nos développeurs
+                💡 <strong>Clients :</strong> Inscrivez-vous pour contacter directement nos développeurs via messagerie intégrée
               </p>
               <div className="flex gap-3">
                 <Link href="/auth/signup">
@@ -171,10 +208,16 @@ export default function DevelopersPage() {
           ) : (
             <div className="bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/30 rounded-xl p-4">
               <p className="text-slate-300">
-                ✨ <strong>Client connecté :</strong> Contactez directement les développeurs qui vous intéressent !
+                ✨ <strong>Client connecté :</strong> Contactez directement les développeurs via notre messagerie sécurisée !
               </p>
             </div>
           )}
+        </div>
+
+        {/* DEBUG - À supprimer après */}
+        <div className="mb-8 p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
+          <h3 className="text-yellow-400 font-bold mb-2">🔍 DEBUG INFO:</h3>
+          <pre className="text-yellow-300 text-sm whitespace-pre-wrap">{debugInfo}</pre>
         </div>
 
         {/* Filtres */}
@@ -254,8 +297,11 @@ export default function DevelopersPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-xl font-bold text-white">
-                      {developer.profiles.full_name}
+                      {developer.profiles?.full_name || 'Nom manquant'}
                     </h3>
+                    <span className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded">
+                      {developer.availability || 'undefined'}
+                    </span>
                     <div className="flex items-center gap-2">
                       {developer.github_url && (
                         <a href={developer.github_url} target="_blank" rel="noopener noreferrer" 
@@ -277,15 +323,15 @@ export default function DevelopersPage() {
                       )}
                     </div>
                   </div>
-                  <p className="text-cyan-400 font-medium mb-2">{developer.title}</p>
-                  <p className="text-slate-300 mb-4">{developer.bio}</p>
+                  <p className="text-cyan-400 font-medium mb-2">{developer.title || 'Titre manquant'}</p>
+                  <p className="text-slate-300 mb-4">{developer.bio || 'Bio manquante'}</p>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-white mb-1">
-                    {developer.hourly_rate}€/h
+                    {developer.hourly_rate || 0}€/h
                   </div>
                   <div className="text-slate-400 text-sm">
-                    {developer.experience_years} ans d'exp.
+                    {developer.experience_years || 0} ans d'exp.
                   </div>
                 </div>
               </div>
@@ -340,10 +386,10 @@ export default function DevelopersPage() {
                   </Link>
                 ) : userProfile?.user_type === 'client' ? (
                   <Button 
-                    onClick={() => handleContactDeveloper(developer.id)}
+                    onClick={() => handleContactDeveloper(developer)}
                     className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600"
                   >
-                    Contacter ce développeur
+                    💬 Envoyer un message
                   </Button>
                 ) : (
                   <Button 
@@ -370,6 +416,18 @@ export default function DevelopersPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de contact */}
+      {selectedDeveloper && (
+        <ContactDeveloperModal
+          developer={selectedDeveloper}
+          isOpen={showContactModal}
+          onClose={() => {
+            setShowContactModal(false)
+            setSelectedDeveloper(null)
+          }}
+        />
+      )}
     </div>
   )
 }
