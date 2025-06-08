@@ -97,10 +97,21 @@ export default function Navbar() {
     setProfileMenuOpen(false)
   }
 
+  // Déterminer l'URL des projets selon le type d'utilisateur
+  const getProjectsUrl = () => {
+    if (!user || !userProfile) return '/projects' // URL générale pour visiteurs
+    
+    if (userProfile.user_type === 'client') {
+      return '/dashboard/client/projects' // Projets du client
+    } else {
+      return '/dashboard/developer/projects' // Projets disponibles pour développeur
+    }
+  }
+
   const pagesMenuItems = [
     { label: 'Accueil', href: '/', icon: '🏠' },
     { label: 'Développeurs', href: '/developers', icon: '💻' },
-    { label: 'Projets', href: '/projects', icon: '🚀' },
+    { label: 'Projets', href: getProjectsUrl(), icon: '🚀' },
     ...(user && userProfile ? [
       { label: 'Messages', href: '/messages', icon: '💬', badge: unreadCount },
       userProfile.user_type === 'client' 
@@ -118,6 +129,7 @@ export default function Navbar() {
       { label: 'Mon Profil', href: '/dashboard/client/profile', icon: '⚙️' }
     ] : [
       { label: 'Mon Dashboard', href: '/dashboard/developer', icon: '📊' },
+      { label: 'Projets Disponibles', href: '/dashboard/developer/projects', icon: '🔍' },
       { label: 'Mes Candidatures', href: '/dashboard/developer/applications', icon: '📝' },
       { label: 'Mon Profil', href: '/dashboard/developer/profile', icon: '⚙️' }
     ]),
