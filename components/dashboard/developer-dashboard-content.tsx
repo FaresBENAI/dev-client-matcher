@@ -5,25 +5,31 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '../ui/button'
 import Link from 'next/link'
 
-interface Project {
-  id: string
-  title: string
-  description: string
-  project_type: string
-  budget_min: number
-  budget_max: number
-  status: string
-  created_at: string
-}
-
 export default function DeveloperDashboardContent() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [testResult, setTestResult] = useState<string>('')
 
   useEffect(() => {
     const getProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
+      
+      // TEST: Essayer de récupérer les projets ici
+      try {
+        const { data: projects, error } = await supabase
+          .from('projects')
+          .select('*')
+        
+        if (error) {
+          setTestResult(`Erreur: ${error.message}`)
+        } else {
+          setTestResult(`✅ ${projects?.length || 0} projets trouvés`)
+        }
+      } catch (err) {
+        setTestResult(`❌ Erreur catch: ${err}`)
+      }
+      
       setLoading(false)
     }
 
@@ -52,6 +58,13 @@ export default function DeveloperDashboardContent() {
             </p>
             <div className="mt-2 text-sm text-purple-400">
               🔧 Espace Développeur - Automatisation & IA
+            </div>
+            
+            {/* TEST RESULT */}
+            <div className="mt-4 p-3 bg-yellow-500/10 rounded-lg">
+              <p className="text-yellow-400 text-sm font-mono">
+                Test projets: {testResult}
+              </p>
             </div>
           </div>
         </div>
@@ -83,7 +96,7 @@ export default function DeveloperDashboardContent() {
             <div className="flex flex-wrap gap-4">
               <Link href="/dashboard/developer/projects">
                 <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
-                  🔍 Parcourir les projets
+                  �� Parcourir les projets
                 </Button>
               </Link>
               <Link href="/dashboard/developer/applications">
@@ -105,10 +118,10 @@ export default function DeveloperDashboardContent() {
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🚀</div>
             <h3 className="text-xl font-semibold text-white mb-2">
-              Dashboard développeur en cours de construction
+              Dashboard développeur
             </h3>
             <p className="text-slate-400 mb-6">
-              Bientôt vous pourrez voir tous vos projets et candidatures ici.
+              Utilisez les boutons ci-dessus pour naviguer.
             </p>
           </div>
         </div>
