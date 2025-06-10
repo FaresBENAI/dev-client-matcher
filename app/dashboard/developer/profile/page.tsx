@@ -10,14 +10,19 @@ export default function DeveloperProfile() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
+    // Données pour table profiles
     full_name: '',
     bio: '',
+    // Données pour table developer_profiles
+    title: '',
     skills: '',
+    specializations: '',
     experience_years: '',
     hourly_rate: '',
     github_url: '',
     linkedin_url: '',
-    portfolio_url: ''
+    portfolio_url: '',
+    availability: ''
   })
 
   useEffect(() => {
@@ -29,24 +34,36 @@ export default function DeveloperProfile() {
       }
       setUser(user)
 
-      // Récupérer le profil
-      const { data: profile } = await supabase
+      // Récupérer le profil de base
+      const { data: baseProfile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
 
-      if (profile) {
-        setProfile(profile)
+      // Récupérer le profil développeur
+      const { data: devProfile } = await supabase
+        .from('developer_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (baseProfile) {
+        setProfile(baseProfile)
         setFormData({
-          full_name: profile.full_name || '',
-          bio: profile.bio || '',
-          skills: profile.skills || '',
-          experience_years: profile.experience_years || '',
-          hourly_rate: profile.hourly_rate || '',
-          github_url: profile.github_url || '',
-          linkedin_url: profile.linkedin_url || '',
-          portfolio_url: profile.portfolio_url || ''
+          // Données de profiles
+          full_name: baseProfile.full_name || '',
+          bio: baseProfile.bio || '',
+          // Données de developer_profiles
+          title: devProfile?.title || '',
+          skills: Array.isArray(devProfile?.skills) ? devProfile.skills.join(', ') : (devProfile?.skills || ''),
+          specializations: Array.isArray(devProfile?.specializations) ? devProfile.specializations.join(', ') : (devProfile?.specializations || ''),
+          experience_years: devProfile?.experience_years || '',
+          hourly_rate: devProfile?.hourly_rate || '',
+          github_url: devProfile?.github_url || '',
+          linkedin_url: devProfile?.linkedin_url || '',
+          portfolio_url: devProfile?.portfolio_url || '',
+          availability: devProfile?.availability || 'available'
         })
       }
       setLoading(false)
@@ -60,19 +77,66 @@ export default function DeveloperProfile() {
     setSaving(true)
 
     try {
-      const { error } = await supabase
+      // 1. Mettre à jour la table profiles
+      const profileData = {
+        full_name: formData.full_name,
+        bio: formData.bio
+      }
+
+      const { error: profileError } = await supabase
         .from('profiles')
-        .update(formData)
+        .update(profileData)
         .eq('id', user.id)
 
-      if (error) {
-        alert('Erreur lors de la sauvegarde: ' + error.message)
+      if (profileError) {
+        alert('Erreur lors de la sauvegarde du profil: ' + profileError.message)
         return
       }
 
-      alert('Profil mis à jour avec succès !')
-      setProfile({ ...profile, ...formData })
+      // 2. Préparer les données pour developer_profiles
+      const developerData = {
+        title: formData.title,
+        skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : [],
+        specializations: formData.specializations ? formData.specializations.split(',').map(s => s.trim()) : [],
+        experience_years: formData.experience_years ? parseInt(formData.experience_years) : null,
+        hourly_rate: formData.hourly_rate ? parseInt(formData.hourly_rate) : null,
+        github_url: formData.github_url,
+        linkedin_url: formData.linkedin_url,
+        portfolio_url: formData.portfolio_url,
+        availability: formData.availability
+      }
+
+      // 3. Vérifier si le profil développeur existe
+      const { data: existingDevProfile } = await supabase
+        .from('developer_profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single()
+
+      let devError;
+      if (existingDevProfile) {
+        // Mettre à jour
+        const { error } = await supabase
+          .from('developer_profiles')
+          .update(developerData)
+          .eq('id', user.id)
+        devError = error
+      } else {
+        // Créer
+        const { error } = await supabase
+          .from('developer_profiles')
+          .insert({ id: user.id, ...developerData })
+        devError = error
+      }
+
+      if (devError) {
+        alert('Erreur lors de la sauvegarde du profil développeur: ' + devError.message)
+        return
+      }
+
+      alert('✅ Profil mis à jour avec succès !')
     } catch (err) {
+      console.error('Erreur:', err)
       alert('Erreur lors de la sauvegarde')
     } finally {
       setSaving(false)
@@ -142,21 +206,16 @@ export default function DeveloperProfile() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Années d'expérience
+                  Titre professionnel
                 </label>
-                <select
-                  name="experience_years"
-                  value={formData.experience_years}
+                <input
+                  type="text"
+                  name="title"
+                  value={formData.title}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
-                >
-                  <option value="">Sélectionner</option>
-                  <option value="0-1">0-1 an</option>
-                  <option value="1-3">1-3 ans</option>
-                  <option value="3-5">3-5 ans</option>
-                  <option value="5-10">5-10 ans</option>
-                  <option value="10+">10+ ans</option>
-                </select>
+                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
+                  placeholder="Développeur Full-Stack"
+                />
               </div>
             </div>
 
@@ -175,22 +234,24 @@ export default function DeveloperProfile() {
             </div>
           </div>
 
-          {/* Compétences et tarifs */}
+          {/* Compétences et expérience */}
           <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50">
-            <h2 className="text-xl font-semibold text-white mb-4">Compétences et tarifs</h2>
+            <h2 className="text-xl font-semibold text-white mb-4">Compétences et expérience</h2>
             
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Compétences principales
+                  Années d'expérience
                 </label>
                 <input
-                  type="text"
-                  name="skills"
-                  value={formData.skills}
+                  type="number"
+                  name="experience_years"
+                  value={formData.experience_years}
                   onChange={handleChange}
+                  min="0"
+                  max="50"
                   className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
-                  placeholder="Python, React, Node.js, Machine Learning..."
+                  placeholder="5"
                 />
               </div>
 
@@ -203,10 +264,55 @@ export default function DeveloperProfile() {
                   name="hourly_rate"
                   value={formData.hourly_rate}
                   onChange={handleChange}
+                  min="0"
                   className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
                   placeholder="50"
                 />
               </div>
+            </div>
+
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Compétences principales (séparées par des virgules)
+              </label>
+              <input
+                type="text"
+                name="skills"
+                value={formData.skills}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
+                placeholder="Python, React, Node.js, Machine Learning, PostgreSQL"
+              />
+            </div>
+
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Spécialisations (séparées par des virgules)
+              </label>
+              <input
+                type="text"
+                name="specializations"
+                value={formData.specializations}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
+                placeholder="Intelligence Artificielle, Automatisation, Data Science"
+              />
+            </div>
+
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Disponibilité
+              </label>
+              <select
+                name="availability"
+                value={formData.availability}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+              >
+                <option value="available">Disponible</option>
+                <option value="busy">Occupé</option>
+                <option value="unavailable">Non disponible</option>
+              </select>
             </div>
           </div>
 
@@ -266,7 +372,7 @@ export default function DeveloperProfile() {
               disabled={saving}
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-3 rounded-lg font-medium transition-all disabled:opacity-50"
             >
-              {saving ? 'Sauvegarde...' : 'Sauvegarder le profil'}
+              {saving ? 'Sauvegarde...' : '✅ Sauvegarder le profil'}
             </button>
           </div>
         </form>
