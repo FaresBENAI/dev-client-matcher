@@ -43,7 +43,8 @@ export default function DeveloperProjects() {
 
   const handleApply = async (projectId: string) => {
     try {
-      const { error } = await supabase
+      // 1. Créer la candidature
+      const { error: applicationError } = await supabase
         .from('project_applications')
         .insert({
           project_id: projectId,
@@ -51,16 +52,143 @@ export default function DeveloperProjects() {
           status: 'pending'
         })
 
-      if (error) {
-        alert('Erreur lors de la candidature: ' + error.message)
+      if (applicationError) {
+        alert('Erreur lors de la candidature: ' + applicationError.message)
         return
       }
 
-      alert('Candidature envoyée avec succès !')
+      // 2. Récupérer les informations du projet (SANS jointure)
+      const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single()
+
+      if (projectError || !projectData) {
+        alert('Candidature envoyée mais erreur lors de la récupération du projet: ' + (projectError?.message || 'Projet non trouvé'))
+        return
+      }
+
+      // 3. Récupérer le profil du client (SÉPARÉMENT)
+      const { data: clientProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', projectData.client_id)
+        .single()
+
+      // 4. Récupérer les informations complètes du développeur
+      const { data: developerProfile } = await supabase
+        .from('developer_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
+
+      // 5. Créer ou récupérer la conversation existante
+      let conversationId
+      const { data: existingConversation } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('client_id', projectData.client_id)
+        .eq('developer_id', user.id)
+        .eq('project_id', projectId)
+        .single()
+
+      if (existingConversation) {
+        conversationId = existingConversation.id
+      } else {
+        // Créer une nouvelle conversation
+        const { data: newConversation, error: conversationError } = await supabase
+          .from('conversations')
+          .insert({
+            client_id: projectData.client_id,
+            developer_id: user.id,
+            project_id: projectId,
+            subject: `Candidature pour "${projectData.title}"`,
+            status: 'active',
+            last_message_at: new Date().toISOString()
+          })
+          .select()
+          .single()
+
+        if (conversationError) {
+          alert('Candidature envoyée mais erreur lors de la création de la conversation: ' + conversationError.message)
+          return
+        }
+
+        conversationId = newConversation.id
+      }
+
+      // 6. Créer le message automatique avec les infos du développeur
+      const developerName = userProfile?.full_name || 'Développeur anonyme'
+      const clientName = clientProfile?.full_name || 'Client'
+      
+      let messageContent = `🎯 Bonjour ${clientName},
+
+Je viens de candidater à votre projet "${projectData.title}".
+
+👨‍💻 **Développeur :** ${developerName}`
+
+      if (developerProfile?.title) {
+        messageContent += `\n🎖️ **Titre :** ${developerProfile.title}`
+      }
+      
+      if (developerProfile?.experience_years) {
+        messageContent += `\n📅 **Expérience :** ${developerProfile.experience_years} ans`
+      }
+      
+      if (developerProfile?.hourly_rate) {
+        messageContent += `\n💰 **Tarif :** ${developerProfile.hourly_rate}€/h`
+      }
+
+      if (developerProfile?.bio) {
+        messageContent += `\n\n📝 **À propos :**\n${developerProfile.bio}`
+      }
+
+      if (developerProfile?.skills && developerProfile.skills.length > 0) {
+        messageContent += `\n\n🛠️ **Compétences :** ${developerProfile.skills.join(', ')}`
+      }
+
+      if (developerProfile?.specializations && developerProfile.specializations.length > 0) {
+        messageContent += `\n\n⭐ **Spécialisations :** ${developerProfile.specializations.join(', ')}`
+      }
+
+      if (developerProfile?.portfolio_url) {
+        messageContent += `\n\n🌐 **Portfolio :** ${developerProfile.portfolio_url}`
+      }
+      
+      if (developerProfile?.github_url) {
+        messageContent += `\n💻 **GitHub :** ${developerProfile.github_url}`
+      }
+
+      messageContent += `\n\n---\n💬 N'hésitez pas à me poser des questions sur ce projet !`
+
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: user.id,
+          content: messageContent
+        })
+
+      if (messageError) {
+        console.error('Erreur envoi message:', messageError)
+        alert('Candidature envoyée mais erreur lors de l\'envoi du message: ' + messageError.message)
+        return
+      }
+
+      alert('✅ Candidature envoyée avec succès ! Un message privé a été envoyé au client avec vos informations.')
+      
       // Recharger pour mettre à jour l'état
       window.location.reload()
     } catch (err) {
-      alert('Erreur lors de la candidature')
+      console.error('Erreur complète:', err)
+      alert('Erreur lors de la candidature: ' + err)
     }
   }
 
@@ -89,6 +217,9 @@ export default function DeveloperProjects() {
                 </h1>
                 <p className="text-slate-300">
                   Découvrez {projects.length} projet(s) d'automatisation et d'IA
+                </p>
+                <p className="text-slate-400 text-sm mt-2">
+                  💡 Quand vous candidatez, vos informations sont automatiquement envoyées au client par message privé
                 </p>
               </div>
               <Link href="/dashboard/developer">
@@ -176,7 +307,7 @@ export default function DeveloperProjects() {
                           onClick={() => handleApply(project.id)}
                           className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-2 rounded-lg font-medium transition-all"
                         >
-                          Postuler
+                          🚀 Postuler avec message auto
                         </button>
                       )}
                     </div>

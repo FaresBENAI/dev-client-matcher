@@ -24,9 +24,7 @@ interface Project {
   complexity: string
   status: string
   created_at: string
-  profiles: {
-    full_name: string
-  }
+  client_name: string
 }
 
 export default function ProjectsPage() {
@@ -49,9 +47,9 @@ export default function ProjectsPage() {
   ]
 
   const complexityLevels = [
-    { value: 'simple', label: 'Simple', color: 'green' },
-    { value: 'medium', label: 'Moyen', color: 'yellow' },
-    { value: 'complex', label: 'Complexe', color: 'red' }
+    { value: 'simple', label: 'Simple' },
+    { value: 'medium', label: 'Moyen' },
+    { value: 'complex', label: 'Complexe' }
   ]
 
   useEffect(() => {
@@ -73,29 +71,31 @@ export default function ProjectsPage() {
   }
 
   const fetchProjects = async () => {
-    const { data, error } = await supabase
-      .from('projects')
-      .select(`
-        id,
-        title,
-        description,
-        project_type,
-        budget_min,
-        budget_max,
-        timeline,
-        required_skills,
-        complexity,
-        status,
-        created_at,
-        profiles (
-          full_name
-        )
-      `)
-      .eq('status', 'open')
-      .order('created_at', { ascending: false })
+    try {
+      // Récupérer les projets ET les profils séparément (solution qui marche)
+      const { data: projectsData } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('status', 'open')
+        .order('created_at', { ascending: false })
 
-    if (data) {
-      setProjects(data as any)
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+
+      // Joindre manuellement
+      if (projectsData && profilesData) {
+        const projectsWithProfiles = projectsData.map(project => {
+          const profile = profilesData.find(p => p.id === project.client_id)
+          return {
+            ...project,
+            client_name: profile?.full_name || 'Client inconnu'
+          }
+        })
+        setProjects(projectsWithProfiles as Project[])
+      }
+    } catch (error) {
+      console.error('Erreur:', error)
     }
     setLoading(false)
   }
@@ -111,22 +111,18 @@ export default function ProjectsPage() {
       return
     }
     
-    // Rediriger vers une page de candidature
-    router.push(`/apply-project/${projectId}`)
+    router.push(`/dashboard/developer/applications`)
   }
 
   const filteredProjects = projects.filter(project => {
     const matchesSearch = !searchTerm || 
       project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.required_skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
+      project.required_skills?.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
 
     const matchesType = !selectedType || project.project_type === selectedType
-
     const matchesComplexity = !selectedComplexity || project.complexity === selectedComplexity
-
-    const matchesBudget = !minBudget || 
-      (project.budget_min && project.budget_min >= parseInt(minBudget))
+    const matchesBudget = !minBudget || (project.budget_min && project.budget_min >= parseInt(minBudget))
 
     return matchesSearch && matchesType && matchesComplexity && matchesBudget
   })
@@ -193,63 +189,51 @@ export default function ProjectsPage() {
           <h2 className="text-lg font-semibold text-white mb-4">🔍 Filtres de recherche</h2>
           <div className="grid md:grid-cols-5 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Recherche
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Recherche</label>
               <Input
                 type="text"
-                placeholder="Titre, description..."
+                placeholder="Titre, description, compétences..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
               />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Type de projet
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Type de projet</label>
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
                 className="w-full bg-slate-700/50 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
-                <option value="">Tous</option>
+                <option value="">Tous les types</option>
                 {projectTypes.map(type => (
                   <option key={type.value} value={type.value}>{type.label}</option>
                 ))}
               </select>
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Complexité
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Complexité</label>
               <select
                 value={selectedComplexity}
                 onChange={(e) => setSelectedComplexity(e.target.value)}
                 className="w-full bg-slate-700/50 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
-                <option value="">Toutes</option>
+                <option value="">Toutes complexités</option>
                 {complexityLevels.map(level => (
                   <option key={level.value} value={level.value}>{level.label}</option>
                 ))}
               </select>
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Budget min (€)
-              </label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Budget min (€)</label>
               <Input
                 type="number"
-                placeholder="1000"
+                placeholder="Ex: 1000"
                 value={minBudget}
                 onChange={(e) => setMinBudget(e.target.value)}
                 className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
               />
             </div>
-
             <div className="flex items-end">
               <Button
                 onClick={() => {
@@ -267,27 +251,23 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        {/* Statistiques rapides */}
+        {/* Statistiques */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           <div className="bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-xl p-4 border border-purple-500/30">
             <div className="text-2xl font-bold text-white">{projects.length}</div>
             <div className="text-purple-400 text-sm">Projets disponibles</div>
           </div>
           <div className="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-xl p-4 border border-cyan-500/30">
-            <div className="text-2xl font-bold text-white">
-              {projects.filter(p => p.project_type === 'ai').length}
-            </div>
+            <div className="text-2xl font-bold text-white">{projects.filter(p => p.project_type === 'ai').length}</div>
             <div className="text-cyan-400 text-sm">Projets IA</div>
           </div>
           <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl p-4 border border-green-500/30">
-            <div className="text-2xl font-bold text-white">
-              {projects.filter(p => p.project_type === 'automation').length}
-            </div>
+            <div className="text-2xl font-bold text-white">{projects.filter(p => p.project_type === 'automation').length}</div>
             <div className="text-emerald-400 text-sm">Automatisation</div>
           </div>
           <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 rounded-xl p-4 border border-orange-500/30">
             <div className="text-2xl font-bold text-white">
-              {Math.round(projects.reduce((acc, p) => acc + (p.budget_max || 0), 0) / projects.length) || 0}€
+              {projects.length > 0 ? Math.round(projects.reduce((acc, p) => acc + (p.budget_max || 0), 0) / projects.length) : 0}€
             </div>
             <div className="text-orange-400 text-sm">Budget moyen</div>
           </div>
@@ -295,9 +275,7 @@ export default function ProjectsPage() {
 
         {/* Résultats */}
         <div className="mb-6">
-          <p className="text-slate-400">
-            {filteredProjects.length} projet(s) trouvé(s)
-          </p>
+          <p className="text-slate-400">{filteredProjects.length} projet(s) trouvé(s) sur {projects.length} total</p>
         </div>
 
         {/* Liste des projets */}
@@ -307,9 +285,7 @@ export default function ProjectsPage() {
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-bold text-white">
-                      {project.title}
-                    </h3>
+                    <h3 className="text-xl font-bold text-white">{project.title}</h3>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       project.complexity === 'simple' ? 'bg-green-500/20 text-green-400' :
                       project.complexity === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
@@ -323,20 +299,18 @@ export default function ProjectsPage() {
                     </span>
                   </div>
                   <p className="text-slate-300 text-sm mb-1">
-                    Par <span className="text-cyan-400">{project.profiles.full_name}</span>
+                    Par <span className="text-cyan-400">{project.client_name}</span>
                   </p>
                   <p className="text-slate-300 mb-4">{project.description}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right ml-4">
                   <div className="text-2xl font-bold text-white mb-1">
                     {project.budget_min && project.budget_max ? 
                       `${project.budget_min}€ - ${project.budget_max}€` : 
                       'Budget à définir'}
                   </div>
                   {project.timeline && (
-                    <div className="text-slate-400 text-sm">
-                      Délai: {project.timeline}
-                    </div>
+                    <div className="text-slate-400 text-sm">Délai: {project.timeline}</div>
                   )}
                 </div>
               </div>
@@ -360,20 +334,15 @@ export default function ProjectsPage() {
                 <div className="text-slate-400 text-sm">
                   Publié le {new Date(project.created_at).toLocaleDateString('fr-FR')}
                 </div>
-                <div className="text-green-400 text-sm font-medium">
-                  📈 Projet ouvert
-                </div>
+                <div className="text-green-400 text-sm font-medium">📈 Projet ouvert</div>
               </div>
 
-              {/* Actions conditionnelles */}
+              {/* Actions */}
               <div className="flex gap-3">
-                <Link href={`/projects/${project.id}`}>
-                  <Button variant="outline" className="border-slate-600 text-slate-300 hover:border-purple-400">
-                    Voir les détails
-                  </Button>
-                </Link>
+                <Button variant="outline" className="border-slate-600 text-slate-300 hover:border-purple-400">
+                  Voir les détails
+                </Button>
                 
-                {/* Bouton Candidater conditionnel */}
                 {!user ? (
                   <Link href="/auth/signup">
                     <Button className="bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600">
@@ -387,35 +356,54 @@ export default function ProjectsPage() {
                   >
                     Candidater à ce projet
                   </Button>
-                ) : (
+                ) : userProfile?.user_type === 'client' ? (
                   <Button 
                     disabled
                     className="bg-slate-600 text-slate-400 cursor-not-allowed"
+                    title="Seuls les développeurs peuvent candidater"
                   >
                     Réservé aux développeurs
                   </Button>
-                )}
+                ) : null}
               </div>
             </div>
           ))}
         </div>
 
-        {filteredProjects.length === 0 && (
+        {/* État vide */}
+        {filteredProjects.length === 0 && !loading && (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-semibold text-white mb-2">
-              Aucun projet trouvé
+              {projects.length === 0 ? 'Aucun projet disponible' : 'Aucun projet trouvé'}
             </h3>
             <p className="text-slate-400 mb-6">
-              Essayez d'ajuster vos critères de recherche
+              {projects.length === 0 
+                ? 'Soyez les premiers à publier un projet !' 
+                : 'Essayez d\'ajuster vos critères de recherche'}
             </p>
-            {!user && (
-              <Link href="/auth/signup">
-                <Button className="bg-gradient-to-r from-purple-500 to-cyan-500">
-                  Créer un compte pour voir plus de projets
-                </Button>
-              </Link>
-            )}
+            <div className="flex gap-3 justify-center">
+              {!user ? (
+                <>
+                  <Link href="/auth/signup">
+                    <Button className="bg-gradient-to-r from-purple-500 to-cyan-500">
+                      Créer un compte développeur
+                    </Button>
+                  </Link>
+                  <Link href="/auth/login">
+                    <Button variant="outline" className="border-slate-600 text-slate-300">
+                      Se connecter
+                    </Button>
+                  </Link>
+                </>
+              ) : userProfile?.user_type === 'client' ? (
+                <Link href="/dashboard/client/create-project">
+                  <Button className="bg-gradient-to-r from-cyan-500 to-blue-500">
+                    Créer le premier projet
+                  </Button>
+                </Link>
+              ) : null}
+            </div>
           </div>
         )}
       </div>

@@ -41,7 +41,6 @@ export default function DevelopersPage() {
   const [maxBudget, setMaxBudget] = useState('')
   const [selectedDeveloper, setSelectedDeveloper] = useState<Developer | null>(null)
   const [showContactModal, setShowContactModal] = useState(false)
-  const [debugInfo, setDebugInfo] = useState('')
   const router = useRouter()
 
   const specializationOptions = [
@@ -69,42 +68,25 @@ export default function DevelopersPage() {
   }
 
   const fetchDevelopers = async () => {
-    setDebugInfo('�� Début de la requête...')
-    
     try {
-      // Étape 1: Récupérer tous les developer_profiles
+      // Récupérer tous les developer_profiles
       const { data: devProfiles, error: devError } = await supabase
         .from('developer_profiles')
         .select('*')
 
-      setDebugInfo(prev => prev + `\n📊 Developer profiles: ${devProfiles?.length || 0} trouvés`)
-      
-      if (devError) {
-        setDebugInfo(prev => prev + `\n❌ Erreur dev profiles: ${devError.message}`)
+      if (devError || !devProfiles || devProfiles.length === 0) {
         setLoading(false)
         return
       }
 
-      if (!devProfiles || devProfiles.length === 0) {
-        setDebugInfo(prev => prev + `\n❌ Aucun developer_profile trouvé`)
-        setLoading(false)
-        return
-      }
-
-      // Étape 2: Récupérer les profils correspondants
+      // Récupérer les profils correspondants
       const devIds = devProfiles.map(dev => dev.id)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, email')
         .in('id', devIds)
 
-      setDebugInfo(prev => prev + `\n👤 Profiles: ${profiles?.length || 0} trouvés`)
-      
-      if (profilesError) {
-        setDebugInfo(prev => prev + `\n❌ Erreur profiles: ${profilesError.message}`)
-      }
-
-      // Étape 3: Combiner les données manuellement
+      // Combiner les données manuellement
       const combinedData = devProfiles.map(dev => {
         const profile = profiles?.find(p => p.id === dev.id)
         return {
@@ -113,15 +95,12 @@ export default function DevelopersPage() {
         }
       })
 
-      setDebugInfo(prev => prev + `\n🔗 Données combinées: ${combinedData.length}`)
-      setDebugInfo(prev => prev + `\n✅ Premier dev: ${combinedData[0]?.profiles?.full_name || 'Aucun'}`)
-
       if (combinedData) {
         setDevelopers(combinedData as any)
       }
 
     } catch (error) {
-      setDebugInfo(prev => prev + `\n💥 Erreur générale: ${error}`)
+      console.error('Erreur:', error)
     }
     
     setLoading(false)
@@ -214,12 +193,6 @@ export default function DevelopersPage() {
           )}
         </div>
 
-        {/* DEBUG - À supprimer après */}
-        <div className="mb-8 p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
-          <h3 className="text-yellow-400 font-bold mb-2">🔍 DEBUG INFO:</h3>
-          <pre className="text-yellow-300 text-sm whitespace-pre-wrap">{debugInfo}</pre>
-        </div>
-
         {/* Filtres */}
         <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50 mb-8">
           <h2 className="text-lg font-semibold text-white mb-4">🔍 Filtres de recherche</h2>
@@ -282,10 +255,36 @@ export default function DevelopersPage() {
           </div>
         </div>
 
+        {/* Statistiques */}
+        <div className="grid md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-xl p-4 border border-cyan-500/30">
+            <div className="text-2xl font-bold text-white">{developers.length}</div>
+            <div className="text-cyan-400 text-sm">Développeurs disponibles</div>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-xl p-4 border border-purple-500/30">
+            <div className="text-2xl font-bold text-white">
+              {developers.filter(d => d.specializations?.some(s => s.includes('Machine Learning') || s.includes('Deep Learning'))).length}
+            </div>
+            <div className="text-purple-400 text-sm">Experts IA</div>
+          </div>
+          <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl p-4 border border-green-500/30">
+            <div className="text-2xl font-bold text-white">
+              {developers.filter(d => d.specializations?.some(s => s.includes('Automatisation') || s.includes('RPA'))).length}
+            </div>
+            <div className="text-emerald-400 text-sm">Experts Automatisation</div>
+          </div>
+          <div className="bg-gradient-to-br from-orange-500/20 to-red-500/20 rounded-xl p-4 border border-orange-500/30">
+            <div className="text-2xl font-bold text-white">
+              {developers.length > 0 ? Math.round(developers.reduce((acc, d) => acc + (d.hourly_rate || 0), 0) / developers.length) : 0}€
+            </div>
+            <div className="text-orange-400 text-sm">Tarif moyen/h</div>
+          </div>
+        </div>
+
         {/* Résultats */}
         <div className="mb-6">
           <p className="text-slate-400">
-            {filteredDevelopers.length} développeur(s) trouvé(s)
+            {filteredDevelopers.length} développeur(s) trouvé(s) sur {developers.length} total
           </p>
         </div>
 
@@ -299,8 +298,12 @@ export default function DevelopersPage() {
                     <h3 className="text-xl font-bold text-white">
                       {developer.profiles?.full_name || 'Nom manquant'}
                     </h3>
-                    <span className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded">
-                      {developer.availability || 'undefined'}
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      developer.availability === 'available' ? 
+                      'bg-green-500/20 text-green-400' : 
+                      'bg-slate-700 text-slate-300'
+                    }`}>
+                      {developer.availability === 'available' ? '🟢 Disponible' : '⚫ Occupé'}
                     </span>
                     <div className="flex items-center gap-2">
                       {developer.github_url && (
@@ -371,11 +374,9 @@ export default function DevelopersPage() {
 
               {/* Actions conditionnelles */}
               <div className="flex gap-3">
-                <Link href={`/developers/${developer.id}`}>
-                  <Button variant="outline" className="border-slate-600 text-slate-300 hover:border-cyan-400">
-                    Voir le profil complet
-                  </Button>
-                </Link>
+                <Button variant="outline" className="border-slate-600 text-slate-300 hover:border-cyan-400">
+                  Voir le profil complet
+                </Button>
                 
                 {/* Bouton Contact conditionnel */}
                 {!user ? (
@@ -408,11 +409,35 @@ export default function DevelopersPage() {
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-semibold text-white mb-2">
-              Aucun développeur trouvé
+              {developers.length === 0 ? 'Aucun développeur disponible' : 'Aucun développeur trouvé'}
             </h3>
-            <p className="text-slate-400">
-              Essayez d'ajuster vos critères de recherche
+            <p className="text-slate-400 mb-6">
+              {developers.length === 0 
+                ? 'Soyez les premiers à vous inscrire comme développeur !' 
+                : 'Essayez d\'ajuster vos critères de recherche'}
             </p>
+            <div className="flex gap-3 justify-center">
+              {!user ? (
+                <>
+                  <Link href="/auth/signup">
+                    <Button className="bg-gradient-to-r from-cyan-500 to-purple-500">
+                      Créer un compte client
+                    </Button>
+                  </Link>
+                  <Link href="/auth/login">
+                    <Button variant="outline" className="border-slate-600 text-slate-300">
+                      Se connecter
+                    </Button>
+                  </Link>
+                </>
+              ) : userProfile?.user_type === 'developer' ? (
+                <Link href="/dashboard/developer/profile">
+                  <Button className="bg-gradient-to-r from-purple-500 to-indigo-500">
+                    Compléter votre profil
+                  </Button>
+                </Link>
+              ) : null}
+            </div>
           </div>
         )}
       </div>

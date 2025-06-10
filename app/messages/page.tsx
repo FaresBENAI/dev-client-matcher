@@ -16,8 +16,10 @@ interface Conversation {
   status: string
   last_message_at: string
   created_at: string
-  client_profiles: { full_name: string }
-  developer_profiles: { full_name: string }
+  client_id: string
+  developer_id: string
+  client_name?: string
+  developer_name?: string
   unread_count: number
 }
 
@@ -27,7 +29,7 @@ interface Message {
   content: string
   is_read: boolean
   created_at: string
-  sender_profile: { full_name: string }
+  sender_name?: string
 }
 
 export default function MessagesPage() {
@@ -80,26 +82,34 @@ export default function MessagesPage() {
   }
 
   const fetchConversations = async () => {
-    const { data, error } = await supabase
-      .from('conversations')
-      .select(`
-        id,
-        subject,
-        status,
-        last_message_at,
-        created_at,
-        client_id,
-        developer_id,
-        client_profiles:profiles!conversations_client_id_fkey(full_name),
-        developer_profiles:profiles!conversations_developer_id_fkey(full_name)
-      `)
-      .or(`client_id.eq.${user.id},developer_id.eq.${user.id}`)
-      .order('last_message_at', { ascending: false })
+    try {
+      // Récupérer les conversations de l'utilisateur
+      const { data: conversationsData, error: convError } = await supabase
+        .from('conversations')
+        .select('*')
+        .or(`client_id.eq.${user.id},developer_id.eq.${user.id}`)
+        .order('last_message_at', { ascending: false })
 
-    if (data) {
-      // Compter les messages non lus pour chaque conversation
-      const conversationsWithUnread = await Promise.all(
-        data.map(async (conv) => {
+      if (convError || !conversationsData) {
+        return
+      }
+
+      // Récupérer tous les profils nécessaires
+      const userIds = [
+        ...new Set([
+          ...conversationsData.map(c => c.client_id),
+          ...conversationsData.map(c => c.developer_id)
+        ])
+      ]
+
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds)
+
+      // Compter les messages non lus et joindre manuellement
+      const conversationsWithData = await Promise.all(
+        conversationsData.map(async (conv) => {
           const { count } = await supabase
             .from('messages')
             .select('*', { count: 'exact', head: true })
@@ -107,32 +117,55 @@ export default function MessagesPage() {
             .eq('is_read', false)
             .neq('sender_id', user.id)
 
+          // Trouver les noms des participants
+          const clientProfile = profilesData?.find(p => p.id === conv.client_id)
+          const developerProfile = profilesData?.find(p => p.id === conv.developer_id)
+
           return {
             ...conv,
+            client_name: clientProfile?.full_name || 'Client inconnu',
+            developer_name: developerProfile?.full_name || 'Développeur inconnu',
             unread_count: count || 0
           }
         })
       )
-      setConversations(conversationsWithUnread as any)
+
+      setConversations(conversationsWithData)
+    } catch (error) {
+      console.error('Erreur fetchConversations:', error)
     }
   }
 
   const fetchMessages = async (conversationId: string) => {
-    const { data, error } = await supabase
-      .from('messages')
-      .select(`
-        id,
-        sender_id,
-        content,
-        is_read,
-        created_at,
-        sender_profile:profiles!messages_sender_id_fkey(full_name)
-      `)
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
+    try {
+      // Récupérer les messages
+      const { data: messagesData, error: msgError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true })
 
-    if (data) {
-      setMessages(data as any)
+      if (msgError || !messagesData) {
+        console.error('Erreur messages:', msgError)
+        return
+      }
+
+      // Récupérer les profils des expéditeurs
+      const senderIds = [...new Set(messagesData.map(m => m.sender_id))]
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', senderIds)
+
+      // Joindre manuellement
+      const messagesWithNames = messagesData.map(msg => ({
+        ...msg,
+        sender_name: profilesData?.find(p => p.id === msg.sender_id)?.full_name || 'Utilisateur inconnu'
+      }))
+
+      setMessages(messagesWithNames)
+    } catch (error) {
+      console.error('Erreur fetchMessages:', error)
     }
   }
 
@@ -159,9 +192,15 @@ export default function MessagesPage() {
         })
 
       if (!error) {
+        // Mettre à jour last_message_at
+        await supabase
+          .from('conversations')
+          .update({ last_message_at: new Date().toISOString() })
+          .eq('id', selectedConversation.id)
+
         setNewMessage('')
         fetchMessages(selectedConversation.id)
-        fetchConversations() // Refresh pour mettre à jour last_message_at
+        fetchConversations()
       }
     } catch (err) {
       console.error('Erreur lors de l\'envoi:', err)
@@ -238,8 +277,8 @@ export default function MessagesPage() {
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-white text-sm">
                       {userProfile?.user_type === 'client' ? 
-                        conversation.developer_profiles?.full_name : 
-                        conversation.client_profiles?.full_name
+                        conversation.developer_name : 
+                        conversation.client_name
                       }
                     </h3>
                     <div className="flex items-center gap-2">
@@ -272,8 +311,8 @@ export default function MessagesPage() {
                   <div>
                     <h2 className="text-xl font-bold text-white">
                       {userProfile?.user_type === 'client' ? 
-                        selectedConversation.developer_profiles?.full_name : 
-                        selectedConversation.client_profiles?.full_name
+                        selectedConversation.developer_name : 
+                        selectedConversation.client_name
                       }
                     </h2>
                     <p className="text-slate-400 text-sm">{selectedConversation.subject}</p>

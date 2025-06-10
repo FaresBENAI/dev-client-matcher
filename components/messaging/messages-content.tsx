@@ -16,8 +16,10 @@ interface Conversation {
   status: string
   last_message_at: string
   created_at: string
-  client_profiles: { full_name: string }
-  developer_profiles: { full_name: string }
+  client_id: string
+  developer_id: string
+  client_name?: string
+  developer_name?: string
   unread_count: number
 }
 
@@ -27,7 +29,7 @@ interface Message {
   content: string
   is_read: boolean
   created_at: string
-  sender_profile: { full_name: string }
+  sender_name?: string
 }
 
 export default function MessagesContent() {
@@ -39,7 +41,12 @@ export default function MessagesContent() {
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<string[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const addDebug = (message: string) => {
+    setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`])
+  }
 
   useEffect(() => {
     checkUser()
@@ -64,37 +71,79 @@ export default function MessagesContent() {
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    setUser(user)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('user_type, full_name')
-      .eq('id', user.id)
-      .single()
-    setUserProfile(profile)
+    if (user) {
+      setUser(user)
+      addDebug(`Utilisateur connecté: ${user.id}`)
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('user_type, full_name')
+        .eq('id', user.id)
+        .single()
+      setUserProfile(profile)
+      addDebug(`Profil: ${profile?.user_type} - ${profile?.full_name}`)
+    } else {
+      addDebug('Aucun utilisateur connecté')
+    }
     setLoading(false)
   }
 
   const fetchConversations = async () => {
-    const { data, error } = await supabase
-      .from('conversations')
-      .select(`
-        id,
-        subject,
-        status,
-        last_message_at,
-        created_at,
-        client_id,
-        developer_id,
-        client_profiles:profiles!conversations_client_id_fkey(full_name),
-        developer_profiles:profiles!conversations_developer_id_fkey(full_name)
-      `)
-      .or(`client_id.eq.${user.id},developer_id.eq.${user.id}`)
-      .order('last_message_at', { ascending: false })
+    try {
+      addDebug(`Recherche conversations pour user: ${user.id}`)
+      
+      // Étape 1: Récupérer TOUTES les conversations pour debug
+      const { data: allConversations } = await supabase
+        .from('conversations')
+        .select('*')
+      
+      addDebug(`Total conversations dans la DB: ${allConversations?.length || 0}`)
+      
+      // Étape 2: Récupérer les conversations de l'utilisateur
+      const { data: conversationsData, error: convError } = await supabase
+        .from('conversations')
+        .select('*')
+        .or(`client_id.eq.${user.id},developer_id.eq.${user.id}`)
+        .order('last_message_at', { ascending: false })
 
-    if (data) {
-      // Compter les messages non lus pour chaque conversation
-      const conversationsWithUnread = await Promise.all(
-        data.map(async (conv) => {
+      addDebug(`Conversations pour cet utilisateur: ${conversationsData?.length || 0}`)
+      
+      if (convError) {
+        addDebug(`Erreur conversations: ${convError.message}`)
+        return
+      }
+
+      if (!conversationsData || conversationsData.length === 0) {
+        addDebug('Aucune conversation trouvée')
+        setConversations([])
+        return
+      }
+
+      // Debug: afficher les conversations trouvées
+      conversationsData.forEach((conv, index) => {
+        addDebug(`Conv ${index}: client=${conv.client_id}, dev=${conv.developer_id}, subject=${conv.subject}`)
+      })
+
+      // Étape 3: Récupérer tous les profils nécessaires
+      const userIds = [
+        ...new Set([
+          ...conversationsData.map(c => c.client_id),
+          ...conversationsData.map(c => c.developer_id)
+        ])
+      ]
+
+      addDebug(`IDs des profils à récupérer: ${userIds.join(', ')}`)
+
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds)
+
+      addDebug(`Profils récupérés: ${profilesData?.length || 0}`)
+
+      // Étape 4: Compter les messages non lus pour chaque conversation
+      const conversationsWithData = await Promise.all(
+        conversationsData.map(async (conv) => {
           const { count } = await supabase
             .from('messages')
             .select('*', { count: 'exact', head: true })
@@ -102,32 +151,54 @@ export default function MessagesContent() {
             .eq('is_read', false)
             .neq('sender_id', user.id)
 
+          // Trouver les noms des participants
+          const clientProfile = profilesData?.find(p => p.id === conv.client_id)
+          const developerProfile = profilesData?.find(p => p.id === conv.developer_id)
+
           return {
             ...conv,
+            client_name: clientProfile?.full_name || 'Client inconnu',
+            developer_name: developerProfile?.full_name || 'Développeur inconnu',
             unread_count: count || 0
           }
         })
       )
-      setConversations(conversationsWithUnread as any)
+
+      addDebug(`Conversations finales avec noms: ${conversationsWithData.length}`)
+      setConversations(conversationsWithData)
+    } catch (error) {
+      addDebug(`Exception: ${error}`)
+      console.error('Erreur fetchConversations:', error)
     }
   }
 
   const fetchMessages = async (conversationId: string) => {
-    const { data, error } = await supabase
-      .from('messages')
-      .select(`
-        id,
-        sender_id,
-        content,
-        is_read,
-        created_at,
-        sender_profile:profiles!messages_sender_id_fkey(full_name)
-      `)
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
+    try {
+      const { data: messagesData, error: msgError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true })
 
-    if (data) {
-      setMessages(data as any)
+      if (msgError || !messagesData) {
+        console.error('Erreur messages:', msgError)
+        return
+      }
+
+      const senderIds = [...new Set(messagesData.map(m => m.sender_id))]
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', senderIds)
+
+      const messagesWithNames = messagesData.map(msg => ({
+        ...msg,
+        sender_name: profilesData?.find(p => p.id === msg.sender_id)?.full_name || 'Utilisateur inconnu'
+      }))
+
+      setMessages(messagesWithNames)
+    } catch (error) {
+      console.error('Erreur fetchMessages:', error)
     }
   }
 
@@ -154,9 +225,14 @@ export default function MessagesContent() {
         })
 
       if (!error) {
+        await supabase
+          .from('conversations')
+          .update({ last_message_at: new Date().toISOString() })
+          .eq('id', selectedConversation.id)
+
         setNewMessage('')
         fetchMessages(selectedConversation.id)
-        fetchConversations() // Refresh pour mettre à jour last_message_at
+        fetchConversations()
       }
     } catch (err) {
       console.error('Erreur lors de l\'envoi:', err)
@@ -194,9 +270,31 @@ export default function MessagesContent() {
     )
   }
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h3 className="text-xl font-semibold text-white mb-2">Connexion requise</h3>
+          <p className="text-slate-400">Connectez-vous pour accéder à vos messages</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-900">
       <div className="max-w-7xl mx-auto h-screen flex">
+        {/* DEBUG PANEL */}
+        <div className="w-1/4 bg-yellow-500/10 border-r border-yellow-500/30 p-4 overflow-y-auto">
+          <h3 className="text-yellow-400 font-bold mb-2">🔍 DEBUG</h3>
+          <div className="space-y-1 text-yellow-300 text-xs">
+            {debugInfo.map((info, index) => (
+              <div key={index}>{info}</div>
+            ))}
+          </div>
+        </div>
+
         {/* Sidebar - Liste des conversations */}
         <div className="w-1/3 bg-slate-800/50 border-r border-slate-700">
           <div className="p-6 border-b border-slate-700">
@@ -233,8 +331,8 @@ export default function MessagesContent() {
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-white text-sm">
                       {userProfile?.user_type === 'client' ? 
-                        conversation.developer_profiles?.full_name : 
-                        conversation.client_profiles?.full_name
+                        conversation.developer_name : 
+                        conversation.client_name
                       }
                     </h3>
                     <div className="flex items-center gap-2">
@@ -261,31 +359,20 @@ export default function MessagesContent() {
         <div className="flex-1 flex flex-col">
           {selectedConversation ? (
             <>
-              {/* Header de la conversation */}
               <div className="p-6 border-b border-slate-700 bg-slate-800/30">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-bold text-white">
                       {userProfile?.user_type === 'client' ? 
-                        selectedConversation.developer_profiles?.full_name : 
-                        selectedConversation.client_profiles?.full_name
+                        selectedConversation.developer_name : 
+                        selectedConversation.client_name
                       }
                     </h2>
                     <p className="text-slate-400 text-sm">{selectedConversation.subject}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 rounded-full text-xs ${
-                      selectedConversation.status === 'active' ? 
-                        'bg-green-500/20 text-green-400' : 
-                        'bg-gray-500/20 text-gray-400'
-                    }`}>
-                      {selectedConversation.status === 'active' ? 'Active' : 'Fermée'}
-                    </span>
-                  </div>
                 </div>
               </div>
 
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {messages.map((message) => (
                   <div
@@ -311,7 +398,6 @@ export default function MessagesContent() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Zone de saisie */}
               <div className="p-6 border-t border-slate-700 bg-slate-800/30">
                 <form onSubmit={sendMessage} className="flex gap-3">
                   <Input
@@ -333,7 +419,6 @@ export default function MessagesContent() {
               </div>
             </>
           ) : (
-            /* État vide */
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <div className="text-6xl mb-4">💬</div>
