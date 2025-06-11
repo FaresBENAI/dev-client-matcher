@@ -125,12 +125,11 @@ export default function MessagesContent() {
       })
 
       // Étape 3: Récupérer tous les profils nécessaires
-      const userIds = [
-        ...new Set([
-          ...conversationsData.map(c => c.client_id),
-          ...conversationsData.map(c => c.developer_id)
-        ])
-      ]
+     // ✅ Version corrigée
+const clientIds = conversationsData.map(c => c.client_id)
+const developerIds = conversationsData.map(c => c.developer_id)
+const allIds = [...clientIds, ...developerIds]
+const userIds = Array.from(new Set(allIds))
 
       addDebug(`IDs des profils à récupérer: ${userIds.join(', ')}`)
 
