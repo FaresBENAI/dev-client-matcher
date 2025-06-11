@@ -95,11 +95,11 @@ export default function MessagesPage() {
       }
 
       // Récupérer tous les profils nécessaires
-    // ✅ Code corrigé
-const clientIds = conversationsData.map(c => c.client_id)
-const developerIds = conversationsData.map(c => c.developer_id)
-const allIds = [...clientIds, ...developerIds]
-const userIds = Array.from(new Set(allIds))
+   const allIds = [
+  ...conversationsData.map(c => c.client_id),
+  ...conversationsData.map(c => c.developer_id)
+]
+const userIds = allIds.filter((id, index) => allIds.indexOf(id) === index)
 
       const { data: profilesData } = await supabase
         .from('profiles')
