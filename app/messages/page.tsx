@@ -150,7 +150,13 @@ const userIds = allIds.filter((id, index) => allIds.indexOf(id) === index)
       }
 
       // Récupérer les profils des expéditeurs
-      const senderIds = [...new Set(messagesData.map(m => m.sender_id))]
+      // ✅ Alternative simple
+const senderIds: string[] = []
+messagesData.forEach(m => {
+  if (!senderIds.includes(m.sender_id)) {
+    senderIds.push(m.sender_id)
+  }
+})
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, full_name')
