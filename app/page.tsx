@@ -28,7 +28,31 @@ export default function HomePage() {
     checkUser()
     fetchStats()
     fetchSampleData()
+    handleUrlParams()
   }, [])
+
+  // ✅ Nouveau: Gestion des paramètres URL pour les confirmations
+  const handleUrlParams = () => {
+    if (typeof window === 'undefined') return
+    
+    const urlParams = new URLSearchParams(window.location.search)
+    
+    if (urlParams.get('confirmed') === 'true') {
+      alert('✅ Email confirmé avec succès ! Vous pouvez maintenant vous connecter.')
+      // Nettoyer l'URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+    
+    if (urlParams.get('welcome') === 'true') {
+      alert('🎉 Bienvenue ! Votre compte a été créé avec succès.')
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+
+    if (urlParams.get('error') === 'auth_callback_error') {
+      alert('❌ Erreur lors de la confirmation. Veuillez réessayer ou contacter le support.')
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser()
