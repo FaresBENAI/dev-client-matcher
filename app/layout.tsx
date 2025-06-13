@@ -1,8 +1,7 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
-import Navbar from '../components/layout/navbar'
-import MobileNavbar from '../components/layout/mobile-navbar'
+import UnifiedNavbar from '../components/layout/unified-navbar'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -11,7 +10,6 @@ export const metadata: Metadata = {
   description: 'Plateforme de mise en relation développeurs et clients pour automatisation et IA',
 }
 
-// ✅ AJOUT CRUCIAL : Configuration du viewport
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -25,13 +23,8 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
-        {/* Navbar desktop (cachée sur mobile) */}
-        <div className="hidden lg:block">
-          <Navbar />
-        </div>
-        
-        {/* Navbar mobile (cachée sur desktop) */}
-        <MobileNavbar />
+        {/* Navbar unifiée - responsive */}
+        <UnifiedNavbar />
         
         <main>{children}</main>
       </body>
