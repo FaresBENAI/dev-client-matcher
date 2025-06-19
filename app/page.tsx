@@ -15,14 +15,12 @@ export default function HomePage() {
   const [user, setUser] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [isVisible, setIsVisible] = useState(false)
   const [stats, setStats] = useState({
     totalDevelopers: 0,
     totalProjects: 0,
     completedProjects: 0
   })
-  const [currentTestimonial, setCurrentTestimonial] = useState(0)
   const [animatedStats, setAnimatedStats] = useState({
     totalDevelopers: 0,
     totalProjects: 0,
@@ -71,22 +69,6 @@ export default function HomePage() {
     fetchStats()
     handleUrlParams()
     setIsVisible(true)
-
-    // Mouse tracking pour les effets parallax
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY })
-    }
-    window.addEventListener('mousemove', handleMouseMove)
-
-    // Auto-rotation des témoignages
-    const testimonialInterval = setInterval(() => {
-      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length)
-    }, 5000)
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      clearInterval(testimonialInterval)
-    }
   }, [])
 
   // Animation des statistiques
@@ -149,11 +131,8 @@ export default function HomePage() {
         .single()
       setUserProfile(profile)
       
-      if (profile?.user_type === 'client') {
-        router.push('/dashboard/client')
-      } else if (profile?.user_type === 'developer') {
-        router.push('/dashboard/developer')
-      }
+      // SUPPRIMÉ : Plus de redirection automatique
+      // Les utilisateurs connectés voient la même homepage
     }
     setLoading(false)
   }
@@ -186,23 +165,96 @@ export default function HomePage() {
     }
   }
 
+  // Fonction pour adapter le CTA selon l'état de connexion
+  const getCallToActionButton = () => {
+    if (user && userProfile) {
+      // Utilisateur connecté : rediriger vers dashboard approprié
+      const dashboardPath = userProfile.user_type === 'client' ? '/dashboard/client' : '/dashboard/developer'
+      return (
+        <Link href={dashboardPath}>
+          <Button className="group relative bg-white text-black hover:bg-gray-100 border-4 border-white px-6 py-3 text-sm font-black rounded-lg transition-all duration-500 hover:scale-105 shadow-2xl">
+            <span className="relative z-10 flex items-center text-black font-black">
+              Mon Dashboard
+              <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1 text-black">→</span>
+            </span>
+          </Button>
+        </Link>
+      )
+    } else {
+      // Visiteur non connecté : inscription
+      return (
+        <Link href="/auth/signup">
+          <Button className="group relative bg-white text-black hover:bg-gray-100 border-4 border-white px-6 py-3 text-sm font-black rounded-lg transition-all duration-500 hover:scale-105 shadow-2xl">
+            <span className="relative z-10 flex items-center text-black font-black">
+              Commencer gratuitement
+              <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1 text-black">→</span>
+            </span>
+          </Button>
+        </Link>
+      )
+    }
+  }
+
+  const getFinalCTAButtons = () => {
+    if (user && userProfile) {
+      // Utilisateur connecté
+      const dashboardPath = userProfile.user_type === 'client' ? '/dashboard/client' : '/dashboard/developer'
+      const exploreLink = userProfile.user_type === 'client' ? '/developers' : '/projects'
+      const exploreText = userProfile.user_type === 'client' ? 'Explorer les talents' : 'Voir les projets'
+      
+      return (
+        <div className="flex flex-col sm:flex-row gap-6 justify-center">
+          <Link href={dashboardPath}>
+            <Button className="group relative bg-white text-black hover:bg-gray-100 font-black px-10 py-4 text-lg rounded-2xl border-4 border-white overflow-hidden transition-all duration-500 hover:scale-110 shadow-2xl">
+              <span className="relative z-10 flex items-center justify-center text-black">
+                Mon Dashboard
+                <span className="ml-3 transition-transform duration-300 group-hover:translate-x-2 text-black">→</span>
+              </span>
+            </Button>
+          </Link>
+          
+          <Link href={exploreLink}>
+            <Button className="group relative border-4 border-white text-white hover:bg-white hover:text-black px-10 py-4 text-lg rounded-2xl bg-transparent font-black overflow-hidden transition-all duration-500 hover:scale-110 shadow-2xl">
+              <span className="relative z-10 flex items-center justify-center">
+                {exploreText}
+                <span className="ml-3 transition-transform duration-300 group-hover:translate-x-2">→</span>
+              </span>
+            </Button>
+          </Link>
+        </div>
+      )
+    } else {
+      // Visiteur non connecté
+      return (
+        <div className="flex flex-col sm:flex-row gap-6 justify-center">
+          <Link href="/auth/signup">
+            <Button className="group relative bg-white text-black hover:bg-gray-100 font-black px-10 py-4 text-lg rounded-2xl border-4 border-white overflow-hidden transition-all duration-500 hover:scale-110 shadow-2xl">
+              <span className="relative z-10 flex items-center justify-center text-black">
+                Créer mon compte gratuitement
+                <span className="ml-3 transition-transform duration-300 group-hover:translate-x-2 text-black">→</span>
+              </span>
+            </Button>
+          </Link>
+          
+          <Link href="/developers">
+            <Button className="group relative border-4 border-white text-white hover:bg-white hover:text-black px-10 py-4 text-lg rounded-2xl bg-transparent font-black overflow-hidden transition-all duration-500 hover:scale-110 shadow-2xl">
+              <span className="relative z-10 flex items-center justify-center">
+                Explorer les talents
+                <span className="ml-3 transition-transform duration-300 group-hover:translate-x-2">→</span>
+              </span>
+            </Button>
+          </Link>
+        </div>
+      )
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center px-4">
         <div className="relative">
           <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
           <div className="absolute inset-0 w-16 h-16 border-4 border-gray-600 border-b-transparent rounded-full animate-spin opacity-50"></div>
-        </div>
-      </div>
-    )
-  }
-
-  if (user && userProfile) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center px-4">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="text-white text-lg">Redirection vers votre dashboard...</div>
         </div>
       </div>
     )
@@ -228,13 +280,8 @@ export default function HomePage() {
           ))}
         </div>
 
-        {/* Orbe géant avec effet parallax */}
-        <div 
-          className="absolute inset-0 flex items-center justify-center"
-          style={{
-            transform: `translate(${(mousePosition.x - (typeof window !== 'undefined' ? window.innerWidth : 1000) / 2) * 0.005}px, ${(mousePosition.y - (typeof window !== 'undefined' ? window.innerHeight : 1000) / 2) * 0.005}px)`
-          }}
-        >
+        {/* Orbe géant */}
+        <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-48 h-48 bg-white opacity-3 rounded-full blur-3xl animate-pulse"></div>
         </div>
 
@@ -275,16 +322,9 @@ export default function HomePage() {
             ))}
           </div>
           
-          {/* CTA mini */}
+          {/* CTA adaptatif */}
           <div>
-            <Link href="/auth/signup">
-              <Button className="group relative bg-white text-black hover:bg-gray-100 border-4 border-white px-6 py-3 text-sm font-black rounded-lg transition-all duration-500 hover:scale-105 shadow-2xl">
-                <span className="relative z-10 flex items-center text-black font-black">
-                  Commencer gratuitement
-                  <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1 text-black">→</span>
-                </span>
-              </Button>
-            </Link>
+            {getCallToActionButton()}
           </div>
         </div>
       </div>
@@ -461,7 +501,7 @@ export default function HomePage() {
           <div className="text-center mt-12">
             <Link href="/auth/signup">
               <Button className="bg-white text-black hover:bg-gray-100 font-black px-8 py-4 text-lg rounded-2xl border-2 border-white transform hover:scale-105 transition-all duration-300 shadow-2xl">
-                Commencer maintenant
+                <span className="text-black font-black">Commencer maintenant</span>
               </Button>
             </Link>
           </div>
@@ -541,25 +581,7 @@ export default function HomePage() {
               Rejoignez la communauté des entreprises qui ont choisi l'excellence en IA
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <Link href="/auth/signup">
-                <Button className="group relative bg-white text-black hover:bg-gray-100 font-black px-10 py-4 text-lg rounded-2xl border-4 border-white overflow-hidden transition-all duration-500 hover:scale-110 shadow-2xl">
-                  <span className="relative z-10 flex items-center justify-center text-black">
-                    Créer mon compte gratuitement
-                    <span className="ml-3 transition-transform duration-300 group-hover:translate-x-2 text-black">→</span>
-                  </span>
-                </Button>
-              </Link>
-              
-              <Link href="/developers">
-                <Button className="group relative border-4 border-white text-white hover:bg-white hover:text-black px-10 py-4 text-lg rounded-2xl bg-transparent font-black overflow-hidden transition-all duration-500 hover:scale-110 shadow-2xl">
-                  <span className="relative z-10 flex items-center justify-center">
-                    Explorer les talents
-                    <span className="ml-3 transition-transform duration-300 group-hover:translate-x-2">→</span>
-                  </span>
-                </Button>
-              </Link>
-            </div>
+            {getFinalCTAButtons()}
           </div>
         </div>
       </div>

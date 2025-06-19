@@ -1,254 +1,164 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { Button } from '../ui/button'
-import { Input } from '../ui/input'
-import { useRouter } from 'next/navigation'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-export default function CreateProjectContent() {
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    project_type: 'automation',
-    budget_min: '',
-    budget_max: '',
-    timeline: '',
-    required_skills: [] as string[],
-    complexity: 'medium'
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+export default function UnifiedNavbar() {
+  const [user, setUser] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  const skillOptions = [
-    'Python', 'JavaScript', 'Machine Learning', 'TensorFlow', 'PyTorch',
-    'OpenAI API', 'Automation', 'RPA', 'Chatbots', 'Data Analysis',
-    'Computer Vision', 'NLP', 'API Development', 'Web Scraping', 'Excel Automation'
-  ]
+  useEffect(() => {
+    checkUser()
+  }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-
+  const checkUser = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
       
-      if (!user) {
-        setError('Vous devez être connecté')
-        return
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_type, full_name')
+          .eq('id', user.id)
+          .single()
+        setUserProfile(profile)
       }
-
-      const { data, error } = await supabase
-        .from('projects')
-        .insert([{
-          client_id: user.id,
-          title: formData.title,
-          description: formData.description,
-          project_type: formData.project_type,
-          budget_min: formData.budget_min ? parseInt(formData.budget_min) : null,
-          budget_max: formData.budget_max ? parseInt(formData.budget_max) : null,
-          timeline: formData.timeline,
-          required_skills: formData.required_skills,
-          complexity: formData.complexity
-        }])
-
-      if (error) {
-        setError(error.message)
-      } else {
-        router.push('/dashboard/client?success=project-created')
-      }
-    } catch (err) {
-      setError('Une erreur est survenue')
+    } catch (error) {
+      console.error('Erreur auth:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const toggleSkill = (skill: string) => {
-    setFormData(prev => ({
-      ...prev,
-      required_skills: prev.required_skills.includes(skill)
-        ? prev.required_skills.filter(s => s !== skill)
-        : [...prev.required_skills, skill]
-    }))
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+    setUserProfile(null)
+    router.push('/')
+  }
+
+  const getDashboardLink = () => {
+    if (!userProfile) return '/auth/login'
+    return userProfile.user_type === 'client' ? '/dashboard/client' : '/dashboard/developer'
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-8 border border-slate-700/50">
-          <h1 className="text-3xl font-bold text-white mb-6">✨ Créer un nouveau projet</h1>
+    <nav className="bg-white border-b-2 border-gray-200 sticky top-0 z-50 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16 sm:h-20">
           
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Titre */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Titre du projet *
-              </label>
-              <Input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({...prev, title: e.target.value}))}
-                placeholder="Ex: Automatisation de ma comptabilité"
-                required
-                className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
-              />
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Description détaillée *
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({...prev, description: e.target.value}))}
-                placeholder="Décrivez votre projet, vos objectifs et vos contraintes..."
-                required
-                rows={4}
-                className="w-full bg-slate-700/50 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              />
-            </div>
-
-            {/* Type de projet */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Type de projet *
-              </label>
-              <select
-                value={formData.project_type}
-                onChange={(e) => setFormData(prev => ({...prev, project_type: e.target.value}))}
-                className="w-full bg-slate-700/50 border border-slate-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              >
-                <option value="automation">Automatisation</option>
-                <option value="ai">Intelligence Artificielle</option>
-                <option value="chatbot">Chatbot</option>
-                <option value="data_analysis">Analyse de données</option>
-                <option value="other">Autre</option>
-              </select>
-            </div>
-
-            {/* Budget */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Budget minimum (€)
-                </label>
-                <Input
-                  type="number"
-                  value={formData.budget_min}
-                  onChange={(e) => setFormData(prev => ({...prev, budget_min: e.target.value}))}
-                  placeholder="1000"
-                  className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
-                />
+          {/* Logo LinkerAI - Style Uber */}
+          <Link href="/" className="flex items-center flex-shrink-0 group">
+            <div className="flex items-center">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black rounded-lg flex items-center justify-center mr-3 group-hover:scale-105 transition-transform duration-300">
+                <span className="text-white font-black text-lg sm:text-xl">L</span>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Budget maximum (€)
-                </label>
-                <Input
-                  type="number"
-                  value={formData.budget_max}
-                  onChange={(e) => setFormData(prev => ({...prev, budget_max: e.target.value}))}
-                  placeholder="5000"
-                  className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
-                />
+              <div className="text-xl sm:text-2xl font-black text-black group-hover:text-gray-700 transition-colors duration-300">
+                LinkerAI
               </div>
             </div>
+          </Link>
 
-            {/* Timeline */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Délai souhaité
-              </label>
-              <Input
-                type="text"
-                value={formData.timeline}
-                onChange={(e) => setFormData(prev => ({...prev, timeline: e.target.value}))}
-                placeholder="Ex: 2 semaines, 1 mois, 3 mois"
-                className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
-              />
-            </div>
+          {/* Navigation Links - Style Uber */}
+          <div className="flex items-center space-x-1 sm:space-x-4 flex-1 justify-center">
+            <Link 
+              href="/" 
+              className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
+            >
+              <span className="hidden sm:inline">Accueil</span>
+              <span className="sm:hidden">🏠</span>
+            </Link>
+            <Link 
+              href="/projects" 
+              className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
+            >
+              <span className="hidden sm:inline">Projets</span>
+              <span className="sm:hidden">📋</span>
+            </Link>
+            <Link 
+              href="/developers" 
+              className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
+            >
+              <span className="hidden sm:inline">Développeurs</span>
+              <span className="sm:hidden">👨‍💻</span>
+            </Link>
+            <Link 
+              href="/messages" 
+              className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
+            >
+              <span className="hidden sm:inline">Messages</span>
+              <span className="sm:hidden">💬</span>
+            </Link>
+          </div>
 
-            {/* Compétences requises */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Compétences requises
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {skillOptions.map((skill) => (
-                  <label key={skill} className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.required_skills.includes(skill)}
-                      onChange={() => toggleSkill(skill)}
-                      className="rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500"
-                    />
-                    <span className="text-slate-300 text-sm">{skill}</span>
-                  </label>
-                ))}
+          {/* Auth Section - Style Uber */}
+          <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+            {loading ? (
+              <div className="w-8 h-8 border-2 border-gray-300 border-t-black rounded-full animate-spin"></div>
+            ) : user ? (
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                {/* Dashboard Button */}
+                <Link href={getDashboardLink()}>
+                  <Button className="bg-black hover:bg-gray-800 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-black transition-all duration-300 border-2 border-black transform hover:scale-105">
+                    <span className="hidden sm:inline">Dashboard</span>
+                    <span className="sm:hidden">📊</span>
+                  </Button>
+                </Link>
+
+                {/* User Profile & Logout */}
+                <div className="flex items-center space-x-2">
+                  <div className="hidden md:flex flex-col items-end">
+                    <span className="text-black text-sm font-black">
+                      {userProfile?.full_name || 'Utilisateur'}
+                    </span>
+                    <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">
+                      {userProfile?.user_type || 'Membre'}
+                    </span>
+                  </div>
+                  
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black rounded-lg flex items-center justify-center text-white font-black text-sm sm:text-base border-2 border-black hover:scale-105 transition-transform duration-300 cursor-default">
+                    {userProfile?.full_name?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+
+                  <button
+                    onClick={handleSignOut}
+                    className="text-black hover:text-white hover:bg-black transition-all duration-300 p-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
+                    title="Se déconnecter"
+                  >
+                    <span className="text-base sm:text-lg">🚪</span>
+                  </button>
+                </div>
               </div>
-            </div>
-
-            {/* Complexité */}
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Complexité du projet
-              </label>
-              <div className="flex space-x-4">
-                {[
-                  { value: 'simple', label: 'Simple', color: 'green' },
-                  { value: 'medium', label: 'Moyen', color: 'yellow' },
-                  { value: 'complex', label: 'Complexe', color: 'red' }
-                ].map((option) => (
-                  <label key={option.value} className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="complexity"
-                      value={option.value}
-                      checked={formData.complexity === option.value}
-                      onChange={(e) => setFormData(prev => ({...prev, complexity: e.target.value}))}
-                      className="text-cyan-500 focus:ring-cyan-500"
-                    />
-                    <span className="text-slate-300">{option.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {error && (
-              <div className="bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-3 rounded-md">
-                {error}
+            ) : (
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <Link href="/auth/login">
+                  <Button className="bg-black hover:bg-gray-800 text-white px-3 sm:px-4 py-2 text-xs sm:text-sm border-2 border-black transition-all duration-300 font-black transform hover:scale-105">
+                    <span className="hidden sm:inline">Connexion</span>
+                    <span className="sm:hidden">🔑</span>
+                  </Button>
+                </Link>
+                <Link href="/auth/signup">
+                  <Button className="border-2 border-black text-black hover:bg-black hover:text-white px-3 sm:px-4 py-2 text-xs sm:text-sm bg-transparent transition-all duration-300 font-black transform hover:scale-105">
+                    <span className="hidden sm:inline">S&apos;inscrire</span>
+                    <span className="sm:hidden">✨</span>
+                  </Button>
+                </Link>
               </div>
             )}
-
-            <div className="flex space-x-4">
-              <Button
-                type="submit"
-                disabled={loading}
-                className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600"
-              >
-                {loading ? 'Création...' : 'Créer le projet'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push('/dashboard/client')}
-                className="border-slate-600 text-slate-300 hover:border-cyan-400"
-              >
-                Annuler
-              </Button>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
-    </div>
+    </nav>
   )
 }

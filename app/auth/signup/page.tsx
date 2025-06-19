@@ -17,13 +17,16 @@ export default function SignupPage() {
   const [userType, setUserType] = useState<'client' | 'developer'>('client')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [profilePhoto, setProfilePhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const router = useRouter()
 
   // Données de base
   const [basicData, setBasicData] = useState({
     email: '',
     password: '',
-    fullName: ''
+    fullName: '',
+    phone: ''
   })
 
   // Données développeur spécifiques
@@ -56,6 +59,66 @@ export default function SignupPage() {
     'Excel/VBA Automation', 'Zapier/Make', 'Power Automate'
   ]
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validation du fichier
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+      const maxSize = 5 * 1024 * 1024 // 5MB
+
+      if (!validTypes.includes(file.type)) {
+        setError('Format d\'image non supporté. Utilisez JPG, PNG ou WebP.')
+        return
+      }
+
+      if (file.size > maxSize) {
+        setError('L\'image est trop grande. Taille maximum : 5MB.')
+        return
+      }
+
+      setProfilePhoto(file)
+      setError('')
+
+      // Créer aperçu
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setPhotoPreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const uploadProfilePhoto = async (userId: string): Promise<string | null> => {
+    if (!profilePhoto) return null
+
+    try {
+      const fileExt = profilePhoto.name.split('.').pop()
+      const fileName = `${userId}/profile.${fileExt}`
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('profile-photos')
+        .upload(fileName, profilePhoto, {
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      if (uploadError) {
+        console.error('Erreur upload:', uploadError)
+        return null
+      }
+
+      // Récupérer l'URL publique
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile-photos')
+        .getPublicUrl(fileName)
+
+      return publicUrl
+    } catch (error) {
+      console.error('Erreur lors de l\'upload:', error)
+      return null
+    }
+  }
+
   const handleBasicSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (userType === 'developer') {
@@ -70,12 +133,20 @@ export default function SignupPage() {
     setError('')
 
     try {
+      // Validation photo obligatoire pour développeurs
+      if (userType === 'developer' && !profilePhoto) {
+        setError('Une photo de profil est obligatoire pour les développeurs')
+        setLoading(false)
+        return
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email: basicData.email,
         password: basicData.password,
         options: {
           data: {
             full_name: basicData.fullName,
+            phone: basicData.phone,
             user_type: userType,
             // Données développeur si applicable
             ...(userType === 'developer' && {
@@ -95,10 +166,30 @@ export default function SignupPage() {
 
       if (error) {
         setError(error.message)
-      } else {
-        alert('Compte créé avec succès ! Bienvenue !')
-        router.push('/auth/login')
+        setLoading(false)
+        return
       }
+
+      // Upload photo si développeur
+      if (userType === 'developer' && data.user && profilePhoto) {
+        const photoUrl = await uploadProfilePhoto(data.user.id)
+        
+        if (photoUrl) {
+          // Mettre à jour le profil avec l'URL de la photo
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ profile_photo_url: photoUrl })
+            .eq('id', data.user.id)
+
+          if (updateError) {
+            console.error('Erreur mise à jour photo:', updateError)
+          }
+        }
+      }
+
+      alert('Compte créé avec succès ! Bienvenue !')
+      router.push('/auth/login')
+
     } catch (err) {
       setError('Une erreur est survenue lors de la création du compte')
     } finally {
@@ -200,7 +291,7 @@ export default function SignupPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-black mb-2">
-                      Nom complet
+                      Nom complet <span className="text-red-500">*</span>
                     </label>
                     <Input
                       type="text"
@@ -214,7 +305,7 @@ export default function SignupPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-black mb-2">
-                      Email
+                      Email <span className="text-red-500">*</span>
                     </label>
                     <Input
                       type="email"
@@ -225,10 +316,24 @@ export default function SignupPage() {
                       className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Numéro de téléphone <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      type="tel"
+                      value={basicData.phone}
+                      onChange={(e) => setBasicData(prev => ({...prev, phone: e.target.value}))}
+                      required
+                      placeholder="+33 6 12 34 56 78"
+                      className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
+                    />
+                  </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-black mb-2">
-                      Mot de passe
+                      Mot de passe <span className="text-red-500">*</span>
                     </label>
                     <Input
                       type="password"
@@ -264,6 +369,55 @@ export default function SignupPage() {
                   <p className="text-gray-300 text-sm">
                     Ces informations aideront les clients à vous trouver et à évaluer vos compétences.
                   </p>
+                </div>
+
+                {/* Photo de profil OBLIGATOIRE */}
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">
+                    Photo de profil <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center space-x-4">
+                    {photoPreview ? (
+                      <div className="relative">
+                        <img
+                          src={photoPreview}
+                          alt="Aperçu"
+                          className="w-20 h-20 rounded-full object-cover border-2 border-gray-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfilePhoto(null)
+                            setPhotoPreview(null)
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-red-600"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center">
+                        <span className="text-gray-400 text-2xl">📷</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handlePhotoChange}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-2 file:border-black file:text-sm file:font-medium file:bg-white file:text-black hover:file:bg-gray-50"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        JPG, PNG ou WebP. Max 5MB.
+                      </p>
+                    </div>
+                  </div>
+                  {!profilePhoto && (
+                    <p className="text-red-500 text-sm mt-2">
+                      ⚠️ Une photo de profil est obligatoire pour créer un compte développeur
+                    </p>
+                  )}
                 </div>
 
                 {/* Titre professionnel */}
@@ -413,8 +567,8 @@ export default function SignupPage() {
                   <Button
                     type="button"
                     onClick={handleFinalSubmit}
-                    disabled={loading}
-                    className="flex-1 bg-black text-white hover:bg-gray-800 border-2 border-black py-3 text-lg font-bold"
+                    disabled={loading || !profilePhoto}
+                    className="flex-1 bg-black text-white hover:bg-gray-800 border-2 border-black py-3 text-lg font-bold disabled:bg-gray-400 disabled:border-gray-400"
                   >
                     {loading ? 'Création...' : 'Créer mon profil développeur'}
                   </Button>

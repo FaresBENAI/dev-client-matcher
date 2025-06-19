@@ -232,204 +232,228 @@ export default function MessagesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Chargement...</div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+          <div className="absolute inset-0 w-16 h-16 border-4 border-gray-600 border-b-transparent rounded-full animate-spin opacity-50"></div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="max-w-7xl mx-auto h-screen flex relative">
-        {/* Sidebar - Liste des conversations */}
-        <div className={`
-          ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
-          lg:translate-x-0 lg:static absolute inset-y-0 left-0 z-50
-          w-full sm:w-80 lg:w-1/3 bg-slate-800/50 border-r border-slate-700
-          transition-transform duration-300 ease-in-out
-        `}>
-          <div className="p-4 lg:p-6 border-b border-slate-700 flex items-center justify-between">
-            <div>
-              <h1 className="text-xl lg:text-2xl font-bold text-white mb-1 lg:mb-2">💬 Messages</h1>
-              <p className="text-slate-400 text-xs lg:text-sm">
-                {userProfile?.user_type === 'client' ? 
-                  'Vos conversations avec les développeurs' : 
-                  'Messages reçus de vos clients'
-                }
-              </p>
-            </div>
-            {/* Bouton fermer sidebar sur mobile */}
-            <button
-              onClick={() => setShowSidebar(false)}
-              className="lg:hidden text-slate-400 hover:text-white"
-            >
-              ✕
-            </button>
+    <div className="min-h-screen bg-white">
+      {/* Header Section - FOND NOIR */}
+      <div className="bg-black py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h1 className="text-3xl font-black text-white mb-2">
+              MESSAGERIE
+            </h1>
+            <p className="text-gray-300">
+              {userProfile?.user_type === 'client' ? 
+                'Vos conversations avec les développeurs' : 
+                'Messages reçus de vos clients'
+              }
+            </p>
           </div>
+        </div>
+      </div>
 
-          <div className="overflow-y-auto h-full pb-20 lg:pb-0">
-            {conversations.length === 0 ? (
-              <div className="p-4 lg:p-6 text-center">
-                <div className="text-3xl lg:text-4xl mb-4">📭</div>
-                <h3 className="text-white font-medium mb-2 text-sm lg:text-base">Aucune conversation</h3>
-                <p className="text-slate-400 text-xs lg:text-sm">
-                  {userProfile?.user_type === 'client' ? 
-                    'Contactez des développeurs pour commencer' : 
-                    'Vous recevrez ici les messages des clients'
-                  }
+      {/* Main Content - FOND BLANC */}
+      <div className="bg-white">
+        <div className="max-w-7xl mx-auto h-[calc(100vh-180px)] flex relative">
+          {/* Sidebar - Liste des conversations */}
+          <div className={`
+            ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
+            lg:translate-x-0 lg:static absolute inset-y-0 left-0 z-50
+            w-full sm:w-80 lg:w-1/3 bg-gray-50 border-r-2 border-gray-200
+            transition-transform duration-300 ease-in-out
+          `}>
+            <div className="p-4 lg:p-6 border-b-2 border-gray-200 flex items-center justify-between bg-white">
+              <div>
+                <h2 className="text-xl lg:text-2xl font-black text-black mb-1 lg:mb-2">💬 Conversations</h2>
+                <p className="text-gray-600 text-xs lg:text-sm font-medium">
+                  {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
                 </p>
               </div>
-            ) : (
-              conversations.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  onClick={() => setSelectedConversation(conversation)}
-                  className={`p-3 lg:p-4 border-b border-slate-700/50 cursor-pointer hover:bg-slate-700/30 transition-colors ${
-                    selectedConversation?.id === conversation.id ? 'bg-slate-700/50' : ''
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-medium text-white text-sm lg:text-base">
-                      {userProfile?.user_type === 'client' ? 
-                        conversation.developer_name : 
-                        conversation.client_name
-                      }
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      {conversation.unread_count > 0 && (
-                        <span className="bg-cyan-500 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center">
-                          {conversation.unread_count}
+              {/* Bouton fermer sidebar sur mobile */}
+              <button
+                onClick={() => setShowSidebar(false)}
+                className="lg:hidden w-8 h-8 bg-black text-white rounded-lg flex items-center justify-center hover:bg-gray-800 transition-colors font-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-y-auto h-full pb-20 lg:pb-0">
+              {conversations.length === 0 ? (
+                <div className="p-4 lg:p-6 text-center">
+                  <div className="w-20 h-20 bg-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">📭</span>
+                  </div>
+                  <h3 className="text-black font-black mb-2 text-lg">Aucune conversation</h3>
+                  <p className="text-gray-600 text-sm font-medium">
+                    {userProfile?.user_type === 'client' ? 
+                      'Contactez des développeurs pour commencer' : 
+                      'Vous recevrez ici les messages des clients'
+                    }
+                  </p>
+                </div>
+              ) : (
+                conversations.map((conversation) => (
+                  <div
+                    key={conversation.id}
+                    onClick={() => setSelectedConversation(conversation)}
+                    className={`group p-4 border-b-2 border-gray-200 cursor-pointer hover:bg-white transition-all duration-300 hover:border-black ${
+                      selectedConversation?.id === conversation.id ? 'bg-white border-black shadow-lg' : 'bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-black text-black text-base group-hover:text-gray-700 transition-colors">
+                        {userProfile?.user_type === 'client' ? 
+                          conversation.developer_name : 
+                          conversation.client_name
+                        }
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        {conversation.unread_count > 0 && (
+                          <span className="bg-black text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center font-bold">
+                            {conversation.unread_count}
+                          </span>
+                        )}
+                        <span className="text-gray-400 text-xs font-medium">
+                          {formatTime(conversation.last_message_at)}
                         </span>
-                      )}
-                      <span className="text-slate-400 text-xs">
-                        {formatTime(conversation.last_message_at)}
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm truncate font-medium">
+                      {conversation.subject}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Overlay pour mobile */}
+          {showSidebar && (
+            <div
+              className="lg:hidden fixed inset-0 bg-black/50 z-40"
+              onClick={() => setShowSidebar(false)}
+            />
+          )}
+
+          {/* Zone de chat */}
+          <div className="flex-1 flex flex-col bg-white">
+            {selectedConversation ? (
+              <>
+                {/* Header de la conversation */}
+                <div className="p-4 lg:p-6 border-b-2 border-gray-200 bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {/* Bouton retour/menu sur mobile */}
+                      <button
+                        onClick={() => setShowSidebar(true)}
+                        className="lg:hidden w-10 h-10 bg-black text-white rounded-lg flex items-center justify-center hover:bg-gray-800 transition-colors font-black"
+                      >
+                        ☰
+                      </button>
+                      <div>
+                        <h2 className="text-lg lg:text-xl font-black text-black">
+                          {userProfile?.user_type === 'client' ? 
+                            selectedConversation.developer_name : 
+                            selectedConversation.client_name
+                          }
+                        </h2>
+                        <p className="text-gray-600 text-xs lg:text-sm truncate max-w-xs lg:max-w-none font-medium">
+                          {selectedConversation.subject}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${
+                        selectedConversation.status === 'active' ? 
+                          'bg-white text-black border-black' : 
+                          'bg-gray-200 text-gray-600 border-gray-300'
+                      }`}>
+                        {selectedConversation.status === 'active' ? 'Active' : 'Fermée'}
                       </span>
                     </div>
                   </div>
-                  <p className="text-slate-300 text-xs lg:text-sm truncate">
-                    {conversation.subject}
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-3 lg:space-y-4 bg-white">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-4 py-3 rounded-2xl border-2 ${
+                          message.sender_id === user.id
+                            ? 'bg-black text-white border-black'
+                            : 'bg-gray-50 text-black border-gray-200 hover:border-black transition-colors'
+                        }`}
+                      >
+                        <p className="text-sm lg:text-base break-words font-medium">{message.content}</p>
+                        <p className={`text-xs mt-2 font-medium ${
+                          message.sender_id === user.id ? 'text-gray-300' : 'text-gray-500'
+                        }`}>
+                          {formatTime(message.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Zone de saisie */}
+                <div className="p-4 lg:p-6 border-t-2 border-gray-200 bg-gray-50">
+                  <form onSubmit={sendMessage} className="flex gap-3">
+                    <Input
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Tapez votre message..."
+                      className="flex-1 bg-white border-2 border-gray-300 text-black text-sm lg:text-base focus:border-black font-medium"
+                      disabled={sending}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={sending || !newMessage.trim()}
+                      className="bg-black text-white hover:bg-gray-800 border-2 border-black px-4 py-2 font-black disabled:bg-gray-400 disabled:border-gray-400 transform hover:scale-105 transition-all duration-300"
+                    >
+                      {sending ? '...' : '📤'}
+                    </Button>
+                  </form>
+                </div>
+              </>
+            ) : (
+              /* État vide */
+              <div className="flex-1 flex items-center justify-center p-4 bg-white">
+                <div className="text-center">
+                  {/* Bouton menu sur mobile quand aucune conversation sélectionnée */}
+                  <button
+                    onClick={() => setShowSidebar(true)}
+                    className="lg:hidden mb-6 bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors font-black border-2 border-black transform hover:scale-105"
+                  >
+                    ☰ Voir les conversations
+                  </button>
+                  <div className="w-24 h-24 bg-gray-200 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                    <span className="text-4xl">💬</span>
+                  </div>
+                  <h3 className="text-2xl font-black text-black mb-3">
+                    Sélectionnez une conversation
+                  </h3>
+                  <p className="text-gray-600 text-lg font-medium">
+                    Choisissez une conversation pour commencer à échanger
                   </p>
                 </div>
-              ))
+              </div>
             )}
           </div>
-        </div>
-
-        {/* Overlay pour mobile */}
-        {showSidebar && (
-          <div
-            className="lg:hidden fixed inset-0 bg-black/50 z-40"
-            onClick={() => setShowSidebar(false)}
-          />
-        )}
-
-        {/* Zone de chat */}
-        <div className="flex-1 flex flex-col">
-          {selectedConversation ? (
-            <>
-              {/* Header de la conversation */}
-              <div className="p-4 lg:p-6 border-b border-slate-700 bg-slate-800/30">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {/* Bouton retour/menu sur mobile */}
-                    <button
-                      onClick={() => setShowSidebar(true)}
-                      className="lg:hidden text-slate-400 hover:text-white"
-                    >
-                      ☰
-                    </button>
-                    <div>
-                      <h2 className="text-lg lg:text-xl font-bold text-white">
-                        {userProfile?.user_type === 'client' ? 
-                          selectedConversation.developer_name : 
-                          selectedConversation.client_name
-                        }
-                      </h2>
-                      <p className="text-slate-400 text-xs lg:text-sm truncate max-w-xs lg:max-w-none">
-                        {selectedConversation.subject}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 lg:px-3 py-1 rounded-full text-xs ${
-                      selectedConversation.status === 'active' ? 
-                        'bg-green-500/20 text-green-400' : 
-                        'bg-gray-500/20 text-gray-400'
-                    }`}>
-                      {selectedConversation.status === 'active' ? 'Active' : 'Fermée'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-3 lg:space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-3 lg:px-4 py-2 lg:py-3 rounded-2xl ${
-                        message.sender_id === user.id
-                          ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
-                          : 'bg-slate-700 text-white'
-                      }`}
-                    >
-                      <p className="text-sm lg:text-base break-words">{message.content}</p>
-                      <p className={`text-xs mt-1 lg:mt-2 ${
-                        message.sender_id === user.id ? 'text-cyan-100' : 'text-slate-400'
-                      }`}>
-                        {formatTime(message.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Zone de saisie */}
-              <div className="p-4 lg:p-6 border-t border-slate-700 bg-slate-800/30">
-                <form onSubmit={sendMessage} className="flex gap-2 lg:gap-3">
-                  <Input
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Tapez votre message..."
-                    className="flex-1 bg-slate-700/50 border-slate-600 text-white text-sm lg:text-base"
-                    disabled={sending}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={sending || !newMessage.trim()}
-                    className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 px-3 lg:px-4"
-                  >
-                    {sending ? '...' : '📤'}
-                  </Button>
-                </form>
-              </div>
-            </>
-          ) : (
-            /* État vide */
-            <div className="flex-1 flex items-center justify-center p-4">
-              <div className="text-center">
-                {/* Bouton menu sur mobile quand aucune conversation sélectionnée */}
-                <button
-                  onClick={() => setShowSidebar(true)}
-                  className="lg:hidden mb-6 bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-600 transition-colors"
-                >
-                  ☰ Voir les conversations
-                </button>
-                <div className="text-4xl lg:text-6xl mb-4">💬</div>
-                <h3 className="text-lg lg:text-xl font-semibold text-white mb-2">
-                  Sélectionnez une conversation
-                </h3>
-                <p className="text-slate-400 text-sm lg:text-base">
-                  Choisissez une conversation pour commencer à échanger
-                </p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
