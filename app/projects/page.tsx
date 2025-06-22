@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Search, MapPin, Calendar, DollarSign, Clock, Filter, Grid, List } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/layout/auth-context';
+import { Search, MapPin, Calendar, DollarSign, Clock, Filter, Grid, List, Plus } from 'lucide-react';
 
 interface Project {
   id: string;
@@ -25,6 +27,8 @@ export default function ProjectsPage() {
   const [selectedBudget, setSelectedBudget] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const router = useRouter();
+  const { user } = useAuth();
   const supabase = createClientComponentClient();
 
   useEffect(() => {
@@ -50,6 +54,15 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCreateProject = () => {
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
+    // Redirection vers la page de création de projet
+    router.push('/projects/create');
   };
 
   const filteredProjects = projects.filter(project => {
@@ -185,7 +198,7 @@ export default function ProjectsPage() {
               />
             </div>
 
-            {/* Filtres */}
+            {/* Filtres + Bouton Créer */}
             <div className="flex gap-4 items-center">
               <select
                 value={selectedBudget}
@@ -221,6 +234,15 @@ export default function ProjectsPage() {
                   <List className="h-5 w-5" />
                 </button>
               </div>
+
+              {/* NOUVEAU: Bouton Créer un projet */}
+              <button
+                onClick={handleCreateProject}
+                className="bg-black text-white px-6 py-3 font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+              >
+                <Plus className="h-5 w-5" />
+                Créer un projet
+              </button>
             </div>
           </div>
         </div>
@@ -250,10 +272,24 @@ export default function ProjectsPage() {
               </div>
             )
           ) : (
+            /* MODIFIÉ: Section vide avec CTA pour créer un projet */
             <div className="bg-white border-2 border-gray-200 p-12 text-center">
               <Search className="h-16 w-16 mx-auto mb-4 text-gray-400" />
               <h3 className="font-black text-xl text-black mb-2">Aucun projet trouvé</h3>
-              <p className="text-gray-600">Essayez de modifier vos critères de recherche</p>
+              <p className="text-gray-600 mb-6">Essayez de modifier vos critères de recherche</p>
+              
+              {/* CTA pour créer un projet */}
+              <div className="border-t-2 border-gray-200 pt-6 mt-6">
+                <h4 className="font-black text-lg text-black mb-3">Vous êtes client ?</h4>
+                <p className="text-gray-600 mb-4">Publiez votre projet et trouvez le développeur parfait !</p>
+                <button
+                  onClick={handleCreateProject}
+                  className="bg-black text-white px-8 py-4 font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto"
+                >
+                  <Plus className="h-5 w-5" />
+                  Créer mon premier projet
+                </button>
+              </div>
             </div>
           )}
         </div>

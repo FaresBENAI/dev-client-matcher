@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/layout/auth-context';
+import ContactModal from '@/components/ContactModal';
 import { Search, MapPin, Calendar, Code, Star, Filter, Grid, List, Mail } from 'lucide-react';
 
 interface Developer {
@@ -31,8 +32,6 @@ export default function DevelopersPage() {
     isOpen: false,
     developer: null
   });
-  const [message, setMessage] = useState('');
-  const [sendingMessage, setSendingMessage] = useState(false);
   const router = useRouter();
   const { user } = useAuth();
   const supabase = createClientComponentClient();
@@ -43,111 +42,54 @@ export default function DevelopersPage() {
 
   const loadDevelopers = async () => {
     try {
+      console.log('🔍 Chargement des développeurs...');
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_type', 'developer')
         .order('created_at', { ascending: false });
 
-      if (data) {
-        setDevelopers(data);
+      if (error) {
+        console.error('❌ Erreur chargement développeurs:', error);
+      } else {
+        console.log(`✅ ${data?.length || 0} développeurs chargés`);
+        setDevelopers(data || []);
       }
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('💥 Exception chargement développeurs:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleViewProfile = (developer: Developer) => {
+    console.log('👀 Redirection vers profil:', developer.full_name);
     // Redirection vers la page profil dédiée
     router.push(`/developer/${developer.id}`);
   };
 
   const handleContact = async (developer: Developer) => {
-    console.log('🔍 Vérification utilisateur connecté:', user);
+    console.log('🔍 [DevelopersPage] Tentative contact développeur:', developer.full_name);
+    console.log('🔍 [DevelopersPage] Vérification utilisateur connecté:', user);
     
     if (!user) {
-      console.log('❌ Utilisateur non connecté, redirection...');
+      console.log('❌ [DevelopersPage] Utilisateur non connecté, redirection...');
       router.push('/auth/signup');
       return;
     }
 
-    console.log('✅ Utilisateur connecté, ouverture modal');
-    // Ouvrir la modal de contact
+    console.log('✅ [DevelopersPage] Utilisateur connecté, ouverture ContactModal');
+    console.log('📋 [DevelopersPage] Données développeur:', {
+      id: developer.id,
+      name: developer.full_name,
+      email: developer.email
+    });
+
+    // Ouvrir la modal de contact avec notre nouveau composant
     setContactModal({
       isOpen: true,
       developer: developer
     });
-  };
-
-  const sendMessage = async () => {
-    if (!message.trim() || !contactModal.developer || !user) return;
-
-    setSendingMessage(true);
-    try {
-      console.log('📤 Envoi message...');
-      
-      // Vérifier si une conversation existe déjà
-      const { data: existingConversation } = await supabase
-        .from('conversations')
-        .select('id')
-        .or(`and(client_id.eq.${user.id},developer_id.eq.${contactModal.developer.id}),and(client_id.eq.${contactModal.developer.id},developer_id.eq.${user.id})`)
-        .single();
-
-      let conversationId;
-
-      if (existingConversation) {
-        conversationId = existingConversation.id;
-      } else {
-        // Créer une nouvelle conversation
-        const { data: newConversation, error: convError } = await supabase
-          .from('conversations')
-          .insert({
-            client_id: user.id,
-            developer_id: contactModal.developer.id
-          })
-          .select('id')
-          .single();
-
-        if (convError) {
-          console.error('Erreur création conversation:', convError);
-          alert('Erreur lors de la création de la conversation');
-          return;
-        }
-
-        conversationId = newConversation.id;
-      }
-
-      // Envoyer le message
-      const { error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: user.id,
-          content: message,
-          is_read: false
-        });
-
-      if (messageError) {
-        console.error('Erreur envoi message:', messageError);
-        alert('Erreur lors de l\'envoi du message');
-        return;
-      }
-
-      console.log('✅ Message envoyé avec succès');
-      
-      // Fermer la modal et rediriger vers messages
-      setContactModal({ isOpen: false, developer: null });
-      setMessage('');
-      router.push('/messages');
-      
-    } catch (error) {
-      console.error('💥 Erreur complète:', error);
-      alert('Une erreur est survenue');
-    } finally {
-      setSendingMessage(false);
-    }
   };
 
   const filteredDevelopers = developers.filter(developer => {
@@ -418,52 +360,19 @@ export default function DevelopersPage() {
         </div>
       </div>
 
-      {/* Modal de contact */}
+      
+
+      {/* Notre nouveau ContactModal avec debug */}
       {contactModal.isOpen && contactModal.developer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white border-2 border-black max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black text-black">
-                Contacter {contactModal.developer.full_name}
-              </h3>
-              <button
-                onClick={() => setContactModal({ isOpen: false, developer: null })}
-                className="text-gray-500 hover:text-black font-black text-xl"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-bold text-black mb-2">
-                Votre message :
-              </label>
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Décrivez votre projet ou votre demande..."
-                rows={4}
-                className="w-full p-3 border-2 border-gray-200 focus:border-black focus:outline-none resize-none"
-              />
-            </div>
-            
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setContactModal({ isOpen: false, developer: null })}
-                className="flex-1 border-2 border-black text-black px-4 py-3 font-black hover:bg-gray-50 transition-all duration-300"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={sendMessage}
-                disabled={!message.trim() || sendingMessage}
-                className="flex-1 bg-black text-white px-4 py-3 font-black hover:bg-gray-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {sendingMessage ? 'Envoi...' : 'Envoyer'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ContactModal
+          isOpen={contactModal.isOpen}
+          onClose={() => {
+            console.log('🔒 [DevelopersPage] Fermeture ContactModal');
+            setContactModal({ isOpen: false, developer: null });
+          }}
+          developerId={contactModal.developer.id}
+          developerName={contactModal.developer.full_name}
+        />
       )}
 
       <style jsx>{`
