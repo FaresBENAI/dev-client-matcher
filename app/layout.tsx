@@ -1,18 +1,13 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
-import type { Metadata, Viewport } from 'next'
-import UnifiedNavbar from '../components/layout/unified-navbar'
+import { AuthProvider } from '@/components/layout/auth-context'
+import Navbar from '@/components/layout/navbar'
 
 const inter = Inter({ subsets: ['latin'] })
 
-export const metadata: Metadata = {
-  title: 'Dev-Client Matcher',
-  description: 'Plateforme de mise en relation développeurs et clients pour automatisation et IA',
-}
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
+export const metadata = {
+  title: 'LinkerAI - Connectez développeurs et projets',
+  description: 'Plateforme intelligente pour connecter développeurs talentueux et projets innovants',
 }
 
 export default function RootLayout({
@@ -23,10 +18,10 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
-        {/* Navbar unifiée - responsive */}
-        <UnifiedNavbar />
-        
-        <main>{children}</main>
+        <AuthProvider>
+          <Navbar />
+          <main>{children}</main>
+        </AuthProvider>
       </body>
     </html>
   )

@@ -1,318 +1,125 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Button } from '../ui/button'
-import { createClient } from '@supabase/supabase-js'
+import { useAuth } from './auth-context'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+export default function UnifiedNavbar() {
+  const { user, userProfile, loading } = useAuth()
+  const router = useRouter()
+  const supabase = createClientComponentClient()
 
-export default function Navbar() {
-  const [user, setUser] = useState<any>(null)
-  const [userProfile, setUserProfile] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [pagesMenuOpen, setPagesMenuOpen] = useState(false)
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
-  const [unreadCount, setUnreadCount] = useState(0)
-  
-  const pagesMenuRef = useRef<HTMLDivElement>(null)
-  const profileMenuRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUser(user)
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('user_type, full_name')
-          .eq('id', user.id)
-          .single()
-        setUserProfile(profile)
-        fetchUnreadCount(user.id)
-      }
-      setLoading(false)
-    }
-    getUser()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        setUser(session.user)
-        getUser()
-      } else {
-        setUser(null)
-        setUserProfile(null)
-        setUnreadCount(0)
-      }
-    })
-
-    // Fermer les menus si click à l'extérieur
-    const handleClickOutside = (event: MouseEvent) => {
-      if (pagesMenuRef.current && !pagesMenuRef.current.contains(event.target as Node)) {
-        setPagesMenuOpen(false)
-      }
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setProfileMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      subscription.unsubscribe()
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
-
-  const fetchUnreadCount = async (userId: string) => {
-    try {
-      // Récupérer les conversations de l'utilisateur
-      const { data: conversations } = await supabase
-        .from('conversations')
-        .select('id')
-        .or(`client_id.eq.${userId},developer_id.eq.${userId}`)
-
-      if (conversations && conversations.length > 0) {
-        const conversationIds = conversations.map(c => c.id)
-        
-        // Compter les messages non lus
-        const { count } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .in('conversation_id', conversationIds)
-          .eq('is_read', false)
-          .neq('sender_id', userId)
-
-        setUnreadCount(count || 0)
-      }
-    } catch (error) {
-      console.error('Erreur lors du comptage des messages non lus:', error)
-    }
-  }
-
-  const handleLogout = async () => {
+  const handleSignOut = async () => {
     await supabase.auth.signOut()
-    setProfileMenuOpen(false)
+    router.push('/')
   }
 
-  // Déterminer l'URL des projets selon le type d'utilisateur
-  const getProjectsUrl = () => {
-    if (!user || !userProfile) return '/projects' // URL générale pour visiteurs
-    
-    if (userProfile.user_type === 'client') {
-      return '/dashboard/client/projects' // Projets du client
-    } else {
-      return '/dashboard/developer/projects' // Projets disponibles pour développeur
-    }
+  const getDashboardLink = () => {
+    if (!userProfile) return '/auth/login'
+    return userProfile.user_type === 'client' ? '/dashboard/client' : '/dashboard/developer'
   }
-
-  const pagesMenuItems = [
-    { label: 'Accueil', href: '/', icon: '🏠' },
-    { label: 'Développeurs', href: '/developers', icon: '💻' },
-    { label: 'Projets', href: getProjectsUrl(), icon: '🚀' },
-    ...(user && userProfile ? [
-      { label: 'Messages', href: '/messages', icon: '💬', badge: unreadCount },
-      userProfile.user_type === 'client' 
-        ? { label: 'Dashboard Client', href: '/dashboard/client', icon: '👔' }
-        : { label: 'Dashboard Développeur', href: '/dashboard/developer', icon: '💻' }
-    ] : [])
-  ]
-
-  const profileMenuItems = user && userProfile ? [
-    { label: 'Messages', href: '/messages', icon: '💬', badge: unreadCount },
-    ...(userProfile.user_type === 'client' ? [
-      { label: 'Mon Dashboard', href: '/dashboard/client', icon: '📊' },
-      { label: 'Mes Projets', href: '/dashboard/client/projects', icon: '📋' },
-      { label: 'Créer un Projet', href: '/dashboard/client/create-project', icon: '✨' },
-      { label: 'Mon Profil', href: '/dashboard/client/profile', icon: '⚙️' }
-    ] : [
-      { label: 'Mon Dashboard', href: '/dashboard/developer', icon: '📊' },
-      { label: 'Projets Disponibles', href: '/dashboard/developer/projects', icon: '🔍' },
-      { label: 'Mes Candidatures', href: '/dashboard/developer/applications', icon: '📝' },
-      { label: 'Mon Profil', href: '/dashboard/developer/profile', icon: '⚙️' }
-    ]),
-    { label: 'Se déconnecter', href: '#', icon: '🚪', action: 'logout' }
-  ] : []
 
   return (
-    <nav className="bg-slate-950/95 backdrop-blur-lg border-b border-slate-800/50 sticky top-0 z-50">
+    <nav className="bg-white border-b-2 border-gray-200 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          {/* Logo + Menu Pages */}
-          <div className="flex items-center space-x-6">
-            {/* Logo */}
-            <Link href="/" className="text-2xl font-bold group">
-              <span className="text-slate-100 group-hover:text-sky-400 transition-colors">🚀 </span>
-              <span className="bg-gradient-to-r from-sky-400 to-sky-200 bg-clip-text text-transparent">
-                Dev-Client Matcher
-              </span>
-            </Link>
-
-            {/* Menu Pages Dropdown */}
-            <div className="relative" ref={pagesMenuRef}>
-              <button
-                onClick={() => setPagesMenuOpen(!pagesMenuOpen)}
-                className="flex items-center space-x-1 text-slate-300 hover:text-sky-300 transition-colors px-3 py-2 rounded-md hover:bg-slate-800/50"
-              >
-                <span>Navigation</span>
-                <svg 
-                  className={`w-4 h-4 transition-transform ${pagesMenuOpen ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {pagesMenuOpen && (
-                <div className="absolute top-full left-0 mt-2 w-56 bg-slate-900/95 backdrop-blur-lg rounded-xl border border-slate-700/50 shadow-2xl overflow-hidden">
-                  <div className="py-2">
-                    {pagesMenuItems.map((item, index) => (
-                      <Link
-                        key={index}
-                        href={item.href}
-                        onClick={() => setPagesMenuOpen(false)}
-                        className="flex items-center justify-between px-4 py-3 text-slate-300 hover:text-slate-100 hover:bg-slate-800/50 transition-all duration-200 border-l-2 border-transparent hover:border-sky-400/50"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <span className="text-lg">{item.icon}</span>
-                          <span>{item.label}</span>
-                        </div>
-                        {item.badge && item.badge > 0 && (
-                          <span className="bg-gradient-to-r from-sky-400 to-sky-500 text-slate-950 text-xs px-2 py-1 rounded-full font-medium">
-                            {item.badge}
-                          </span>
-                        )}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
+        <div className="flex justify-between items-center h-16 sm:h-20">
+          
+          {/* Logo LinkerAI - Style Uber */}
+          <Link href="/" className="flex items-center flex-shrink-0 group">
+            <div className="flex items-center">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black rounded-lg flex items-center justify-center mr-3 group-hover:scale-105 transition-transform duration-300">
+                <span className="text-white font-black text-lg sm:text-xl">L</span>
+              </div>
+              <div className="text-xl sm:text-2xl font-black text-black group-hover:text-gray-700 transition-colors duration-300">
+                LinkerAI
+              </div>
             </div>
+          </Link>
 
-            {/* Lien Messages direct pour desktop */}
-            {user && (
-              <Link 
-                href="/messages" 
-                className="hidden md:flex items-center space-x-2 text-slate-300 hover:text-sky-300 transition-colors px-3 py-2 rounded-md hover:bg-slate-800/50 relative"
-              >
-                <span>💬</span>
-                <span>Messages</span>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-sky-400 to-sky-500 text-slate-950 text-xs px-2 py-1 rounded-full font-medium">
-                    {unreadCount}
-                  </span>
-                )}
-              </Link>
-            )}
+          {/* Navigation Links - Style Uber */}
+          <div className="flex items-center space-x-1 sm:space-x-4 flex-1 justify-center">
+            <Link 
+              href="/" 
+              className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
+            >
+              <span className="hidden sm:inline">Accueil</span>
+              <span className="sm:hidden">🏠</span>
+            </Link>
+            <Link 
+              href="/projects" 
+              className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
+            >
+              <span className="hidden sm:inline">Projets</span>
+              <span className="sm:hidden">📋</span>
+            </Link>
+            <Link 
+              href="/developers" 
+              className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
+            >
+              <span className="hidden sm:inline">Développeurs</span>
+              <span className="sm:hidden">👨‍💻</span>
+            </Link>
+            <Link 
+              href="/messages" 
+              className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
+            >
+              <span className="hidden sm:inline">Messages</span>
+              <span className="sm:hidden">💬</span>
+            </Link>
           </div>
 
-          {/* Actions utilisateur */}
-          <div className="flex items-center space-x-4">
+          {/* Auth Section - Style Uber */}
+          <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
             {loading ? (
-              <div className="w-32 h-8 bg-slate-800/50 animate-pulse rounded"></div>
-            ) : user && userProfile ? (
-              /* Menu Profil Connecté */
-              <div className="flex items-center space-x-4">
-                {/* Indicateur type utilisateur */}
-                <span className="hidden md:block px-3 py-1 bg-slate-800/50 text-slate-300 rounded-full text-xs border border-slate-700/50">
-                  {userProfile.user_type === 'client' ? '👔 Client' : '💻 Développeur'}
-                </span>
+              <div className="w-8 h-8 border-2 border-gray-300 border-t-black rounded-full animate-spin"></div>
+            ) : user ? (
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                {/* Dashboard Button */}
+                <Link href={getDashboardLink()}>
+                  <Button className="bg-black hover:bg-gray-800 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-black transition-all duration-300 border-2 border-black transform hover:scale-105">
+                    <span className="hidden sm:inline">Dashboard</span>
+                    <span className="sm:hidden">📊</span>
+                  </Button>
+                </Link>
 
-                {/* Menu Profil Dropdown */}
-                <div className="relative" ref={profileMenuRef}>
-                  <button
-                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                    className="flex items-center space-x-2 text-slate-300 hover:text-slate-100 transition-colors px-3 py-2 rounded-md bg-slate-800/50 border border-slate-700/50 hover:border-sky-400/30"
-                  >
-                    <div className="w-8 h-8 bg-gradient-to-br from-sky-400 to-sky-500 rounded-full flex items-center justify-center text-slate-950 font-bold text-sm">
-                      {userProfile.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="hidden md:block font-medium">
-                      {userProfile.full_name || user.email}
+                {/* User Profile & Logout */}
+                <div className="flex items-center space-x-2">
+                  <div className="hidden md:flex flex-col items-end">
+                    <span className="text-black text-sm font-black">
+                      {userProfile?.full_name || user.email?.split('@')[0] || 'Utilisateur'}
                     </span>
-                    <svg 
-                      className={`w-4 h-4 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`}
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">
+                      {userProfile?.user_type || 'Membre'}
+                    </span>
+                  </div>
+                  
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black rounded-lg flex items-center justify-center text-white font-black text-sm sm:text-base border-2 border-black hover:scale-105 transition-transform duration-300 cursor-default">
+                    {userProfile?.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+
+                  <button
+                    onClick={handleSignOut}
+                    className="text-black hover:text-white hover:bg-black transition-all duration-300 p-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
+                    title="Se déconnecter"
+                  >
+                    <span className="text-base sm:text-lg">🚪</span>
                   </button>
-
-                  {profileMenuOpen && (
-                    <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900/95 backdrop-blur-lg rounded-xl border border-slate-700/50 shadow-2xl overflow-hidden">
-                      {/* Header du menu */}
-                      <div className="px-4 py-3 border-b border-slate-700/50 bg-gradient-to-r from-sky-400/10 to-sky-200/10">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-sky-400 to-sky-500 rounded-full flex items-center justify-center text-slate-950 font-bold">
-                            {userProfile.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-medium text-slate-100 text-sm">
-                              {userProfile.full_name || 'Utilisateur'}
-                            </div>
-                            <div className="text-slate-400 text-xs">
-                              {user.email}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Items du menu */}
-                      <div className="py-2">
-                        {profileMenuItems.map((item, index) => (
-                          <div key={index}>
-                            {item.action === 'logout' ? (
-                              <button
-                                onClick={handleLogout}
-                                className="w-full flex items-center space-x-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 text-left border-l-2 border-transparent hover:border-red-400/50"
-                              >
-                                <span className="text-lg">{item.icon}</span>
-                                <span>{item.label}</span>
-                              </button>
-                            ) : (
-                              <Link
-                                href={item.href}
-                                onClick={() => setProfileMenuOpen(false)}
-                                className="flex items-center justify-between px-4 py-3 text-slate-300 hover:text-slate-100 hover:bg-slate-800/50 transition-all duration-200 border-l-2 border-transparent hover:border-sky-400/50"
-                              >
-                                <div className="flex items-center space-x-3">
-                                  <span className="text-lg">{item.icon}</span>
-                                  <span>{item.label}</span>
-                                </div>
-                                {item.badge && item.badge > 0 && (
-                                  <span className="bg-gradient-to-r from-sky-400 to-sky-500 text-slate-950 text-xs px-2 py-1 rounded-full font-medium">
-                                    {item.badge}
-                                  </span>
-                                )}
-                              </Link>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             ) : (
-              /* Boutons pour visiteurs */
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2 sm:space-x-3">
                 <Link href="/auth/login">
-                  <Button 
-                    variant="outline"
-                    className="border-sky-400/50 text-sky-300 hover:text-slate-100 hover:border-sky-400 hover:bg-sky-400/10 bg-transparent"
-                  >
-                    Connexion
+                  <Button className="bg-black hover:bg-gray-800 text-white px-3 sm:px-4 py-2 text-xs sm:text-sm border-2 border-black transition-all duration-300 font-black transform hover:scale-105">
+                    <span className="hidden sm:inline">Connexion</span>
+                    <span className="sm:hidden">🔑</span>
                   </Button>
                 </Link>
                 <Link href="/auth/signup">
-                  <Button className="bg-gradient-to-r from-sky-400 to-sky-500 hover:from-sky-500 hover:to-sky-600 text-slate-950 font-medium border-0 shadow-lg">
-                    Inscription
+                  <Button className="bg-black hover:bg-gray-800 text-white px-3 sm:px-4 py-2 text-xs sm:text-sm border-2 border-black transition-all duration-300 font-black transform hover:scale-105">
+                    <span className="hidden sm:inline">S&apos;inscrire</span>
+                    <span className="sm:hidden">✨</span>
                   </Button>
                 </Link>
               </div>

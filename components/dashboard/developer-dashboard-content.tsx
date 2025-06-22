@@ -1,209 +1,147 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { Button } from '../ui/button'
-import Link from 'next/link'
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export default function DeveloperDashboardContent() {
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [testResult, setTestResult] = useState<string>('')
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+  const [sessionStatus, setSessionStatus] = useState<string>('Vérification...');
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
-  useEffect(() => {
-    const getProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
+  const fixAndTestSession = async () => {
+    try {
+      setSessionStatus('🔧 Correction de la session...');
       
-      // TEST: Essayer de récupérer les projets ici
-      try {
-        const { data: projects, error } = await supabase
-          .from('projects')
-          .select('*')
-        
-        if (error) {
-          setTestResult(`Erreur: ${error.message}`)
-        } else {
-          setTestResult(`✅ ${projects?.length || 0} projets trouvés`)
+      // Étape 1: Nettoyer le localStorage
+      console.log('🧹 Nettoyage localStorage...');
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('supabase')) {
+          localStorage.removeItem(key);
+          console.log('🗑️ Supprimé:', key);
         }
-      } catch (err) {
-        setTestResult(`❌ Erreur catch: ${err}`)
+      });
+
+      // Étape 2: Rafraîchir la session
+      console.log('🔄 Rafraîchissement session...');
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      console.log('🔄 Refresh result:', refreshData, refreshError);
+
+      // Étape 3: Nouvelle tentative getSession
+      console.log('🔍 Nouvelle vérification...');
+      const { data: { session }, error } = await supabase.auth.getSession();
+      console.log('🔑 Session après fix:', session, error);
+
+      if (session && session.user) {
+        setSessionStatus('✅ Session restaurée !');
+        setDebugInfo({
+          success: true,
+          userId: session.user.id,
+          email: session.user.email,
+          sessionInfo: {
+            access_token: session.access_token?.substring(0, 50) + '...',
+            refresh_token: session.refresh_token?.substring(0, 50) + '...',
+            expires_at: session.expires_at
+          }
+        });
+      } else {
+        setSessionStatus('❌ Session non récupérable - reconnexion nécessaire');
+        setDebugInfo({
+          success: false,
+          refreshData,
+          refreshError,
+          sessionData: session,
+          sessionError: error
+        });
       }
-      
-      setLoading(false)
+
+    } catch (error) {
+      console.error('💥 Erreur fix session:', error);
+      setSessionStatus('💥 Erreur lors de la correction');
+      setDebugInfo({ error: error.message });
     }
+  };
 
-    getProfile()
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-          <div className="absolute inset-0 w-16 h-16 border-4 border-gray-600 border-b-transparent rounded-full animate-spin opacity-50"></div>
-        </div>
-      </div>
-    )
-  }
+  // Test immédiat au chargement
+  useEffect(() => {
+    fixAndTestSession();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header Section - FOND NOIR */}
-      <div className="bg-black py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-black text-white mb-2">
-              DASHBOARD DÉVELOPPEUR
-            </h1>
-            <p className="text-gray-300 font-medium">
-              💻 Bonjour, {user?.email}
-            </p>
-            <p className="text-gray-400 text-sm mt-1">
-              Découvrez de nouveaux projets passionnants en IA et automatisation
-            </p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-white p-8">
+      <h1 className="text-4xl font-black mb-8">🔧 FIX SESSION SUPABASE</h1>
+      
+      <div className="bg-blue-50 border-2 border-blue-200 p-6 mb-8">
+        <h2 className="font-black text-xl mb-4">📊 STATUT SESSION</h2>
+        <p className="text-lg font-bold">{sessionStatus}</p>
       </div>
 
-      {/* Main Content - FOND BLANC */}
-      <div className="bg-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Test Result - Section de debug temporaire */}
-          <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 mb-8">
-            <h3 className="text-black font-black mb-2">🔧 TEST CONNEXION</h3>
-            <p className="text-gray-700 font-medium text-sm">
-              {testResult || 'Test en cours...'}
-            </p>
-          </div>
-
-          {/* Stats - FOND GRIS */}
-          <div className="bg-gray-50 rounded-2xl p-8 border-2 border-gray-200 mb-8">
-            <h2 className="text-2xl font-black text-black mb-6 text-center">
-              VOS STATISTIQUES
-            </h2>
-            <div className="grid md:grid-cols-4 gap-6">
-              <div className="bg-white rounded-xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300 text-center group">
-                <h3 className="text-gray-600 text-sm font-bold mb-2 uppercase tracking-wider">CANDIDATURES ACTIVES</h3>
-                <p className="text-4xl font-black text-black group-hover:text-gray-700 transition-colors">
-                  0
-                </p>
-              </div>
-              <div className="bg-white rounded-xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300 text-center group">
-                <h3 className="text-gray-600 text-sm font-bold mb-2 uppercase tracking-wider">PROJETS ACCEPTÉS</h3>
-                <p className="text-4xl font-black text-black group-hover:text-gray-700 transition-colors">
-                  0
-                </p>
-              </div>
-              <div className="bg-white rounded-xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300 text-center group">
-                <h3 className="text-gray-600 text-sm font-bold mb-2 uppercase tracking-wider">PROJETS TERMINÉS</h3>
-                <p className="text-4xl font-black text-black group-hover:text-gray-700 transition-colors">
-                  0
-                </p>
-              </div>
-              <div className="bg-white rounded-xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300 text-center group">
-                <h3 className="text-gray-600 text-sm font-bold mb-2 uppercase tracking-wider">REVENUS TOTAUX</h3>
-                <p className="text-4xl font-black text-black group-hover:text-gray-700 transition-colors">
-                  €0
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Actions rapides */}
-          <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 mb-8">
-            <h2 className="text-2xl font-black text-black mb-6">ACTIONS RAPIDES</h2>
-            <div className="grid sm:grid-cols-3 gap-4">
-              <Link href="/dashboard/developer/projects" className="group">
-                <Button className="w-full bg-black text-white hover:bg-gray-800 border-2 border-black py-4 text-lg font-black rounded-xl transform hover:scale-105 transition-all duration-300">
-                  <span className="flex items-center justify-center">
-                    🔍 Parcourir les projets
-                    <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1">→</span>
-                  </span>
-                </Button>
-              </Link>
-              <Link href="/dashboard/developer/applications" className="group">
-                <Button className="w-full border-2 border-black text-black hover:bg-black hover:text-white py-4 text-lg font-black rounded-xl bg-transparent transform hover:scale-105 transition-all duration-300">
-                  <span className="flex items-center justify-center">
-                    📋 Mes candidatures
-                    <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1">→</span>
-                  </span>
-                </Button>
-              </Link>
-              <Link href="/dashboard/developer/profile" className="group">
-                <Button className="w-full border-2 border-black text-black hover:bg-black hover:text-white py-4 text-lg font-black rounded-xl bg-transparent transform hover:scale-105 transition-all duration-300">
-                  <span className="flex items-center justify-center">
-                    👤 Mon profil
-                    <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1">→</span>
-                  </span>
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Message d'accueil principal - FOND GRIS */}
-          <div className="bg-gray-50 rounded-2xl p-8 border-2 border-gray-200">
-            <div className="text-center py-16">
-              <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mx-auto mb-6 border-2 border-gray-200">
-                <span className="text-4xl">🚀</span>
-              </div>
-              <h3 className="text-2xl font-black text-black mb-3">
-                Prêt pour de nouveaux défis ?
-              </h3>
-              <p className="text-gray-600 font-medium mb-8 max-w-md mx-auto leading-relaxed">
-                Explorez les projets disponibles et candidatez sur ceux qui correspondent à vos compétences.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/dashboard/developer/projects">
-                  <Button className="bg-black text-white hover:bg-gray-800 border-2 border-black font-black px-8 py-4 text-lg rounded-xl transform hover:scale-105 transition-all duration-300">
-                    Voir les projets disponibles
-                  </Button>
-                </Link>
-                <Link href="/dashboard/developer/profile">
-                  <Button className="border-2 border-black text-black hover:bg-black hover:text-white font-black px-8 py-4 text-lg rounded-xl bg-transparent transform hover:scale-105 transition-all duration-300">
-                    Compléter mon profil
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Section conseils - BONUS */}
-          <div className="mt-8 bg-white rounded-2xl p-8 border-2 border-gray-200">
-            <h2 className="text-2xl font-black text-black mb-6">CONSEILS POUR RÉUSSIR</h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="text-center group">
-                <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-all duration-300">
-                  <span className="text-2xl text-white">💡</span>
-                </div>
-                <h3 className="font-black text-black mb-2">Optimisez votre profil</h3>
-                <p className="text-gray-600 text-sm font-medium">
-                  Complétez votre profil avec vos compétences et votre portfolio
-                </p>
-              </div>
-              <div className="text-center group">
-                <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-all duration-300">
-                  <span className="text-2xl text-white">⚡</span>
-                </div>
-                <h3 className="font-black text-black mb-2">Répondez rapidement</h3>
-                <p className="text-gray-600 text-sm font-medium">
-                  Les clients apprécient les développeurs réactifs
-                </p>
-              </div>
-              <div className="text-center group">
-                <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-all duration-300">
-                  <span className="text-2xl text-white">🎯</span>
-                </div>
-                <h3 className="font-black text-black mb-2">Propositions ciblées</h3>
-                <p className="text-gray-600 text-sm font-medium">
-                  Personnalisez vos candidatures selon chaque projet
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="bg-red-50 border-2 border-red-200 p-6 mb-8">
+        <h2 className="font-black text-xl mb-4">🐛 DEBUG DÉTAILLÉ</h2>
+        <pre className="text-xs bg-white p-4 rounded border overflow-auto max-h-96">
+          {debugInfo ? JSON.stringify(debugInfo, null, 2) : 'Chargement...'}
+        </pre>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <button
+          onClick={fixAndTestSession}
+          className="bg-black text-white p-4 font-black hover:bg-gray-800"
+        >
+          🔄 Retester la Session
+        </button>
+        
+        <button
+          onClick={() => {
+            localStorage.clear();
+            window.location.href = '/auth/login';
+          }}
+          className="bg-red-600 text-white p-4 font-black hover:bg-red-700"
+        >
+          🚨 Reset Complet + Login
+        </button>
+        
+        <button
+          onClick={() => window.location.href = '/dashboard/developer/applications'}
+          className="bg-green-600 text-white p-4 font-black hover:bg-green-700"
+        >
+          ✅ Aller aux Applications (qui marche)
+        </button>
+        
+        <button
+          onClick={() => {
+            if (debugInfo?.success) {
+              // Si la session est fixée, charger le vrai dashboard
+              window.location.reload();
+            }
+          }}
+          className={`p-4 font-black ${
+            debugInfo?.success 
+              ? 'bg-green-500 text-white hover:bg-green-600' 
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          }`}
+          disabled={!debugInfo?.success}
+        >
+          🎯 Charger Dashboard (si fixé)
+        </button>
+      </div>
+
+      {debugInfo?.success && (
+        <div className="bg-green-50 border-2 border-green-200 p-6 mt-8">
+          <h3 className="font-black text-green-800 mb-4">🎉 SESSION RÉPARÉE !</h3>
+          <p className="text-green-700">
+            Utilisateur: <strong>{debugInfo.email}</strong><br/>
+            ID: <strong>{debugInfo.userId}</strong>
+          </p>
+          <button
+            onClick={() => router.push('/dashboard/developer')}
+            className="bg-green-600 text-white px-6 py-3 font-black mt-4 hover:bg-green-700"
+          >
+            ➡️ Retourner au Dashboard
+          </button>
+        </div>
+      )}
     </div>
-  )
+  );
 }

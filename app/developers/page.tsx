@@ -1,427 +1,522 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import ContactDeveloperModal from '../../components/messaging/contact-developer-modal'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import React, { useState, useEffect } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/layout/auth-context';
+import { Search, MapPin, Calendar, Code, Star, Filter, Grid, List, Mail } from 'lucide-react';
 
 interface Developer {
-  id: string
-  profiles: {
-    full_name: string
-    email: string
-  }
-  title: string
-  bio: string
-  skills: string[]
-  specializations: string[]
-  experience_years: number
-  hourly_rate: number
-  github_url: string
-  linkedin_url: string
-  portfolio_url: string
-  availability: string
+  id: string;
+  full_name: string;
+  email: string;
+  bio?: string;
+  location?: string;
+  skills?: string[];
+  experience_level?: string;
+  hourly_rate?: number;
+  available?: boolean;
+  created_at: string;
+  profile_photo_url?: string;
 }
 
 export default function DevelopersPage() {
-  const [developers, setDevelopers] = useState<Developer[]>([])
-  const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
-  const [userProfile, setUserProfile] = useState<any>(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedSpecialization, setSelectedSpecialization] = useState('')
-  const [maxBudget, setMaxBudget] = useState('')
-  const [selectedDeveloper, setSelectedDeveloper] = useState<Developer | null>(null)
-  const [showContactModal, setShowContactModal] = useState(false)
-  const router = useRouter()
-
-  const specializationOptions = [
-    'Machine Learning', 'Deep Learning', 'Computer Vision', 'NLP',
-    'TensorFlow', 'PyTorch', 'OpenAI API', 'Automatisation RPA',
-    'Web Scraping', 'Data Analysis', 'Chatbots', 'IA Conversationnelle'
-  ]
+  const [developers, setDevelopers] = useState<Developer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedExperience, setSelectedExperience] = useState('all');
+  const [selectedAvailability, setSelectedAvailability] = useState('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [contactModal, setContactModal] = useState<{ isOpen: boolean; developer: Developer | null }>({
+    isOpen: false,
+    developer: null
+  });
+  const [message, setMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const router = useRouter();
+  const { user } = useAuth();
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
-    fetchDevelopers()
-    checkUser()
-  }, [])
+    loadDevelopers();
+  }, []);
 
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      setUser(user)
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('user_type')
-        .eq('id', user.id)
-        .single()
-      setUserProfile(profile)
-    }
-  }
-
-  const fetchDevelopers = async () => {
+  const loadDevelopers = async () => {
     try {
-      // Récupérer tous les developer_profiles
-      const { data: devProfiles, error: devError } = await supabase
-        .from('developer_profiles')
-        .select('*')
-
-      if (devError || !devProfiles || devProfiles.length === 0) {
-        setLoading(false)
-        return
-      }
-
-      // Récupérer les profils correspondants
-      const devIds = devProfiles.map(dev => dev.id)
-      const { data: profiles, error: profilesError } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email')
-        .in('id', devIds)
+        .select('*')
+        .eq('user_type', 'developer')
+        .order('created_at', { ascending: false });
 
-      // Combiner les données manuellement
-      const combinedData = devProfiles.map(dev => {
-        const profile = profiles?.find(p => p.id === dev.id)
-        return {
-          ...dev,
-          profiles: profile || { full_name: 'Nom manquant', email: 'Email manquant' }
+      if (data) {
+        setDevelopers(data);
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewProfile = (developer: Developer) => {
+    // Redirection vers la page profil dédiée
+    router.push(`/developer/${developer.id}`);
+  };
+
+  const handleContact = async (developer: Developer) => {
+    console.log('🔍 Vérification utilisateur connecté:', user);
+    
+    if (!user) {
+      console.log('❌ Utilisateur non connecté, redirection...');
+      router.push('/auth/signup');
+      return;
+    }
+
+    console.log('✅ Utilisateur connecté, ouverture modal');
+    // Ouvrir la modal de contact
+    setContactModal({
+      isOpen: true,
+      developer: developer
+    });
+  };
+
+  const sendMessage = async () => {
+    if (!message.trim() || !contactModal.developer || !user) return;
+
+    setSendingMessage(true);
+    try {
+      console.log('📤 Envoi message...');
+      
+      // Vérifier si une conversation existe déjà
+      const { data: existingConversation } = await supabase
+        .from('conversations')
+        .select('id')
+        .or(`and(client_id.eq.${user.id},developer_id.eq.${contactModal.developer.id}),and(client_id.eq.${contactModal.developer.id},developer_id.eq.${user.id})`)
+        .single();
+
+      let conversationId;
+
+      if (existingConversation) {
+        conversationId = existingConversation.id;
+      } else {
+        // Créer une nouvelle conversation
+        const { data: newConversation, error: convError } = await supabase
+          .from('conversations')
+          .insert({
+            client_id: user.id,
+            developer_id: contactModal.developer.id
+          })
+          .select('id')
+          .single();
+
+        if (convError) {
+          console.error('Erreur création conversation:', convError);
+          alert('Erreur lors de la création de la conversation');
+          return;
         }
-      })
 
-      if (combinedData) {
-        setDevelopers(combinedData as any)
+        conversationId = newConversation.id;
       }
 
+      // Envoyer le message
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: user.id,
+          content: message,
+          is_read: false
+        });
+
+      if (messageError) {
+        console.error('Erreur envoi message:', messageError);
+        alert('Erreur lors de l\'envoi du message');
+        return;
+      }
+
+      console.log('✅ Message envoyé avec succès');
+      
+      // Fermer la modal et rediriger vers messages
+      setContactModal({ isOpen: false, developer: null });
+      setMessage('');
+      router.push('/messages');
+      
     } catch (error) {
-      console.error('Erreur:', error)
+      console.error('💥 Erreur complète:', error);
+      alert('Une erreur est survenue');
+    } finally {
+      setSendingMessage(false);
     }
+  };
+
+  const filteredDevelopers = developers.filter(developer => {
+    const matchesSearch = developer.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         developer.bio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         developer.skills?.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesExperience = selectedExperience === 'all' || developer.experience_level === selectedExperience;
+    const matchesAvailability = selectedAvailability === 'all' || 
+                               (selectedAvailability === 'available' && developer.available) ||
+                               (selectedAvailability === 'unavailable' && !developer.available);
     
-    setLoading(false)
-  }
+    return matchesSearch && matchesExperience && matchesAvailability;
+  });
 
-  const handleContactDeveloper = (developer: Developer) => {
-    if (!user) {
-      router.push('/auth/login')
-      return
-    }
-    
-    if (userProfile?.user_type !== 'client') {
-      alert('Seuls les clients peuvent contacter les développeurs')
-      return
-    }
-    
-    setSelectedDeveloper(developer)
-    setShowContactModal(true)
-  }
+  const DeveloperCard = ({ developer }: { developer: Developer }) => (
+    <div className="bg-white border-2 border-gray-200 p-6 hover:border-black transition-all duration-300 transform hover:scale-105">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <div className="w-12 h-12 bg-black rounded-lg flex items-center justify-center text-white font-black text-lg">
+            {developer.full_name?.charAt(0).toUpperCase() || 'D'}
+          </div>
+          <div>
+            <h3 className="font-black text-lg text-black">{developer.full_name || 'Développeur'}</h3>
+            <p className="text-sm text-gray-600">{developer.experience_level || 'Non spécifié'}</p>
+          </div>
+        </div>
+      </div>
+      
+      <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+        {developer.bio || 'Aucune bio disponible'}
+      </p>
+      
+      <div className="space-y-2 mb-4">
+        {developer.location && (
+          <div className="flex items-center text-sm text-gray-600">
+            <MapPin className="h-4 w-4 mr-2" />
+            <span>{developer.location}</span>
+          </div>
+        )}
+        
+        {developer.hourly_rate && (
+          <div className="flex items-center text-sm text-gray-600">
+            <Star className="h-4 w-4 mr-2" />
+            <span className="font-black text-black">{developer.hourly_rate}€/heure</span>
+          </div>
+        )}
+        
+        <div className="flex items-center text-sm text-gray-600">
+          <Calendar className="h-4 w-4 mr-2" />
+          <span>Inscrit le {new Date(developer.created_at).toLocaleDateString()}</span>
+        </div>
+      </div>
 
-  const filteredDevelopers = developers.filter(dev => {
-    const matchesSearch = !searchTerm || 
-      dev.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dev.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dev.skills?.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
+      {developer.skills && developer.skills.length > 0 && (
+        <div className="mb-4">
+          <div className="flex flex-wrap gap-2">
+            {developer.skills.slice(0, 3).map((skill, index) => (
+              <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-bold border border-gray-300">
+                {skill}
+              </span>
+            ))}
+            {developer.skills.length > 3 && (
+              <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-bold border border-gray-300">
+                +{developer.skills.length - 3}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
-    const matchesSpecialization = !selectedSpecialization ||
-      dev.specializations?.includes(selectedSpecialization)
+      <div className="flex justify-between items-center">
+        <button 
+          onClick={() => handleContact(developer)}
+          className="flex items-center text-sm text-gray-600 hover:text-black transition-colors"
+        >
+          <Mail className="h-4 w-4 mr-2" />
+          Contacter
+        </button>
+        <button 
+          onClick={() => handleViewProfile(developer)}
+          className="bg-black text-white px-4 py-2 text-sm font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105"
+        >
+          Voir Profil
+        </button>
+      </div>
+    </div>
+  );
 
-    const matchesBudget = !maxBudget || 
-      dev.hourly_rate <= parseInt(maxBudget)
-
-    return matchesSearch && matchesSpecialization && matchesBudget
-  })
+  const DeveloperListItem = ({ developer }: { developer: Developer }) => (
+    <div className="bg-white border-2 border-gray-200 p-6 hover:border-black transition-all duration-300">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="lg:col-span-2">
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white font-black">
+              {developer.full_name?.charAt(0).toUpperCase() || 'D'}
+            </div>
+            <div>
+              <h3 className="font-black text-lg text-black">{developer.full_name || 'Développeur'}</h3>
+              <p className="text-sm text-gray-600">{developer.experience_level || 'Non spécifié'}</p>
+            </div>
+          </div>
+          <p className="text-gray-600 text-sm line-clamp-2">
+            {developer.bio || 'Aucune bio disponible'}
+          </p>
+        </div>
+        
+        <div className="space-y-2">
+          {developer.location && (
+            <div className="flex items-center text-sm text-gray-600">
+              <MapPin className="h-4 w-4 mr-2" />
+              <span>{developer.location}</span>
+            </div>
+          )}
+          {developer.hourly_rate && (
+            <div className="flex items-center text-sm">
+              <Star className="h-4 w-4 mr-2" />
+              <span className="font-black text-black">{developer.hourly_rate}€/h</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-center justify-end space-x-2">
+          <button 
+            onClick={() => handleContact(developer)}
+            className="border-2 border-black text-black px-4 py-2 font-black hover:bg-black hover:text-white transition-all duration-300"
+          >
+            Contacter
+          </button>
+          <button 
+            onClick={() => handleViewProfile(developer)}
+            className="bg-black text-white px-4 py-2 font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105"
+          >
+            Voir Profil
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-black text-xl">Chargement des développeurs...</div>
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+          <div className="absolute top-2 left-2 w-12 h-12 border-4 border-transparent border-t-white rounded-full animate-spin"></div>
+        </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header avec filtres - Fond Noir */}
-      <div className="bg-black py-8">
+      {/* Header avec fond étoilé */}
+      <div className="relative bg-black text-white py-24 overflow-hidden">
+        {/* Fond étoilé animé */}
+        <div className="absolute inset-0">
+          <div className="stars"></div>
+          <div className="twinkling"></div>
+        </div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-5xl font-black mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+            Développeurs Talentueux
+          </h1>
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            Découvrez notre communauté de développeurs experts prêts à donner vie à vos projets
+          </p>
+        </div>
+      </div>
+
+      {/* Filtres et recherche */}
+      <div className="bg-gray-50 py-8 border-b-2 border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Titre */}
-          <div className="mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-              Trouvez votre développeur expert
-            </h1>
-            <p className="text-xl text-gray-300">
-              Découvrez nos développeurs spécialisés en IA et automatisation
-            </p>
-          </div>
+          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+            {/* Recherche */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher un développeur..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+              />
+            </div>
 
-          {/* Filtres intégrés */}
-          <div className="bg-gray-50 rounded-lg p-6 border-2 border-gray-200">
-            <h2 className="text-lg font-semibold text-black mb-4">Filtres de recherche</h2>
-            <div className="grid md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-black mb-2">
-                  Recherche
-                </label>
-                <Input
-                  type="text"
-                  placeholder="Nom, compétence..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
-                />
-              </div>
+            {/* Filtres */}
+            <div className="flex gap-4 items-center">
+              <select
+                value={selectedExperience}
+                onChange={(e) => setSelectedExperience(e.target.value)}
+                className="px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+              >
+                <option value="all">Toute expérience</option>
+                <option value="junior">Junior</option>
+                <option value="middle">Intermédiaire</option>
+                <option value="senior">Senior</option>
+              </select>
 
-              <div>
-                <label className="block text-sm font-medium text-black mb-2">
-                  Spécialisation
-                </label>
-                <select
-                  value={selectedSpecialization}
-                  onChange={(e) => setSelectedSpecialization(e.target.value)}
-                  className="w-full bg-white border-2 border-gray-300 rounded-lg px-3 py-2 text-black focus:outline-none focus:border-black"
+              <select
+                value={selectedAvailability}
+                onChange={(e) => setSelectedAvailability(e.target.value)}
+                className="px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+              >
+                <option value="all">Tous</option>
+                <option value="available">Disponibles</option>
+                <option value="unavailable">Occupés</option>
+              </select>
+
+              {/* Mode d'affichage */}
+              <div className="flex border-2 border-gray-200">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-3 font-black transition-all duration-300 ${
+                    viewMode === 'grid' 
+                      ? 'bg-black text-white' 
+                      : 'bg-white text-black hover:bg-gray-50'
+                  }`}
                 >
-                  <option value="">Toutes</option>
-                  {specializationOptions.map(spec => (
-                    <option key={spec} value={spec}>{spec}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-black mb-2">
-                  Budget max (€/h)
-                </label>
-                <Input
-                  type="number"
-                  placeholder="100"
-                  value={maxBudget}
-                  onChange={(e) => setMaxBudget(e.target.value)}
-                  className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
-                />
-              </div>
-
-              <div className="flex items-end">
-                <Button
-                  onClick={() => {
-                    setSearchTerm('')
-                    setSelectedSpecialization('')
-                    setMaxBudget('')
-                  }}
-                  className="w-full bg-black border-2 border-black text-white hover:bg-gray-800"
+                  <Grid className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-3 font-black transition-all duration-300 ${
+                    viewMode === 'list' 
+                      ? 'bg-black text-white' 
+                      : 'bg-white text-black hover:bg-gray-50'
+                  }`}
                 >
-                  Réinitialiser
-                </Button>
+                  <List className="h-5 w-5" />
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Statistiques - Fond Blanc */}
-      <div className="bg-white py-12">
+      {/* Liste des développeurs */}
+      <div className="py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-gray-50 rounded-lg p-6 border-2 border-gray-200 hover:border-black transition-colors">
-              <div className="text-3xl font-bold text-black">{developers.length}</div>
-              <div className="text-gray-600 text-sm">Développeurs disponibles</div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-6 border-2 border-gray-200 hover:border-black transition-colors">
-              <div className="text-3xl font-bold text-black">
-                {developers.filter(d => d.specializations?.some(s => s.includes('Machine Learning') || s.includes('Deep Learning'))).length}
-              </div>
-              <div className="text-gray-600 text-sm">Experts IA</div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-6 border-2 border-gray-200 hover:border-black transition-colors">
-              <div className="text-3xl font-bold text-black">
-                {developers.filter(d => d.specializations?.some(s => s.includes('Automatisation') || s.includes('RPA'))).length}
-              </div>
-              <div className="text-gray-600 text-sm">Experts Automatisation</div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-6 border-2 border-gray-200 hover:border-black transition-colors">
-              <div className="text-3xl font-bold text-black">
-                {developers.length > 0 ? Math.round(developers.reduce((acc, d) => acc + (d.hourly_rate || 0), 0) / developers.length) : 0}€
-              </div>
-              <div className="text-gray-600 text-sm">Tarif moyen/h</div>
-            </div>
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-black text-black">
+              {filteredDevelopers.length} développeur{filteredDevelopers.length !== 1 ? 's' : ''} trouvé{filteredDevelopers.length !== 1 ? 's' : ''}
+            </h2>
           </div>
 
-          {/* Résultats */}
-          <div className="mb-6">
-            <p className="text-gray-600">
-              {filteredDevelopers.length} développeur(s) trouvé(s) sur {developers.length} total
-            </p>
-          </div>
-
-          {/* Liste des développeurs */}
-          <div className="grid gap-6">
-            {filteredDevelopers.map((developer) => (
-              <div key={developer.id} className="bg-gray-50 rounded-lg p-6 border-2 border-gray-200 hover:border-black transition-colors">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-bold text-black">
-                        {developer.profiles?.full_name || 'Nom manquant'}
-                      </h3>
-                      <span className={`text-xs px-2 py-1 rounded-lg border-2 ${
-                        developer.availability === 'available' ? 
-                        'bg-green-100 text-green-700 border-green-200' : 
-                        'bg-gray-100 text-gray-600 border-gray-200'
-                      }`}>
-                        {developer.availability === 'available' ? 'Disponible' : 'Occupé'}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {developer.github_url && (
-                          <a href={developer.github_url} target="_blank" rel="noopener noreferrer" 
-                             className="text-gray-600 hover:text-black transition-colors text-sm underline">
-                            GitHub
-                          </a>
-                        )}
-                        {developer.linkedin_url && (
-                          <a href={developer.linkedin_url} target="_blank" rel="noopener noreferrer"
-                             className="text-gray-600 hover:text-black transition-colors text-sm underline">
-                            LinkedIn
-                          </a>
-                        )}
-                        {developer.portfolio_url && (
-                          <a href={developer.portfolio_url} target="_blank" rel="noopener noreferrer"
-                             className="text-gray-600 hover:text-black transition-colors text-sm underline">
-                            Portfolio
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                    <p className="text-black font-medium mb-2">{developer.title || 'Titre manquant'}</p>
-                    <p className="text-gray-600 mb-4">{developer.bio || 'Bio manquante'}</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-black mb-1">
-                      {developer.hourly_rate || 0}€/h
-                    </div>
-                    <div className="text-gray-600 text-sm">
-                      {developer.experience_years || 0} ans d'exp.
-                    </div>
-                  </div>
-                </div>
-
-                {/* Compétences techniques */}
-                {developer.skills && developer.skills.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="text-black text-sm font-medium mb-2">Compétences techniques:</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {developer.skills.slice(0, 8).map((skill, index) => (
-                        <span key={index} className="px-2 py-1 bg-white text-black border border-gray-300 rounded-lg text-xs">
-                          {skill}
-                        </span>
-                      ))}
-                      {developer.skills.length > 8 && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 border border-gray-300 rounded-lg text-xs">
-                          +{developer.skills.length - 8} autres
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Spécialisations IA */}
-                {developer.specializations && developer.specializations.length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="text-black text-sm font-medium mb-2">Spécialisations IA & Automatisation:</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {developer.specializations.map((spec, index) => (
-                        <span key={index} className="px-2 py-1 bg-black text-white rounded-lg text-xs">
-                          {spec}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Actions conditionnelles */}
-                <div className="flex gap-3">
-                  <Button className="bg-black border-2 border-black text-white hover:bg-gray-800">
-                    Voir le profil complet
-                  </Button>
-                  
-                  {/* Bouton Contact conditionnel */}
-                  {!user ? (
-                    <Link href="/auth/signup">
-                      <Button className="bg-black text-white hover:bg-gray-800 border-2 border-black">
-                        S'inscrire pour contacter
-                      </Button>
-                    </Link>
-                  ) : userProfile?.user_type === 'client' ? (
-                    <Button 
-                      onClick={() => handleContactDeveloper(developer)}
-                      className="bg-black text-white hover:bg-gray-800 border-2 border-black"
-                    >
-                      Envoyer un message
-                    </Button>
-                  ) : (
-                    <Button 
-                      disabled
-                      className="bg-gray-400 text-gray-600 cursor-not-allowed border-2 border-gray-400"
-                    >
-                      Réservé aux clients
-                    </Button>
-                  )}
-                </div>
+          {filteredDevelopers.length > 0 ? (
+            viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredDevelopers.map((developer) => (
+                  <DeveloperCard key={developer.id} developer={developer} />
+                ))}
               </div>
-            ))}
-          </div>
-
-          {filteredDevelopers.length === 0 && (
-            <div className="text-center py-12">
-              <h3 className="text-xl font-semibold text-black mb-2">
-                {developers.length === 0 ? 'Aucun développeur disponible' : 'Aucun développeur trouvé'}
-              </h3>
-              <p className="text-gray-600 mb-6">
-                {developers.length === 0 
-                  ? 'Soyez les premiers à vous inscrire comme développeur !' 
-                  : 'Essayez d\'ajuster vos critères de recherche'}
-              </p>
-              <div className="flex gap-3 justify-center">
-                {!user ? (
-                  <>
-                    <Link href="/auth/signup">
-                      <Button className="bg-black text-white hover:bg-gray-800 border-2 border-black">
-                        Créer un compte client
-                      </Button>
-                    </Link>
-                    <Link href="/auth/login">
-                      <Button className="border-2 border-black text-black hover:bg-black hover:text-white bg-white">
-                        Se connecter
-                      </Button>
-                    </Link>
-                  </>
-                ) : userProfile?.user_type === 'developer' ? (
-                  <Link href="/dashboard/developer/profile">
-                    <Button className="bg-black text-white hover:bg-gray-800 border-2 border-black">
-                      Compléter votre profil
-                    </Button>
-                  </Link>
-                ) : null}
+            ) : (
+              <div className="space-y-4">
+                {filteredDevelopers.map((developer) => (
+                  <DeveloperListItem key={developer.id} developer={developer} />
+                ))}
               </div>
+            )
+          ) : (
+            <div className="bg-white border-2 border-gray-200 p-12 text-center">
+              <Search className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+              <h3 className="font-black text-xl text-black mb-2">Aucun développeur trouvé</h3>
+              <p className="text-gray-600">Essayez de modifier vos critères de recherche</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Modal de contact */}
-      {selectedDeveloper && (
-        <ContactDeveloperModal
-          developer={selectedDeveloper}
-          isOpen={showContactModal}
-          onClose={() => {
-            setShowContactModal(false)
-            setSelectedDeveloper(null)
-          }}
-        />
+      {contactModal.isOpen && contactModal.developer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border-2 border-black max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-black">
+                Contacter {contactModal.developer.full_name}
+              </h3>
+              <button
+                onClick={() => setContactModal({ isOpen: false, developer: null })}
+                className="text-gray-500 hover:text-black font-black text-xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-black mb-2">
+                Votre message :
+              </label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Décrivez votre projet ou votre demande..."
+                rows={4}
+                className="w-full p-3 border-2 border-gray-200 focus:border-black focus:outline-none resize-none"
+              />
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setContactModal({ isOpen: false, developer: null })}
+                className="flex-1 border-2 border-black text-black px-4 py-3 font-black hover:bg-gray-50 transition-all duration-300"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={sendMessage}
+                disabled={!message.trim() || sendingMessage}
+                className="flex-1 bg-black text-white px-4 py-3 font-black hover:bg-gray-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {sendingMessage ? 'Envoi...' : 'Envoyer'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
+
+      <style jsx>{`
+        .stars, .twinkling {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 120%;
+          pointer-events: none;
+        }
+
+        .stars {
+          background-image: 
+            radial-gradient(2px 2px at 20px 30px, #eee, transparent),
+            radial-gradient(2px 2px at 40px 70px, #fff, transparent),
+            radial-gradient(1px 1px at 90px 40px, #eee, transparent),
+            radial-gradient(1px 1px at 130px 80px, #fff, transparent),
+            radial-gradient(2px 2px at 160px 30px, #ddd, transparent);
+          background-repeat: repeat;
+          background-size: 200px 100px;
+          animation: zoom 60s alternate infinite;
+        }
+
+        .twinkling {
+          background-image: 
+            radial-gradient(1px 1px at 25px 25px, white, transparent),
+            radial-gradient(1px 1px at 50px 75px, white, transparent),
+            radial-gradient(1px 1px at 125px 25px, white, transparent),
+            radial-gradient(1px 1px at 75px 100px, white, transparent);
+          background-repeat: repeat;
+          background-size: 150px 100px;
+          animation: sparkle 5s ease-in-out infinite alternate;
+        }
+
+        @keyframes zoom {
+          from {
+            transform: scale(1);
+          }
+          to {
+            transform: scale(1.1);
+          }
+        }
+
+        @keyframes sparkle {
+          from {
+            opacity: 0.7;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
-  )
+  );
 }

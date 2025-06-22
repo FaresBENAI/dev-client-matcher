@@ -149,7 +149,7 @@ export default function UnifiedNavbar() {
                   </Button>
                 </Link>
                 <Link href="/auth/signup">
-                  <Button className="border-2 border-black text-black hover:bg-black hover:text-white px-3 sm:px-4 py-2 text-xs sm:text-sm bg-transparent transition-all duration-300 font-black transform hover:scale-105">
+                  <Button className="bg-black hover:bg-gray-800 text-white px-3 sm:px-4 py-2 text-xs sm:text-sm border-2 border-black transition-all duration-300 font-black transform hover:scale-105">
                     <span className="hidden sm:inline">S&apos;inscrire</span>
                     <span className="sm:hidden">✨</span>
                   </Button>
