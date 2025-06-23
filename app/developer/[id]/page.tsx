@@ -1,10 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/layout/auth-context';
 import { ArrowLeft, MapPin, Calendar, Star, Mail, Code, MessageCircle, Briefcase } from 'lucide-react';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface DeveloperProfile {
   id: string;
@@ -29,16 +33,27 @@ export default function DeveloperProfilePage({ params }: { params: { id: string 
   const [contactModal, setContactModal] = useState(false);
   const [message, setMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const router = useRouter();
-  const { user } = useAuth();
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
+    checkUser();
     loadDeveloperProfile();
   }, [params.id]);
 
+  const checkUser = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    } catch (error) {
+      console.error('Erreur auth:', error);
+    }
+  };
+
   const loadDeveloperProfile = async () => {
     try {
+      console.log('Chargement du profil développeur:', params.id);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -46,10 +61,15 @@ export default function DeveloperProfilePage({ params }: { params: { id: string 
         .eq('user_type', 'developer')
         .single();
 
+      console.log('Résultat requête:', data, error);
+
       if (data) {
         setDeveloper(data);
+      } else if (error) {
+        console.error('Erreur lors du chargement:', error);
+        router.push('/developers');
       } else {
-        // Développeur non trouvé
+        console.log('Développeur non trouvé');
         router.push('/developers');
       }
     } catch (error) {

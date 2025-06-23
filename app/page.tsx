@@ -26,6 +26,8 @@ export default function HomePage() {
     totalProjects: 0,
     completedProjects: 0
   })
+  const [realProjects, setRealProjects] = useState<any[]>([])
+  const [realDevelopers, setRealDevelopers] = useState<any[]>([])
   const router = useRouter()
 
   const testimonials = [
@@ -52,24 +54,76 @@ export default function HomePage() {
     }
   ]
 
-  const projects = [
-    { title: "Assistant IA pour e-commerce", desc: "Développer un chatbot intelligent", budget: "3 000€ - 5 000€", tag: "Chatbot IA", time: "2j" },
-    { title: "Automatisation workflow RH", desc: "Automatiser les processus", budget: "2 500€ - 4 000€", tag: "Automatisation", time: "1s" },
-    { title: "Analyse prédictive marketing", desc: "Créer des modèles d'analyse", budget: "5 000€ - 8 000€", tag: "Data Science", time: "5j" }
-  ]
+  // Fonction pour obtenir l'icône du type de projet
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'web': return '🌐';
+      case 'mobile': return '📱';
+      case 'automation': return '🤖';
+      case 'ai': return '🧠';
+      default: return '💻';
+    }
+  };
 
-  const developers = [
-    { name: "Alexandre Dubois", exp: "5+ ans", desc: "Spécialiste IA conversationnelle", avatar: "A", skills: ["Python", "IA"] },
-    { name: "Sophie Martin", exp: "7+ ans", desc: "Experte Machine Learning", avatar: "S", skills: ["TensorFlow", "ML"] },
-    { name: "Lisa Chen", exp: "6+ ans", desc: "Experte Computer Vision", avatar: "L", skills: ["PyTorch", "Vision"] }
-  ]
+  // Fonction pour formater le temps écoulé
+  const getTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0) return "aujourd'hui";
+    if (diffInDays === 1) return "1j";
+    if (diffInDays < 7) return `${diffInDays}j`;
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    if (diffInWeeks === 1) return "1s";
+    return `${diffInWeeks}s`;
+  };
 
   useEffect(() => {
     checkUser()
     fetchStats()
+    loadRealData()
     handleUrlParams()
     setIsVisible(true)
   }, [])
+
+  // Charger les vraies données
+  const loadRealData = async () => {
+    try {
+      console.log('=== CHARGEMENT DONNÉES RÉELLES ===');
+      
+      // Charger les projets récents
+      const { data: projects, error: projectsError } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      console.log('Projets chargés:', projects);
+      if (projects && projects.length > 0) {
+        setRealProjects(projects);
+      }
+
+      // Charger les développeurs
+      const { data: developers, error: developersError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_type', 'developer')
+        .limit(3);
+
+      console.log('Développeurs chargés:', developers);
+      if (developers && developers.length > 0) {
+        setRealDevelopers(developers);
+      }
+
+      if (projectsError) console.error('Erreur projets:', projectsError);
+      if (developersError) console.error('Erreur développeurs:', developersError);
+
+    } catch (error) {
+      console.error('Erreur:', error);
+    }
+  };
 
   // Animation des statistiques
   useEffect(() => {
@@ -130,9 +184,6 @@ export default function HomePage() {
         .eq('id', user.id)
         .single()
       setUserProfile(profile)
-      
-      // SUPPRIMÉ : Plus de redirection automatique
-      // Les utilisateurs connectés voient la même homepage
     }
     setLoading(false)
   }
@@ -347,7 +398,7 @@ export default function HomePage() {
               <div className="absolute top-3/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-gray-400 rounded-full"></div>
             </div>
             
-            {/* Projects Column - Centré comme avant */}
+            {/* Projects Column - VRAIS PROJETS */}
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-2xl sm:text-3xl font-black text-black mb-3 relative">
@@ -360,14 +411,14 @@ export default function HomePage() {
               </div>
 
               <div className="space-y-4">
-                {projects.map((project, index) => (
+                {realProjects.length > 0 ? realProjects.map((project, index) => (
                   <div key={index} className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="px-3 py-1 bg-black text-white text-xs font-bold rounded-full">
-                        {project.tag}
+                        {getTypeIcon(project.project_type)} {project.project_type || 'Projet'}
                       </span>
                       <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
-                        ● Ouvert
+                        ● {project.status || 'Ouvert'}
                       </span>
                     </div>
                     
@@ -376,18 +427,57 @@ export default function HomePage() {
                     </h3>
                     
                     <div className="flex justify-between items-center mb-3">
-                      <p className="text-gray-600 text-sm flex-1">{project.desc}</p>
+                      <p className="text-gray-600 text-sm flex-1">{project.description}</p>
                       <Button className="bg-black text-white hover:bg-gray-800 font-bold px-4 py-1 rounded-lg ml-3 text-xs transform hover:scale-105 transition-all">
                         Voir →
                       </Button>
                     </div>
                     
                     <div className="flex justify-between items-center text-xs">
-                      <div className="text-black font-bold">{project.budget}</div>
-                      <div className="text-gray-400">il y a {project.time}</div>
+                      <div className="text-black font-bold">
+                        {project.budget_min && project.budget_max ? 
+                          `${project.budget_min}€ - ${project.budget_max}€` : 
+                          'Budget à négocier'
+                        }
+                      </div>
+                      <div className="text-gray-400">il y a {getTimeAgo(project.created_at)}</div>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  // Fallback si pas de projets
+                  [
+                    { title: "Assistant IA pour e-commerce", desc: "Développer un chatbot intelligent", budget: "3 000€ - 5 000€", tag: "Chatbot IA", time: "2j" },
+                    { title: "Automatisation workflow RH", desc: "Automatiser les processus", budget: "2 500€ - 4 000€", tag: "Automatisation", time: "1s" },
+                    { title: "Analyse prédictive marketing", desc: "Créer des modèles d'analyse", budget: "5 000€ - 8 000€", tag: "Data Science", time: "5j" }
+                  ].map((project, index) => (
+                    <div key={index} className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-3 py-1 bg-black text-white text-xs font-bold rounded-full">
+                          {project.tag}
+                        </span>
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
+                          ● Ouvert
+                        </span>
+                      </div>
+                      
+                      <h3 className="text-lg font-black text-black mb-2 group-hover:text-gray-700 transition-colors">
+                        {project.title}
+                      </h3>
+                      
+                      <div className="flex justify-between items-center mb-3">
+                        <p className="text-gray-600 text-sm flex-1">{project.desc}</p>
+                        <Button className="bg-black text-white hover:bg-gray-800 font-bold px-4 py-1 rounded-lg ml-3 text-xs transform hover:scale-105 transition-all">
+                          Voir →
+                        </Button>
+                      </div>
+                      
+                      <div className="flex justify-between items-center text-xs">
+                        <div className="text-black font-bold">{project.budget}</div>
+                        <div className="text-gray-400">il y a {project.time}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="text-center pt-4">
@@ -399,7 +489,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Developers Column - Centré comme avant */}
+            {/* Developers Column - VRAIS DÉVELOPPEURS */}
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-2xl sm:text-3xl font-black text-black mb-3 relative">
@@ -412,34 +502,81 @@ export default function HomePage() {
               </div>
 
               <div className="space-y-4">
-                {developers.map((dev, index) => (
+                {realDevelopers.length > 0 ? realDevelopers.map((dev, index) => (
                   <div key={index} className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
                     <div className="flex items-start space-x-3">
                       <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center text-white font-black text-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                        {dev.avatar}
+                        {dev.full_name?.charAt(0).toUpperCase() || 'D'}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-black text-black mb-0.5">{dev.name}</h3>
-                        <p className="text-gray-600 text-xs mb-2 font-medium">{dev.exp} d'expérience</p>
+                        <h3 className="text-lg font-black text-black mb-0.5">{dev.full_name || 'Développeur'}</h3>
+                        <p className="text-gray-600 text-xs mb-2 font-medium">{dev.experience_level || 'Expert'} d'expérience</p>
                         
                         <div className="flex justify-between items-center mb-3">
-                          <p className="text-gray-600 text-sm flex-1 truncate">{dev.desc}</p>
-                          <Button className="bg-black text-white hover:bg-gray-800 font-bold px-4 py-1 rounded-lg ml-3 text-xs transform hover:scale-105 transition-all">
-                            Profil →
-                          </Button>
+                          <p className="text-gray-600 text-sm flex-1 truncate">{dev.bio || 'Développeur spécialisé'}</p>
+                          <Link href="/developers">
+                            <Button className="bg-black text-white hover:bg-gray-800 font-bold px-4 py-1 rounded-lg ml-3 text-xs transform hover:scale-105 transition-all">
+                              Profil →
+                            </Button>
+                          </Link>
                         </div>
                         
                         <div className="flex gap-1 flex-wrap">
-                          {dev.skills.map((skill, skillIndex) => (
+                          {dev.skills && dev.skills.length > 0 ? dev.skills.slice(0, 2).map((skill: string, skillIndex: number) => (
                             <span key={skillIndex} className="px-2 py-0.5 bg-white text-black border border-gray-300 rounded text-xs font-medium hover:border-black transition-all duration-300">
                               {skill}
                             </span>
-                          ))}
+                          )) : (
+                            <>
+                              <span className="px-2 py-0.5 bg-white text-black border border-gray-300 rounded text-xs font-medium hover:border-black transition-all duration-300">
+                                React
+                              </span>
+                              <span className="px-2 py-0.5 bg-white text-black border border-gray-300 rounded text-xs font-medium hover:border-black transition-all duration-300">
+                                IA
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  // Fallback si pas de développeurs
+                  [
+                    { name: "Alexandre Dubois", exp: "5+ ans", desc: "Spécialiste IA conversationnelle", avatar: "A", skills: ["Python", "IA"] },
+                    { name: "Sophie Martin", exp: "7+ ans", desc: "Experte Machine Learning", avatar: "S", skills: ["TensorFlow", "ML"] },
+                    { name: "Lisa Chen", exp: "6+ ans", desc: "Experte Computer Vision", avatar: "L", skills: ["PyTorch", "Vision"] }
+                  ].map((dev, index) => (
+                    <div key={index} className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center text-white font-black text-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                          {dev.avatar}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-black text-black mb-0.5">{dev.name}</h3>
+                          <p className="text-gray-600 text-xs mb-2 font-medium">{dev.exp} d'expérience</p>
+                          
+                          <div className="flex justify-between items-center mb-3">
+                            <p className="text-gray-600 text-sm flex-1 truncate">{dev.desc}</p>
+                            <Link href="/developers">
+                              <Button className="bg-black text-white hover:bg-gray-800 font-bold px-4 py-1 rounded-lg ml-3 text-xs transform hover:scale-105 transition-all">
+                                Profil →
+                              </Button>
+                            </Link>
+                          </div>
+                          
+                          <div className="flex gap-1 flex-wrap">
+                            {dev.skills.map((skill, skillIndex) => (
+                              <span key={skillIndex} className="px-2 py-0.5 bg-white text-black border border-gray-300 rounded text-xs font-medium hover:border-black transition-all duration-300">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="text-center pt-4">
