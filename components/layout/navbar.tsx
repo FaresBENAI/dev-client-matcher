@@ -61,6 +61,18 @@ export default function UnifiedNavbar() {
               <span className="hidden sm:inline">Développeurs</span>
               <span className="sm:hidden">👨‍💻</span>
             </Link>
+            
+            {/* NOUVEAU : Lien Profil conditionnel pour développeurs */}
+            {user && userProfile?.user_type === 'developer' && (
+              <Link 
+                href="/dashboard/developer/profile" 
+                className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
+              >
+                <span className="hidden sm:inline">Mon Profil</span>
+                <span className="sm:hidden">👤</span>
+              </Link>
+            )}
+            
             <Link 
               href="/messages" 
               className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"

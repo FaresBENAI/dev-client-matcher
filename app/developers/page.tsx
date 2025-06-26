@@ -5,7 +5,23 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/layout/auth-context';
 import ContactModal from '@/components/ContactModal';
-import { Search, MapPin, Calendar, Code, Star, Filter, Grid, List, Mail } from 'lucide-react';
+import { Search, MapPin, Calendar, Code, Star, Filter, Grid, List, Mail, User } from 'lucide-react';
+
+// 🔧 AJOUT: Langues disponibles avec leurs drapeaux
+const LANGUAGES = {
+  'fr': { name: 'Français', flag: '🇫🇷' },
+  'en': { name: 'English', flag: '🇬🇧' },
+  'es': { name: 'Español', flag: '🇪🇸' },
+  'de': { name: 'Deutsch', flag: '🇩🇪' },
+  'it': { name: 'Italiano', flag: '🇮🇹' },
+  'pt': { name: 'Português', flag: '🇵🇹' },
+  'ar': { name: 'العربية', flag: '🇸🇦' },
+  'zh': { name: '中文', flag: '🇨🇳' },
+  'ja': { name: '日本語', flag: '🇯🇵' },
+  'ko': { name: '한국어', flag: '🇰🇷' },
+  'ru': { name: 'Русский', flag: '🇷🇺' },
+  'hi': { name: 'हिन्दी', flag: '🇮🇳' }
+};
 
 interface Developer {
   id: string;
@@ -14,11 +30,15 @@ interface Developer {
   bio?: string;
   location?: string;
   skills?: string[];
+  languages?: string[];
   experience_level?: string;
+  experience_years?: number;
   hourly_rate?: number;
   available?: boolean;
+  availability?: string;
   created_at: string;
   profile_photo_url?: string;
+  avatar_url?: string;
 }
 
 export default function DevelopersPage() {
@@ -40,20 +60,50 @@ export default function DevelopersPage() {
     loadDevelopers();
   }, []);
 
+  // 🔧 MODIFICATION: Charger les développeurs avec profils détaillés
   const loadDevelopers = async () => {
     try {
       console.log('🔍 Chargement des développeurs...');
-      const { data, error } = await supabase
+      
+      // Charger d'abord les profils de base
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_type', 'developer')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('❌ Erreur chargement développeurs:', error);
-      } else {
-        console.log(`✅ ${data?.length || 0} développeurs chargés`);
-        setDevelopers(data || []);
+      if (profilesError) {
+        console.error('❌ Erreur chargement profils:', profilesError);
+        setLoading(false);
+        return;
+      }
+
+      console.log(`✅ ${profiles?.length || 0} profils de base chargés`);
+
+      if (profiles && profiles.length > 0) {
+        // Charger les détails pour chaque développeur
+        const developersWithDetails = await Promise.all(
+          profiles.map(async (profile) => {
+            const { data: devProfile } = await supabase
+              .from('developer_profiles')
+              .select('*')
+              .eq('id', profile.id)
+              .single();
+
+            return {
+              ...profile,
+              ...devProfile, // Fusionner les données détaillées
+              // S'assurer que les données de base ne sont pas écrasées
+              id: profile.id,
+              full_name: profile.full_name,
+              email: profile.email,
+              avatar_url: profile.avatar_url
+            };
+          })
+        );
+
+        console.log('✅ Développeurs avec détails chargés:', developersWithDetails);
+        setDevelopers(developersWithDetails);
       }
     } catch (error) {
       console.error('💥 Exception chargement développeurs:', error);
@@ -64,7 +114,6 @@ export default function DevelopersPage() {
 
   const handleViewProfile = (developer: Developer) => {
     console.log('👀 Redirection vers profil:', developer.full_name);
-    // Redirection vers la page profil dédiée
     router.push(`/developer/${developer.id}`);
   };
 
@@ -85,7 +134,6 @@ export default function DevelopersPage() {
       email: developer.email
     });
 
-    // Ouvrir la modal de contact avec notre nouveau composant
     setContactModal({
       isOpen: true,
       developer: developer
@@ -98,22 +146,62 @@ export default function DevelopersPage() {
                          developer.skills?.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesExperience = selectedExperience === 'all' || developer.experience_level === selectedExperience;
     const matchesAvailability = selectedAvailability === 'all' || 
-                               (selectedAvailability === 'available' && developer.available) ||
-                               (selectedAvailability === 'unavailable' && !developer.available);
+                               (selectedAvailability === 'available' && (developer.available || developer.availability === 'available')) ||
+                               (selectedAvailability === 'unavailable' && (!developer.available || developer.availability !== 'available'));
     
     return matchesSearch && matchesExperience && matchesAvailability;
   });
 
+  // 🔧 MODIFICATION: DeveloperCard avec photo et drapeaux
   const DeveloperCard = ({ developer }: { developer: Developer }) => (
     <div className="bg-white border-2 border-gray-200 p-6 hover:border-black transition-all duration-300 transform hover:scale-105">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-black rounded-lg flex items-center justify-center text-white font-black text-lg">
-            {developer.full_name?.charAt(0).toUpperCase() || 'D'}
+          {/* 🔧 AJOUT: Photo de profil avec fallback */}
+          <div className="w-12 h-12 rounded-lg overflow-hidden border-2 border-gray-300 flex-shrink-0">
+            {developer.avatar_url ? (
+              <img 
+                src={developer.avatar_url} 
+                alt={developer.full_name || 'Développeur'} 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-black flex items-center justify-center text-white font-black text-lg">
+                {developer.full_name?.charAt(0).toUpperCase() || 'D'}
+              </div>
+            )}
           </div>
+          
           <div>
-            <h3 className="font-black text-lg text-black">{developer.full_name || 'Développeur'}</h3>
-            <p className="text-sm text-gray-600">{developer.experience_level || 'Non spécifié'}</p>
+            {/* 🔧 AJOUT: Nom avec drapeaux des langues */}
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-black text-lg text-black">{developer.full_name || 'Développeur'}</h3>
+              {/* Drapeaux des langues parlées */}
+              {developer.languages && developer.languages.length > 0 && (
+                <div className="flex gap-1">
+                  {developer.languages.slice(0, 2).map((langCode: string, langIndex: number) => (
+                    <span 
+                      key={langIndex} 
+                      className="text-sm" 
+                      title={LANGUAGES[langCode as keyof typeof LANGUAGES]?.name}
+                    >
+                      {LANGUAGES[langCode as keyof typeof LANGUAGES]?.flag || '🌐'}
+                    </span>
+                  ))}
+                  {developer.languages.length > 2 && (
+                    <span 
+                      className="text-xs text-gray-500" 
+                      title={`+${developer.languages.length - 2} autres langues`}
+                    >
+                      +{developer.languages.length - 2}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+            <p className="text-sm text-gray-600">
+              {developer.experience_years ? `${developer.experience_years} ans d'expérience` : (developer.experience_level || 'Non spécifié')}
+            </p>
           </div>
         </div>
       </div>
@@ -147,7 +235,7 @@ export default function DevelopersPage() {
         <div className="mb-4">
           <div className="flex flex-wrap gap-2">
             {developer.skills.slice(0, 3).map((skill, index) => (
-              <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-bold border border-gray-300">
+              <span key={index} className="px-2 py-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-bold rounded">
                 {skill}
               </span>
             ))}
@@ -178,17 +266,57 @@ export default function DevelopersPage() {
     </div>
   );
 
+  // 🔧 MODIFICATION: DeveloperListItem avec photo et drapeaux
   const DeveloperListItem = ({ developer }: { developer: Developer }) => (
     <div className="bg-white border-2 border-gray-200 p-6 hover:border-black transition-all duration-300">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <div className="lg:col-span-2">
           <div className="flex items-center space-x-3 mb-3">
-            <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white font-black">
-              {developer.full_name?.charAt(0).toUpperCase() || 'D'}
+            {/* 🔧 AJOUT: Photo de profil avec fallback */}
+            <div className="w-10 h-10 rounded-lg overflow-hidden border-2 border-gray-300 flex-shrink-0">
+              {developer.avatar_url ? (
+                <img 
+                  src={developer.avatar_url} 
+                  alt={developer.full_name || 'Développeur'} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-black flex items-center justify-center text-white font-black">
+                  {developer.full_name?.charAt(0).toUpperCase() || 'D'}
+                </div>
+              )}
             </div>
+            
             <div>
-              <h3 className="font-black text-lg text-black">{developer.full_name || 'Développeur'}</h3>
-              <p className="text-sm text-gray-600">{developer.experience_level || 'Non spécifié'}</p>
+              {/* 🔧 AJOUT: Nom avec drapeaux des langues */}
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-black text-lg text-black">{developer.full_name || 'Développeur'}</h3>
+                {/* Drapeaux des langues parlées */}
+                {developer.languages && developer.languages.length > 0 && (
+                  <div className="flex gap-1">
+                    {developer.languages.slice(0, 2).map((langCode: string, langIndex: number) => (
+                      <span 
+                        key={langIndex} 
+                        className="text-sm" 
+                        title={LANGUAGES[langCode as keyof typeof LANGUAGES]?.name}
+                      >
+                        {LANGUAGES[langCode as keyof typeof LANGUAGES]?.flag || '🌐'}
+                      </span>
+                    ))}
+                    {developer.languages.length > 2 && (
+                      <span 
+                        className="text-xs text-gray-500" 
+                        title={`+${developer.languages.length - 2} autres langues`}
+                      >
+                        +{developer.languages.length - 2}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <p className="text-sm text-gray-600">
+                {developer.experience_years ? `${developer.experience_years} ans d'expérience` : (developer.experience_level || 'Non spécifié')}
+              </p>
             </div>
           </div>
           <p className="text-gray-600 text-sm line-clamp-2">
@@ -359,8 +487,6 @@ export default function DevelopersPage() {
           )}
         </div>
       </div>
-
-      
 
       {/* Notre nouveau ContactModal avec debug */}
       {contactModal.isOpen && contactModal.developer && (

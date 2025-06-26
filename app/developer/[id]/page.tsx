@@ -3,12 +3,28 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, MapPin, Calendar, Star, Mail, Code, MessageCircle, Briefcase } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Star, Mail, Code, MessageCircle, Briefcase, User } from 'lucide-react';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+// 🔧 AJOUT: Langues disponibles avec leurs drapeaux
+const LANGUAGES = {
+  'fr': { name: 'Français', flag: '🇫🇷' },
+  'en': { name: 'English', flag: '🇬🇧' },
+  'es': { name: 'Español', flag: '🇪🇸' },
+  'de': { name: 'Deutsch', flag: '🇩🇪' },
+  'it': { name: 'Italiano', flag: '🇮🇹' },
+  'pt': { name: 'Português', flag: '🇵🇹' },
+  'ar': { name: 'العربية', flag: '🇸🇦' },
+  'zh': { name: '中文', flag: '🇨🇳' },
+  'ja': { name: '日本語', flag: '🇯🇵' },
+  'ko': { name: '한국어', flag: '🇰🇷' },
+  'ru': { name: 'Русский', flag: '🇷🇺' },
+  'hi': { name: 'हिन्दी', flag: '🇮🇳' }
+};
 
 interface DeveloperProfile {
   id: string;
@@ -17,12 +33,18 @@ interface DeveloperProfile {
   bio?: string;
   location?: string;
   skills?: string[];
-  experience_level?: string;
+  languages?: string[];
+  specializations?: string[];
+  experience_years?: number;
   hourly_rate?: number;
-  available?: boolean;
+  availability?: string;
   created_at: string;
   profile_photo_url?: string;
+  avatar_url?: string;
   portfolio_url?: string;
+  website?: string;
+  phone?: string;
+  title?: string;
   github_url?: string;
   linkedin_url?: string;
 }
@@ -52,28 +74,50 @@ export default function DeveloperProfilePage({ params }: { params: { id: string 
 
   const loadDeveloperProfile = async () => {
     try {
-      console.log('Chargement du profil développeur:', params.id);
+      console.log('🔍 Chargement du profil développeur:', params.id);
       
-      const { data, error } = await supabase
+      // 🔧 CORRECTION: Charger les données de base depuis profiles
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', params.id)
         .eq('user_type', 'developer')
         .single();
 
-      console.log('Résultat requête:', data, error);
+      console.log('📥 Profil de base chargé:', profileData);
 
-      if (data) {
-        setDeveloper(data);
-      } else if (error) {
-        console.error('Erreur lors du chargement:', error);
+      if (profileError || !profileData) {
+        console.error('❌ Erreur profil de base:', profileError);
         router.push('/developers');
-      } else {
-        console.log('Développeur non trouvé');
-        router.push('/developers');
+        return;
       }
+
+      // 🔧 CORRECTION: Charger les données détaillées depuis developer_profiles
+      const { data: devProfileData, error: devProfileError } = await supabase
+        .from('developer_profiles')
+        .select('*')
+        .eq('id', params.id) // 🔧 Utiliser 'id' au lieu de 'user_id'
+        .single();
+
+      console.log('📥 Profil développeur détaillé chargé:', devProfileData);
+
+      // 🔧 Fusionner les données des deux tables
+      const mergedProfile = {
+        ...profileData,
+        ...devProfileData,
+        // S'assurer que les données de base ne sont pas écrasées
+        id: profileData.id,
+        full_name: profileData.full_name,
+        email: profileData.email,
+        created_at: profileData.created_at,
+        avatar_url: profileData.avatar_url
+      };
+
+      console.log('✅ Profil fusionné:', mergedProfile);
+      setDeveloper(mergedProfile);
+
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('💥 Erreur:', error);
       router.push('/developers');
     } finally {
       setLoading(false);
@@ -145,6 +189,27 @@ export default function DeveloperProfilePage({ params }: { params: { id: string 
     }
   };
 
+  // 🔧 Fonction pour formater la disponibilité
+  const getAvailabilityText = (availability: string) => {
+    switch (availability) {
+      case 'available':
+        return '🟢 Disponible';
+      case 'busy':
+        return '🟡 Occupé';
+      case 'unavailable':
+        return '🔴 Indisponible';
+      default:
+        return 'Statut non défini';
+    }
+  };
+
+  // 🔧 Fonction pour formater les années d'expérience
+  const getExperienceText = (years: number) => {
+    if (!years) return 'Expérience non spécifiée';
+    if (years === 1) return '1 an d\'expérience';
+    return `${years} ans d'expérience`;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -193,15 +258,45 @@ export default function DeveloperProfilePage({ params }: { params: { id: string 
           </button>
 
           <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8">
-            {/* Avatar */}
-            <div className="w-32 h-32 bg-white rounded-2xl flex items-center justify-center text-black font-black text-5xl border-4 border-white">
-              {developer.full_name?.charAt(0).toUpperCase() || 'D'}
+            {/* 🔧 MODIFICATION: Avatar avec photo réelle */}
+            <div className="w-32 h-32 rounded-2xl overflow-hidden border-4 border-white flex-shrink-0">
+              {developer.avatar_url ? (
+                <img 
+                  src={developer.avatar_url} 
+                  alt={developer.full_name || 'Développeur'} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-white flex items-center justify-center text-black font-black text-5xl">
+                  {developer.full_name?.charAt(0).toUpperCase() || 'D'}
+                </div>
+              )}
             </div>
 
             {/* Infos principales */}
             <div className="flex-1">
-              <h1 className="text-4xl font-black mb-2">{developer.full_name || 'Développeur'}</h1>
-              <p className="text-xl text-gray-300 mb-4">{developer.experience_level || 'Niveau d\'expérience non spécifié'}</p>
+              {/* 🔧 AJOUT: Nom avec drapeaux des langues */}
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-4xl font-black">{developer.full_name || 'Développeur'}</h1>
+                {/* Drapeaux des langues parlées */}
+                {developer.languages && developer.languages.length > 0 && (
+                  <div className="flex gap-2">
+                    {developer.languages.map((langCode: string, langIndex: number) => (
+                      <span 
+                        key={langIndex} 
+                        className="text-2xl" 
+                        title={LANGUAGES[langCode as keyof typeof LANGUAGES]?.name}
+                      >
+                        {LANGUAGES[langCode as keyof typeof LANGUAGES]?.flag || '🌐'}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <p className="text-xl text-gray-300 mb-4">
+                {developer.title || getExperienceText(developer.experience_years)}
+              </p>
               
               <div className="flex flex-wrap gap-6 text-gray-300">
                 {developer.location && (
@@ -220,6 +315,12 @@ export default function DeveloperProfilePage({ params }: { params: { id: string 
                   <div className="flex items-center">
                     <Star className="h-5 w-5 mr-2" />
                     <span className="font-black text-white">{developer.hourly_rate}€/heure</span>
+                  </div>
+                )}
+
+                {developer.availability && (
+                  <div className="flex items-center">
+                    <span>{getAvailabilityText(developer.availability)}</span>
                   </div>
                 )}
               </div>
@@ -272,15 +373,37 @@ export default function DeveloperProfilePage({ params }: { params: { id: string 
               <div className="bg-white border-2 border-gray-200 p-8">
                 <h2 className="text-2xl font-black text-black mb-6 flex items-center">
                   <Code className="h-6 w-6 mr-3" />
-                  Compétences
+                  Compétences IA
                 </h2>
                 <div className="flex flex-wrap gap-3">
                   {developer.skills.map((skill, index) => (
                     <span
                       key={index}
-                      className="px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-all duration-300"
+                      className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold border-2 border-purple-600 hover:bg-white hover:text-purple-600 transition-all duration-300"
                     >
                       {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 🔧 MODIFICATION: Langues parlées avec noms complets */}
+            {developer.languages && developer.languages.length > 0 && (
+              <div className="bg-white border-2 border-gray-200 p-8">
+                <h2 className="text-2xl font-black text-black mb-6 flex items-center">
+                  🌐 Langues parlées
+                </h2>
+                <div className="flex flex-wrap gap-3">
+                  {developer.languages.map((langCode, index) => (
+                    <span
+                      key={index}
+                      className="px-4 py-2 bg-black text-white font-bold border-2 border-black hover:bg-white hover:text-black transition-all duration-300 flex items-center gap-2"
+                    >
+                      <span className="text-lg">
+                        {LANGUAGES[langCode as keyof typeof LANGUAGES]?.flag || '🌐'}
+                      </span>
+                      {LANGUAGES[langCode as keyof typeof LANGUAGES]?.name || langCode}
                     </span>
                   ))}
                 </div>
@@ -300,10 +423,10 @@ export default function DeveloperProfilePage({ params }: { params: { id: string 
                   <p className="font-bold">{developer.email}</p>
                 </div>
                 
-                {developer.experience_level && (
+                {developer.experience_years && (
                   <div>
                     <span className="text-gray-300 text-sm">Expérience</span>
-                    <p className="font-bold capitalize">{developer.experience_level}</p>
+                    <p className="font-bold">{getExperienceText(developer.experience_years)}</p>
                   </div>
                 )}
                 
@@ -313,17 +436,38 @@ export default function DeveloperProfilePage({ params }: { params: { id: string 
                     <p className="font-bold">{developer.location}</p>
                   </div>
                 )}
+
+                {developer.availability && (
+                  <div>
+                    <span className="text-gray-300 text-sm">Disponibilité</span>
+                    <p className="font-bold">{getAvailabilityText(developer.availability)}</p>
+                  </div>
+                )}
+
+                {developer.hourly_rate && (
+                  <div>
+                    <span className="text-gray-300 text-sm">Tarif horaire</span>
+                    <p className="font-bold">{developer.hourly_rate}€/heure</p>
+                  </div>
+                )}
+
+                {developer.phone && (
+                  <div>
+                    <span className="text-gray-300 text-sm">Téléphone</span>
+                    <p className="font-bold">{developer.phone}</p>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Liens externes */}
-            {(developer.portfolio_url || developer.github_url || developer.linkedin_url) && (
+            {(developer.portfolio_url || developer.website || developer.github_url || developer.linkedin_url) && (
               <div className="bg-gray-50 border-2 border-gray-200 p-6">
                 <h3 className="text-xl font-black text-black mb-4">Liens</h3>
                 <div className="space-y-3">
-                  {developer.portfolio_url && (
+                  {(developer.portfolio_url || developer.website) && (
                     <a
-                      href={developer.portfolio_url}
+                      href={developer.portfolio_url || developer.website}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block text-black hover:text-gray-600 font-bold transition-colors"
@@ -473,3 +617,4 @@ export default function DeveloperProfilePage({ params }: { params: { id: string 
     </div>
   );
 }
+

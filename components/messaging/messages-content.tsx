@@ -46,6 +46,7 @@ export default function MessagesContent() {
 
   const addDebug = (message: string) => {
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`])
+    console.log(message)
   }
 
   useEffect(() => {
@@ -125,11 +126,10 @@ export default function MessagesContent() {
       })
 
       // Étape 3: Récupérer tous les profils nécessaires
-     // ✅ Version corrigée
-const clientIds = conversationsData.map(c => c.client_id)
-const developerIds = conversationsData.map(c => c.developer_id)
-const allIds = [...clientIds, ...developerIds]
-const userIds = Array.from(new Set(allIds))
+      const clientIds = conversationsData.map(c => c.client_id)
+      const developerIds = conversationsData.map(c => c.developer_id)
+      const allIds = [...clientIds, ...developerIds]
+      const userIds = Array.from(new Set(allIds))
 
       addDebug(`IDs des profils à récupérer: ${userIds.join(', ')}`)
 
@@ -184,13 +184,13 @@ const userIds = Array.from(new Set(allIds))
         return
       }
 
-      // ✅ Alternative simple
-const senderIds: string[] = []
-messagesData.forEach(m => {
-  if (!senderIds.includes(m.sender_id)) {
-    senderIds.push(m.sender_id)
-  }
-})
+      const senderIds: string[] = []
+      messagesData.forEach(m => {
+        if (!senderIds.includes(m.sender_id)) {
+          senderIds.push(m.sender_id)
+        }
+      })
+
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, full_name')
@@ -298,6 +298,12 @@ messagesData.forEach(m => {
               <div key={index}>{info}</div>
             ))}
           </div>
+          <button 
+            onClick={() => setDebugInfo([])}
+            className="mt-2 text-xs bg-yellow-500 text-white px-2 py-1 rounded"
+          >
+            Clear
+          </button>
         </div>
 
         {/* Sidebar - Liste des conversations */}
@@ -323,6 +329,11 @@ messagesData.forEach(m => {
                     'Vous recevrez ici les messages des clients'
                   }
                 </p>
+                <div className="mt-4 p-3 bg-blue-900/30 rounded-lg">
+                  <p className="text-blue-300 text-xs">
+                    💡 Les conversations se créent automatiquement quand vous candidatez à un projet
+                  </p>
+                </div>
               </div>
             ) : (
               conversations.map((conversation) => (
@@ -391,7 +402,7 @@ messagesData.forEach(m => {
                           : 'bg-slate-700 text-white'
                       }`}
                     >
-                      <p className="text-sm">{message.content}</p>
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                       <p className={`text-xs mt-2 ${
                         message.sender_id === user.id ? 'text-cyan-100' : 'text-slate-400'
                       }`}>

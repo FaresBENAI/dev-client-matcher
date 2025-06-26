@@ -11,6 +11,22 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+// 🔧 AJOUT: Langues disponibles avec leurs drapeaux
+const LANGUAGES = {
+  'fr': { name: 'Français', flag: '🇫🇷' },
+  'en': { name: 'English', flag: '🇬🇧' },
+  'es': { name: 'Español', flag: '🇪🇸' },
+  'de': { name: 'Deutsch', flag: '🇩🇪' },
+  'it': { name: 'Italiano', flag: '🇮🇹' },
+  'pt': { name: 'Português', flag: '🇵🇹' },
+  'ar': { name: 'العربية', flag: '🇸🇦' },
+  'zh': { name: '中文', flag: '🇨🇳' },
+  'ja': { name: '日本語', flag: '🇯🇵' },
+  'ko': { name: '한국어', flag: '🇰🇷' },
+  'ru': { name: 'Русский', flag: '🇷🇺' },
+  'hi': { name: 'हिन्दी', flag: '🇮🇳' }
+};
+
 export default function HomePage() {
   const [user, setUser] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<any>(null)
@@ -88,7 +104,7 @@ export default function HomePage() {
     setIsVisible(true)
   }, [])
 
-  // Charger les vraies données
+  // 🔧 MODIFICATION: Charger les vraies données avec profils complets
   const loadRealData = async () => {
     try {
       console.log('=== CHARGEMENT DONNÉES RÉELLES ===');
@@ -105,16 +121,39 @@ export default function HomePage() {
         setRealProjects(projects);
       }
 
-      // Charger les développeurs
+      // 🔧 MODIFICATION: Charger les développeurs avec leurs profils détaillés
       const { data: developers, error: developersError } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_type', 'developer')
         .limit(3);
 
-      console.log('Développeurs chargés:', developers);
+      console.log('Développeurs de base chargés:', developers);
+
       if (developers && developers.length > 0) {
-        setRealDevelopers(developers);
+        // 🔧 AJOUT: Charger les profils détaillés pour chaque développeur
+        const developersWithDetails = await Promise.all(
+          developers.map(async (dev) => {
+            const { data: devProfile } = await supabase
+              .from('developer_profiles')
+              .select('*')
+              .eq('id', dev.id)
+              .single();
+
+            return {
+              ...dev,
+              ...devProfile, // Fusionner les données détaillées
+              // S'assurer que les données de base ne sont pas écrasées
+              id: dev.id,
+              full_name: dev.full_name,
+              email: dev.email,
+              avatar_url: dev.avatar_url
+            };
+          })
+        );
+
+        console.log('Développeurs avec détails chargés:', developersWithDetails);
+        setRealDevelopers(developersWithDetails);
       }
 
       if (projectsError) console.error('Erreur projets:', projectsError);
@@ -489,7 +528,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Developers Column - VRAIS DÉVELOPPEURS */}
+            {/* 🔧 MODIFICATION: Developers Column avec photos et drapeaux */}
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-2xl sm:text-3xl font-black text-black mb-3 relative">
@@ -505,16 +544,49 @@ export default function HomePage() {
                 {realDevelopers.length > 0 ? realDevelopers.map((dev, index) => (
                   <div key={index} className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
                     <div className="flex items-start space-x-3">
-                      <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center text-white font-black text-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                        {dev.full_name?.charAt(0).toUpperCase() || 'D'}
+                      {/* 🔧 AJOUT: Photo de profil avec fallback */}
+                      <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-gray-300 flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                        {dev.avatar_url ? (
+                          <img 
+                            src={dev.avatar_url} 
+                            alt={dev.full_name || 'Développeur'} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-black flex items-center justify-center text-white font-black text-lg">
+                            {dev.full_name?.charAt(0).toUpperCase() || 'D'}
+                          </div>
+                        )}
                       </div>
+                      
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-black text-black mb-0.5">{dev.full_name || 'Développeur'}</h3>
-                        <p className="text-gray-600 text-xs mb-2 font-medium">{dev.experience_level || 'Expert'} d'expérience</p>
+                        {/* 🔧 AJOUT: Nom avec drapeaux des langues */}
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <h3 className="text-lg font-black text-black">{dev.full_name || 'Développeur'}</h3>
+                          {/* Drapeaux des langues parlées */}
+                          {dev.languages && dev.languages.length > 0 && (
+                            <div className="flex gap-1">
+                              {dev.languages.slice(0, 2).map((langCode: string, langIndex: number) => (
+                                <span key={langIndex} className="text-sm" title={LANGUAGES[langCode as keyof typeof LANGUAGES]?.name}>
+                                  {LANGUAGES[langCode as keyof typeof LANGUAGES]?.flag || '🌐'}
+                                </span>
+                              ))}
+                              {dev.languages.length > 2 && (
+                                <span className="text-xs text-gray-500" title={`+${dev.languages.length - 2} autres langues`}>
+                                  +{dev.languages.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <p className="text-gray-600 text-xs mb-2 font-medium">
+                          {dev.experience_years ? `${dev.experience_years}+ ans` : 'Expert'} d'expérience
+                        </p>
                         
                         <div className="flex justify-between items-center mb-3">
                           <p className="text-gray-600 text-sm flex-1 truncate">{dev.bio || 'Développeur spécialisé'}</p>
-                          <Link href="/developers">
+                          <Link href={`/developer/${dev.id}`}>
                             <Button className="bg-black text-white hover:bg-gray-800 font-bold px-4 py-1 rounded-lg ml-3 text-xs transform hover:scale-105 transition-all">
                               Profil →
                             </Button>
@@ -523,15 +595,15 @@ export default function HomePage() {
                         
                         <div className="flex gap-1 flex-wrap">
                           {dev.skills && dev.skills.length > 0 ? dev.skills.slice(0, 2).map((skill: string, skillIndex: number) => (
-                            <span key={skillIndex} className="px-2 py-0.5 bg-white text-black border border-gray-300 rounded text-xs font-medium hover:border-black transition-all duration-300">
+                            <span key={skillIndex} className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded hover:scale-105 transition-all duration-300">
                               {skill}
                             </span>
                           )) : (
                             <>
-                              <span className="px-2 py-0.5 bg-white text-black border border-gray-300 rounded text-xs font-medium hover:border-black transition-all duration-300">
+                              <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded hover:scale-105 transition-all duration-300">
                                 React
                               </span>
-                              <span className="px-2 py-0.5 bg-white text-black border border-gray-300 rounded text-xs font-medium hover:border-black transition-all duration-300">
+                              <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded hover:scale-105 transition-all duration-300">
                                 IA
                               </span>
                             </>
@@ -567,7 +639,7 @@ export default function HomePage() {
                           
                           <div className="flex gap-1 flex-wrap">
                             {dev.skills.map((skill, skillIndex) => (
-                              <span key={skillIndex} className="px-2 py-0.5 bg-white text-black border border-gray-300 rounded text-xs font-medium hover:border-black transition-all duration-300">
+                              <span key={skillIndex} className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded hover:scale-105 transition-all duration-300">
                                 {skill}
                               </span>
                             ))}
