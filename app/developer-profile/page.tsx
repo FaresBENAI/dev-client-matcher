@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/layout/auth-context';
@@ -20,7 +20,7 @@ interface DeveloperProfile {
   created_at: string;
 }
 
-export default function DeveloperProfilePage() {
+function DeveloperProfileContent() {
   const [developer, setDeveloper] = useState<DeveloperProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [contactModal, setContactModal] = useState(false);
@@ -146,5 +146,21 @@ export default function DeveloperProfilePage() {
         />
       )}
     </div>
+  );
+}
+
+function DeveloperProfileLoading() {
+  return (
+    <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+    </div>
+  );
+}
+
+export default function DeveloperProfilePage() {
+  return (
+    <Suspense fallback={<DeveloperProfileLoading />}>
+      <DeveloperProfileContent />
+    </Suspense>
   );
 }
