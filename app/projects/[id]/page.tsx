@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Calendar, DollarSign, Clock, Zap, User, Building, Send, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, DollarSign, Clock, Zap, User, Building, Send, X, CheckCircle, AlertCircle, Edit, Settings } from 'lucide-react';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -54,9 +54,23 @@ export default function ProjectDetailPage() {
   const [showExistingApplicationAlert, setShowExistingApplicationAlert] = useState(false);
   const [existingApplicationStatus, setExistingApplicationStatus] = useState('');
   
+  // 🔧 AJOUT: États pour la mise à jour du statut
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [newStatus, setNewStatus] = useState('');
+  const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
+  
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
+
+  // 🔧 AJOUT: Options de statut disponibles
+  const statusOptions = [
+    { value: 'open', label: 'Ouvert', description: 'Le projet est ouvert aux candidatures', color: 'bg-green-100 text-green-800 border-green-200' },
+    { value: 'in_progress', label: 'En cours', description: 'Le projet est en cours de développement', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+    { value: 'completed', label: 'Terminé', description: 'Le projet a été terminé avec succès', color: 'bg-gray-100 text-gray-800 border-gray-200' },
+    { value: 'cancelled', label: 'Annulé', description: 'Le projet a été annulé', color: 'bg-red-100 text-red-800 border-red-200' },
+    { value: 'on_hold', label: 'En pause', description: 'Le projet est temporairement en pause', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' }
+  ];
 
   useEffect(() => {
     checkUser();
@@ -99,6 +113,7 @@ export default function ProjectDetailPage() {
       }
 
       setProject(projectData);
+      setNewStatus(projectData.status); // Initialiser le statut sélectionné
 
       // Charger le profil client
       const { data: profileData, error: profileError } = await supabase
@@ -126,6 +141,47 @@ export default function ProjectDetailPage() {
       setError('Erreur lors du chargement du projet');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 🔧 AJOUT: Fonction de mise à jour du statut
+  const handleUpdateStatus = async () => {
+    if (!project || !user || user.id !== project.client_id) return;
+    
+    if (newStatus === project.status) {
+      setShowStatusModal(false);
+      return;
+    }
+
+    setStatusUpdateLoading(true);
+    try {
+      console.log('🔄 Mise à jour du statut du projet:', project.id, 'vers', newStatus);
+
+      const { error } = await supabase
+        .from('projects')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', project.id)
+        .eq('client_id', user.id); // Double vérification sécurité
+
+      if (error) {
+        console.error('Erreur mise à jour statut:', error);
+        throw error;
+      }
+
+      console.log('✅ Statut mis à jour avec succès !');
+      
+      // Mettre à jour l'état local
+      setProject(prev => prev ? { ...prev, status: newStatus } : null);
+      setShowStatusModal(false);
+
+    } catch (error: any) {
+      console.error('💥 Erreur lors de la mise à jour:', error);
+      alert('Erreur lors de la mise à jour du statut : ' + (error.message || 'Erreur inconnue'));
+    } finally {
+      setStatusUpdateLoading(false);
     }
   };
 
@@ -242,14 +298,17 @@ export default function ProjectDetailPage() {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'open': return 'bg-green-100 text-green-800 border-green-200';
-      case 'in_progress': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'completed': return 'bg-gray-100 text-gray-800 border-gray-200';
-      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
+    const option = statusOptions.find(opt => opt.value === status);
+    return option?.color || 'bg-gray-100 text-gray-800 border-gray-200';
   };
+
+  const getStatusLabel = (status: string) => {
+    const option = statusOptions.find(opt => opt.value === status);
+    return option?.label || status;
+  };
+
+  // 🔧 AJOUT: Vérifier si l'utilisateur est le créateur du projet
+  const isProjectOwner = user && project && user.id === project.client_id;
 
   if (loading) {
     return (
@@ -281,7 +340,7 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* 🔧 MODIFICATION: Header compact avec py-16 au lieu de py-24 */}
+      {/* Header compact avec fond noir */}
       <div className="relative bg-black text-white py-16 overflow-hidden">
         {/* Fond étoilé animé */}
         <div className="absolute inset-0">
@@ -299,28 +358,47 @@ export default function ProjectDetailPage() {
             Retour aux projets
           </button>
 
-          {/* Contenu du header compact */}
-          <div className="text-center">
-            <h1 className="text-4xl font-black mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-              Détails du Projet
-            </h1>
-            <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-              Découvrez tous les détails de ce projet et candidatez si il correspond à vos compétences
-            </p>
+          {/* 🔧 AJOUT: Actions pour le propriétaire */}
+          <div className="flex justify-between items-start">
+            <div className="text-center flex-1">
+              <h1 className="text-4xl font-black mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                Détails du Projet
+              </h1>
+              <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+                Découvrez tous les détails de ce projet et candidatez si il correspond à vos compétences
+              </p>
+            </div>
+
+            {/* Actions du propriétaire */}
+            {isProjectOwner && (
+              <div className="flex gap-3 ml-6">
+                <button
+                  onClick={() => router.push(`/projects/${project.id}/edit`)}
+                  className="bg-blue-600 text-white px-4 py-2 font-bold rounded-lg hover:bg-blue-700 transition-all duration-300 flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Modifier
+                </button>
+                <button
+                  onClick={() => setShowStatusModal(true)}
+                  className="bg-yellow-600 text-white px-4 py-2 font-bold rounded-lg hover:bg-yellow-700 transition-all duration-300 flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Changer le statut
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* 🔧 MODIFICATION: Contenu principal avec espacement */}
+      {/* Contenu principal */}
       <div className="bg-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Badge de statut en haut à droite */}
           <div className="flex justify-end mb-6">
             <span className={`px-4 py-2 border-2 font-black text-sm uppercase tracking-wider ${getStatusColor(project.status)}`}>
-              {project.status === 'open' ? 'Ouvert' : 
-               project.status === 'in_progress' ? 'En cours' :
-               project.status === 'completed' ? 'Terminé' :
-               project.status === 'cancelled' ? 'Annulé' : project.status}
+              {getStatusLabel(project.status)}
             </span>
           </div>
 
@@ -515,10 +593,7 @@ export default function ProjectDetailPage() {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Statut</span>
                     <span className={`px-2 py-1 text-xs font-bold border ${getStatusColor(project.status)}`}>
-                      {project.status === 'open' ? 'Ouvert' : 
-                       project.status === 'in_progress' ? 'En cours' :
-                       project.status === 'completed' ? 'Terminé' :
-                       project.status === 'cancelled' ? 'Annulé' : project.status}
+                      {getStatusLabel(project.status)}
                     </span>
                   </div>
                   
@@ -544,10 +619,87 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
+      {/* 🔧 AJOUT: Modal de mise à jour du statut */}
+      {showStatusModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full border-2 border-gray-200">
+            <div className="p-6 border-b-2 border-gray-200 flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-black text-black">Changer le statut</h2>
+                <p className="text-gray-600 mt-1">{project.title}</p>
+              </div>
+              <button 
+                onClick={() => setShowStatusModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  Sélectionnez le nouveau statut pour votre projet :
+                </p>
+                
+                {statusOptions.map((option) => (
+                  <label key={option.value} className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="status"
+                      value={option.value}
+                      checked={newStatus === option.value}
+                      onChange={(e) => setNewStatus(e.target.value)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-3 py-1 text-sm font-bold border-2 ${option.color}`}>
+                          {option.label}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        {option.description}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              
+              <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setShowStatusModal(false)}
+                  className="flex-1 border-2 border-gray-300 text-black px-4 py-3 font-bold rounded-lg hover:border-black hover:text-black transition-all duration-300"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleUpdateStatus}
+                  disabled={statusUpdateLoading || newStatus === project.status}
+                  className="flex-1 bg-black text-white px-4 py-3 font-bold rounded-lg hover:bg-gray-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {statusUpdateLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Mise à jour...
+                    </>
+                  ) : (
+                    <>
+                      <Settings className="h-4 w-4" />
+                      Mettre à jour
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de candidature */}
       {showApplicationModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl">
             <div className="p-6 border-b-2 border-gray-200 flex justify-between items-center">
               <div>
                 <h2 className="text-2xl font-black">Candidater au projet</h2>
@@ -555,7 +707,7 @@ export default function ProjectDetailPage() {
               </div>
               <button 
                 onClick={closeApplicationModal}
-                className="p-2 hover:bg-gray-100 rounded"
+                className="p-2 hover:bg-gray-100 rounded-lg"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -570,7 +722,7 @@ export default function ProjectDetailPage() {
                 </p>
                 <button
                   onClick={closeApplicationModal}
-                  className="bg-black text-white px-6 py-3 font-black hover:bg-gray-800 transition-colors"
+                  className="bg-black text-white px-6 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors"
                 >
                   Fermer
                 </button>
@@ -587,7 +739,7 @@ export default function ProjectDetailPage() {
                       rows={6}
                       value={applicationData.message}
                       onChange={(e) => setApplicationData(prev => ({ ...prev, message: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold resize-none"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold resize-none"
                       placeholder="Présentez-vous et expliquez pourquoi vous êtes le candidat idéal pour ce projet..."
                     />
                     <p className="text-sm text-gray-600 mt-2">
@@ -599,14 +751,14 @@ export default function ProjectDetailPage() {
                     <button
                       type="button"
                       onClick={closeApplicationModal}
-                      className="px-6 py-3 border-2 border-gray-200 text-black font-black hover:border-black transition-colors"
+                      className="px-6 py-3 border-2 border-gray-200 text-black font-black rounded-lg hover:border-black transition-colors"
                     >
                       Annuler
                     </button>
                     <button
                       type="submit"
                       disabled={applicationLoading}
-                      className="bg-black text-white px-6 py-3 font-black hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="bg-black text-white px-6 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       {applicationLoading ? (
                         <>
@@ -631,7 +783,7 @@ export default function ProjectDetailPage() {
       {/* 🚨 ALERTE CANDIDATURE EXISTANTE */}
       {showExistingApplicationAlert && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 99999 }}>
-          <div className="bg-white max-w-md w-full rounded-lg shadow-lg border-4 border-red-500">
+          <div className="bg-white max-w-md w-full rounded-2xl shadow-lg border-4 border-red-500">
             <div className="p-6 text-center">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertCircle className="h-8 w-8 text-red-500" />
@@ -658,7 +810,7 @@ export default function ProjectDetailPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowExistingApplicationAlert(false)}
-                  className="flex-1 px-4 py-3 bg-gray-200 text-black font-black rounded hover:bg-gray-300 transition-colors"
+                  className="flex-1 px-4 py-3 bg-gray-200 text-black font-black rounded-lg hover:bg-gray-300 transition-colors"
                 >
                   Fermer
                 </button>
@@ -667,7 +819,7 @@ export default function ProjectDetailPage() {
                     setShowExistingApplicationAlert(false);
                     router.push('/messages');
                   }}
-                  className="flex-1 px-4 py-3 bg-black text-white font-black rounded hover:bg-gray-800 transition-colors"
+                  className="flex-1 px-4 py-3 bg-black text-white font-black rounded-lg hover:bg-gray-800 transition-colors"
                 >
                   Voir mes messages
                 </button>

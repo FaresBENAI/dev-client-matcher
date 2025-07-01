@@ -1,490 +1,146 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import StatusBar from '@/components/StatusBar'
+import RatingModal from '../../components/rating/RatingModal'
+import StatusBar from '../../components/StatusBar'
+import { markConversationAsRead } from '../../utils/markMessagesAsRead'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-interface Conversation {
-  id: string
-  subject: string
-  status: string
-  last_message_at: string
-  created_at: string
-  client_id: string
-  developer_id: string
-  client_name?: string
-  developer_name?: string
-  unread_count: number
-  project_id?: string
-  application_id?: string
-}
-
-interface Message {
-  id: string
-  sender_id: string
-  content: string
-  is_read: boolean
-  created_at: string
-  sender_name?: string
-}
-
-interface ApplicationData {
-  id: string
-  status: string
-  project: {
-    client_id: string
-    title: string
-  }
-}
-
 export default function MessagesPage() {
   const [user, setUser] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<any>(null)
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [conversations, setConversations] = useState<any[]>([])
+  const [selectedConversation, setSelectedConversation] = useState<any>(null)
+  const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
-  const [sending, setSending] = useState(false)
-  const [showSidebar, setShowSidebar] = useState(false)
-  const [debugInfo, setDebugInfo] = useState<string[]>([])
-  const [autoFixCompleted, setAutoFixCompleted] = useState(false)
-  const [isFixing, setIsFixing] = useState(false)
-  const [applicationData, setApplicationData] = useState<ApplicationData | null>(null)
-  const [isCreator, setIsCreator] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  const addDebug = (message: string) => {
-    setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`])
-    console.log(message)
-  }
-
-  // 🆕 FONCTION POUR RÉCUPÉRER LES DONNÉES DE CANDIDATURE
-  const loadApplicationData = async (conversationId: string) => {
-    try {
-      addDebug(`🔍 Chargement données candidature pour conversation: ${conversationId}`)
-      
-      // D'abord, récupérer la conversation avec application_id
-      const { data: convData, error: convError } = await supabase
-        .from('conversations')
-        .select('application_id, project_id')
-        .eq('id', conversationId)
-        .single()
-
-      addDebug(`📋 Conversation data: application_id=${convData?.application_id}, project_id=${convData?.project_id}`)
-
-      if (convError || !convData?.application_id) {
-        addDebug('❌ Pas de données de candidature pour cette conversation')
-        setApplicationData(null)
-        return
-      }
-
-      // Récupérer les données de la candidature
-      const { data: appData, error: appError } = await supabase
-        .from('project_applications')
-        .select(`
-          id,
-          status,
-          project:projects(
-            client_id,
-            title
-          )
-        `)
-        .eq('id', convData.application_id)
-        .single()
-
-      addDebug(`📊 Application data: ${JSON.stringify(appData)}`)
-
-      if (appError || !appData) {
-        addDebug(`❌ Erreur récupération candidature: ${appError?.message}`)
-        setApplicationData(null)
-        return
-      }
-
-      // 🔧 CORRECTION: S'assurer que project est un objet, pas un tableau
-      const projectData = Array.isArray(appData.project) ? appData.project[0] : appData.project
-
-      if (!projectData) {
-        addDebug('❌ Données projet manquantes')
-        setApplicationData(null)
-        return
-      }
-
-      const applicationData: ApplicationData = {
-        id: appData.id,
-        status: appData.status || 'en_attente', // 🔧 AJOUT: valeur par défaut
-        project: {
-          client_id: projectData.client_id,
-          title: projectData.title
-        }
-      }
-
-      setApplicationData(applicationData)
-      setIsCreator(projectData.client_id === user.id)
-      addDebug(`✅ Données candidature chargées: status=${applicationData.status}, isCreator=${projectData.client_id === user.id}`)
-
-    } catch (error) {
-      addDebug(`💥 Erreur loadApplicationData: ${error}`)
-      console.error('Erreur loadApplicationData:', error)
-      setApplicationData(null)
-    }
-  }
-
-  // 🆕 FONCTION POUR METTRE À JOUR LE STATUT
-  const handleStatusUpdate = (newStatus: string) => {
-    addDebug(`📊 Mise à jour statut: ${newStatus}`)
-    
-    if (applicationData) {
-      setApplicationData({
-        ...applicationData,
-        status: newStatus
-      })
-    }
-
-    // Mettre à jour la conversation dans la liste si elle a un statut visible
-    setConversations(prev => prev.map(conv => 
-      conv.id === selectedConversation?.id 
-        ? { ...conv, status: newStatus }
-        : conv
-    ))
-  }
-
-  // 🔧 FONCTION AUTOMATIQUE AMÉLIORÉE AVEC INTÉGRATION DU SYSTÈME DE STATUT
-  const autoCreateMissingConversations = async (userId: string) => {
-    try {
-      addDebug('🤖 Vérification automatique complète...')
-
-      // 1. Récupérer toutes les candidatures de l'utilisateur
-      const { data: applications, error: appError } = await supabase
-        .from('project_applications')
-        .select(`
-          id,
-          project_id,
-          developer_id,
-          message,
-          status,
-          created_at,
-          projects (
-            id,
-            title,
-            client_id
-          )
-        `)
-        .eq('developer_id', userId)
-
-      if (appError || !applications) {
-        addDebug(`❌ Erreur récupération candidatures: ${appError?.message}`)
-        return
-      }
-
-      addDebug(`📋 ${applications.length} candidatures trouvées`)
-
-      if (applications.length === 0) {
-        addDebug('ℹ️ Aucune candidature trouvée')
-        setAutoFixCompleted(true)
-        return
-      }
-
-      let conversationsCreated = 0
-      let messagesCreated = 0
-
-      // 2. Pour chaque candidature, vérifier conversation ET message
-      for (const app of applications) {
-        const project = app.projects as any
-        if (!project) {
-          addDebug(`⚠️ Projet non trouvé pour candidature ${app.id}`)
-          continue
-        }
-
-        addDebug(`🔍 Vérification: ${project.title}`)
-
-        // Vérifier si conversation existe
-        const { data: existingConversation } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('client_id', project.client_id)
-          .eq('developer_id', app.developer_id)
-          .single()
-
-        let conversationId = existingConversation?.id
-
-        // Créer conversation si elle n'existe pas
-        if (!existingConversation) {
-          addDebug(`➕ Création conversation: ${project.title}`)
-
-          const { data: newConversation, error: convError } = await supabase
-            .from('conversations')
-            .insert([{
-              client_id: project.client_id,
-              developer_id: app.developer_id,
-              project_id: app.project_id,
-              application_id: app.id, // 🆕 AJOUT: lien vers la candidature
-              subject: `Candidature pour : ${project.title}`,
-              status: 'active',
-              created_at: app.created_at,
-              last_message_at: app.created_at
-            }])
-            .select()
-            .single()
-
-          if (convError) {
-            addDebug(`❌ Erreur création conversation: ${convError.message}`)
-            continue
-          }
-
-          conversationId = newConversation.id
-          conversationsCreated++
-          addDebug(`✅ Conversation créée: ${conversationId}`)
-        } else {
-          // 🆕 Mettre à jour la conversation existante avec application_id si manquant
-          await supabase
-            .from('conversations')
-            .update({ 
-              application_id: app.id,
-              project_id: app.project_id 
-            })
-            .eq('id', existingConversation.id)
-        }
-
-        // Vérifier si le message de candidature existe
-        if (conversationId) {
-          const { data: existingMessages } = await supabase
-            .from('messages')
-            .select('id, content')
-            .eq('conversation_id', conversationId)
-            .eq('sender_id', app.developer_id)
-
-          const hasCandidatureMessage = existingMessages?.some(msg => 
-            msg.content.includes(project.title) && msg.content.includes('candidater')
-          )
-
-          if (!hasCandidatureMessage) {
-            addDebug(`📝 Création message candidature pour: ${project.title}`)
-
-            const { data: userProfile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', app.developer_id)
-              .single()
-
-            const messageContent = `Bonjour ! Je souhaiterais candidater pour votre projet "${project.title}".
-
-${app.message}
-
-Cordialement,
-${userProfile?.full_name || 'Un développeur'}`
-
-            const { error: msgError } = await supabase
-              .from('messages')
-              .insert([{
-                conversation_id: conversationId,
-                sender_id: app.developer_id,
-                content: messageContent,
-                created_at: app.created_at,
-                is_read: false
-              }])
-
-            if (msgError) {
-              addDebug(`❌ Erreur création message: ${msgError.message}`)
-            } else {
-              messagesCreated++
-              addDebug(`✅ Message candidature créé`)
-            }
-          } else {
-            addDebug(`ℹ️ Message candidature existe déjà pour: ${project.title}`)
-          }
-        }
-      }
-
-      addDebug(`🎉 Auto-fix terminé:`)
-      addDebug(`   - ${conversationsCreated} conversations créées`)
-      addDebug(`   - ${messagesCreated} messages créés`)
-      
-      setAutoFixCompleted(true)
-      return { conversationsCreated, messagesCreated }
-
-    } catch (error: any) {
-      addDebug(`💥 Erreur auto-fix: ${error.message}`)
-      console.error('Erreur auto-fix:', error)
-      setAutoFixCompleted(true)
-      return { conversationsCreated: 0, messagesCreated: 0 }
-    }
-  }
+  const [profiles, setProfiles] = useState<any>({}) // Cache des profils
+  const [showRatingModal, setShowRatingModal] = useState(false)
+  const [applicationData, setApplicationData] = useState<any>(null) // 🆕 NOUVEAU: Données de candidature
 
   useEffect(() => {
     checkUser()
   }, [])
 
-  useEffect(() => {
-    if (user && !autoFixCompleted) {
-      const runAutoFix = async () => {
-        const result = await autoCreateMissingConversations(user.id)
-        setTimeout(() => {
-          fetchConversations()
-        }, (result?.conversationsCreated || 0) > 0 || (result?.messagesCreated || 0) > 0 ? 1500 : 500)
-      }
-      runAutoFix()
-    } else if (user && autoFixCompleted) {
-      fetchConversations()
-    }
-  }, [user, autoFixCompleted])
-
-  useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages(selectedConversation.id)
-      markConversationAsRead(selectedConversation.id)
-      loadApplicationData(selectedConversation.id) // 🆕 CHARGEMENT DES DONNÉES DE CANDIDATURE
-      setShowSidebar(false)
-    }
-  }, [selectedConversation])
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
   const checkUser = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        window.location.href = '/auth/login'
-        return
-      }
-
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
       setUser(user)
-      addDebug(`Utilisateur connecté: ${user.id}`)
-      
+      // Charger aussi le profil de l'utilisateur connecté
       const { data: profile } = await supabase
         .from('profiles')
-        .select('user_type, full_name')
+        .select('user_type, full_name, email')
         .eq('id', user.id)
         .single()
       setUserProfile(profile)
-      addDebug(`Profil: ${profile?.user_type} - ${profile?.full_name}`)
-    } catch (error) {
-      addDebug(`Erreur auth: ${error}`)
-    } finally {
-      setLoading(false)
+      loadConversations(user.id)
     }
+    setLoading(false)
   }
 
-  const fetchConversations = async () => {
+  // 🔧 CORRECTION: Charger les profils séparément
+  const loadProfile = async (userId: string) => {
+    if (profiles[userId]) return profiles[userId] // Cache hit
+
     try {
-      addDebug(`Chargement conversations pour: ${user.id}`)
-      
-      const { data: conversationsData, error: convError } = await supabase
-        .from('conversations')
-        .select('*')
-        .or(`client_id.eq.${user.id},developer_id.eq.${user.id}`)
-        .order('last_message_at', { ascending: false })
-
-      addDebug(`Conversations trouvées: ${conversationsData?.length || 0}`)
-      
-      if (convError) {
-        addDebug(`Erreur conversations: ${convError.message}`)
-        return
-      }
-
-      if (!conversationsData || conversationsData.length === 0) {
-        addDebug('Aucune conversation trouvée')
-        setConversations([])
-        return
-      }
-
-      const clientIds = conversationsData.map(c => c.client_id)
-      const developerIds = conversationsData.map(c => c.developer_id)
-      const allIds = [...clientIds, ...developerIds]
-      const userIds = Array.from(new Set(allIds))
-
-      const { data: profilesData } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
-        .select('id, full_name')
-        .in('id', userIds)
+        .select('id, full_name, email, avatar_url, user_type')
+        .eq('id', userId)
+        .single()
 
-      const conversationsWithData = await Promise.all(
-        conversationsData.map(async (conv) => {
-          const { count } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('conversation_id', conv.id)
-            .eq('is_read', false)
-            .neq('sender_id', user.id)
-
-          const clientProfile = profilesData?.find(p => p.id === conv.client_id)
-          const developerProfile = profilesData?.find(p => p.id === conv.developer_id)
-
-          return {
-            ...conv,
-            client_name: clientProfile?.full_name || 'Client inconnu',
-            developer_name: developerProfile?.full_name || 'Développeur inconnu',
-            unread_count: count || 0
-          }
-        })
-      )
-
-      addDebug(`Conversations finales: ${conversationsWithData.length}`)
-      setConversations(conversationsWithData)
+      if (!error && profile) {
+        setProfiles(prev => ({ ...prev, [userId]: profile }))
+        return profile
+      }
     } catch (error) {
-      addDebug(`Exception: ${error}`)
-      console.error('Erreur fetchConversations:', error)
+      console.error('Erreur lors du chargement du profil:', error)
+    }
+    return null
+  }
+
+  const loadConversations = async (userId: string) => {
+    try {
+      console.log('🔄 Chargement des conversations pour:', userId)
+      
+      // 🔧 CORRECTION: Requête simplifiée sans jointures complexes
+      const { data: conversations, error } = await supabase
+        .from('conversations')
+        .select(`
+          *,
+          messages (
+            content,
+            created_at,
+            sender_id,
+            is_read
+          )
+        `)
+        .or(`client_id.eq.${userId},developer_id.eq.${userId}`)
+        .order('updated_at', { ascending: false })
+
+      if (error) {
+        console.error('Erreur conversations:', error)
+        throw error
+      }
+      
+      console.log('✅ Conversations trouvées:', conversations?.length || 0)
+      
+      // Charger les profils pour chaque conversation
+      if (conversations && conversations.length > 0) {
+        for (const conv of conversations) {
+          await loadProfile(conv.client_id)
+          await loadProfile(conv.developer_id)
+        }
+      }
+      
+      setConversations(conversations || [])
+    } catch (error) {
+      console.error('Erreur lors du chargement des conversations:', error)
+      setConversations([])
     }
   }
 
-  const fetchMessages = async (conversationId: string) => {
+  const loadMessages = async (conversationId: string) => {
     try {
-      const { data: messagesData, error: msgError } = await supabase
+      console.log('🔄 Chargement des messages pour conversation:', conversationId)
+      
+      // 🔧 CORRECTION: Requête simplifiée sans jointures
+      const { data: messages, error } = await supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
 
-      if (msgError || !messagesData) {
-        console.error('Erreur messages:', msgError)
-        return
+      if (error) {
+        console.error('Erreur messages:', error)
+        throw error
       }
 
-      const senderIds: string[] = []
-      messagesData.forEach(m => {
-        if (!senderIds.includes(m.sender_id)) {
-          senderIds.push(m.sender_id)
+      console.log('✅ Messages trouvés:', messages?.length || 0)
+      
+      // Charger les profils des expéditeurs
+      if (messages && messages.length > 0) {
+        for (const message of messages) {
+          await loadProfile(message.sender_id)
         }
-      })
+      }
 
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', senderIds)
-
-      const messagesWithNames = messagesData.map(msg => ({
-        ...msg,
-        sender_name: profilesData?.find(p => p.id === msg.sender_id)?.full_name || 'Utilisateur inconnu'
-      }))
-
-      setMessages(messagesWithNames)
+      setMessages(messages || [])
     } catch (error) {
-      console.error('Erreur fetchMessages:', error)
+      console.error('Erreur lors du chargement des messages:', error)
+      setMessages([])
     }
   }
 
-  const markConversationAsRead = async (conversationId: string) => {
-    await supabase
-      .from('messages')
-      .update({ is_read: true })
-      .eq('conversation_id', conversationId)
-      .neq('sender_id', user.id)
-  }
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation || !user) return
 
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newMessage.trim() || !selectedConversation || sending) return
-
-    setSending(true)
     try {
       const { error } = await supabase
         .from('messages')
@@ -494,360 +150,412 @@ ${userProfile?.full_name || 'Un développeur'}`
           content: newMessage.trim()
         })
 
-      if (!error) {
-        await supabase
-          .from('conversations')
-          .update({ last_message_at: new Date().toISOString() })
-          .eq('id', selectedConversation.id)
+      if (error) throw error
 
-        setNewMessage('')
-        fetchMessages(selectedConversation.id)
-        fetchConversations()
-      }
-    } catch (err) {
-      console.error('Erreur lors de l\'envoi:', err)
-    } finally {
-      setSending(false)
+      setNewMessage('')
+      loadMessages(selectedConversation.id)
+      loadConversations(user.id)
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi du message:', error)
     }
   }
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  // 🆕 NOUVEAU: Fonction mise à jour pour sélectionner une conversation et marquer comme lu
+  const selectConversation = async (conversation: any) => {
+    console.log('🔄 Sélection conversation:', conversation.id)
+    setSelectedConversation(conversation)
+    loadMessages(conversation.id)
+    
+    // 🆕 Marquer les messages de cette conversation comme lus
+    await markConversationAsRead(conversation.id)
+    
+    // 🆕 Si c'est une conversation de candidature, charger les données
+    if (conversation.application_id) {
+      try {
+        const { data: appData } = await supabase
+          .from('project_applications')
+          .select(`
+            *,
+            projects (
+              client_id,
+              title
+            )
+          `)
+          .eq('id', conversation.application_id)
+          .single()
+        
+        setApplicationData(appData)
+      } catch (error) {
+        console.error('Erreur lors du chargement des données de candidature:', error)
+        setApplicationData(null)
+      }
+    } else {
+      setApplicationData(null)
+    }
+    
+    // 🆕 Recharger les conversations pour mettre à jour les compteurs
+    await loadConversations(user.id)
   }
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  // 🔧 CORRECTION: Fonction pour obtenir les informations de l'autre participant
+  const getOtherParticipant = (conversation: any) => {
+    if (!conversation || !user) {
+      return {
+        id: '',
+        name: 'Utilisateur',
+        avatar: null,
+        email: 'utilisateur@exemple.com',
+        type: 'client'
+      }
+    }
 
-    if (days === 0) {
-      return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-    } else if (days === 1) {
-      return 'Hier'
-    } else if (days < 7) {
-      return `${days} jours`
-    } else {
-      return date.toLocaleDateString('fr-FR')
+    const isClient = conversation.client_id === user.id
+    const otherUserId = isClient ? conversation.developer_id : conversation.client_id
+    const otherUserProfile = profiles[otherUserId]
+    
+    if (!otherUserProfile) {
+      return {
+        id: otherUserId,
+        name: isClient ? 'Développeur' : 'Client',
+        avatar: null,
+        email: 'utilisateur@exemple.com',
+        type: isClient ? 'developer' : 'client'
+      }
+    }
+    
+    return {
+      id: otherUserId,
+      name: otherUserProfile.full_name || otherUserProfile.email?.split('@')[0] || 'Utilisateur',
+      avatar: otherUserProfile.avatar_url,
+      email: otherUserProfile.email,
+      type: otherUserProfile.user_type
+    }
+  }
+
+  // 🔧 AJOUT: Fonction pour ouvrir le modal de notation
+  const openRatingModal = () => {
+    if (!selectedConversation || !userProfile) return
+    
+    // Seuls les clients peuvent noter les développeurs
+    if (userProfile.user_type !== 'client') {
+      alert('Seuls les clients peuvent noter les développeurs.')
+      return
+    }
+
+    const otherParticipant = getOtherParticipant(selectedConversation)
+    if (otherParticipant.type !== 'developer') {
+      alert('Vous ne pouvez noter que des développeurs.')
+      return
+    }
+
+    setShowRatingModal(true)
+  }
+
+  const handleRatingSubmitted = () => {
+    // Recharger les conversations pour mettre à jour les données
+    if (user) {
+      loadConversations(user.id)
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-          <div className="absolute inset-0 w-16 h-16 border-4 border-gray-600 border-b-transparent rounded-full animate-spin opacity-50"></div>
+      <div className="h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Accès refusé</h1>
+          <p className="text-gray-600">Vous devez être connecté pour accéder aux messages.</p>
         </div>
       </div>
     )
   }
 
+  const otherParticipant = selectedConversation ? getOtherParticipant(selectedConversation) : null
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header avec fond étoilé */}
-      <div className="relative bg-black text-white py-24 overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="stars"></div>
-          <div className="twinkling"></div>
+    <div className="h-screen flex">
+      {/* Liste des conversations - Sidebar compacte */}
+      <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
+        {/* Header compact */}
+        <div className="p-3 border-b border-gray-200 bg-white">
+          <h1 className="text-lg font-bold text-gray-900">💬 Conversations</h1>
+          <p className="text-xs text-gray-500">{conversations.length} conversation{conversations.length > 1 ? 's' : ''}</p>
         </div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl font-black mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-            Messagerie
-          </h1>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            {userProfile?.user_type === 'client' ? 
-              'Vos conversations avec les développeurs' : 
-              'Messages reçus de vos clients'
-            }
-          </p>
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="bg-white py-8">
-        <div className="max-w-7xl mx-auto h-[calc(100vh-280px)] flex relative">
-
-          {/* Sidebar - Liste des conversations */}
-          <div className={`
-            ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
-            lg:translate-x-0 lg:static absolute inset-y-0 left-0 z-50
-            w-full sm:w-80 lg:w-1/3
-            bg-gray-50 border-r-2 border-gray-200
-            transition-transform duration-300 ease-in-out
-          `}>
-            <div className="p-4 lg:p-6 border-b-2 border-gray-200 flex items-center justify-between bg-white">
-              <div>
-                <h2 className="text-xl lg:text-2xl font-black text-black mb-1 lg:mb-2">💬 Conversations</h2>
-                <p className="text-gray-600 text-xs lg:text-sm font-medium">
-                  {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowSidebar(false)}
-                className="lg:hidden w-8 h-8 bg-black text-white rounded-lg flex items-center justify-center hover:bg-gray-800 transition-colors font-black"
-              >
-                ✕
-              </button>
+        {/* Liste des conversations */}
+        <div className="flex-1 overflow-y-auto">
+          {conversations.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">
+              <p className="text-sm">Aucune conversation</p>
+              <p className="text-xs mt-1">Démarrez une conversation depuis un projet</p>
             </div>
+          ) : (
+            <div className="space-y-1 p-2">
+              {conversations.map((conversation) => {
+                const lastMessage = conversation.messages?.[conversation.messages.length - 1]
+                const otherParticipant = getOtherParticipant(conversation)
+                
+                // 🆕 NOUVEAU: Compter les messages non lus pour cette conversation
+                const unreadInConversation = conversation.messages?.filter(
+                  (msg: any) => msg.sender_id !== user?.id && !msg.is_read
+                ).length || 0
 
-            <div className="overflow-y-auto h-full pb-20 lg:pb-0">
-              {conversations.length === 0 && autoFixCompleted ? (
-                <div className="p-4 lg:p-6 text-center">
-                  <div className="w-20 h-20 bg-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <span className="text-3xl">📭</span>
-                  </div>
-                  <h3 className="text-black font-black mb-2 text-lg">Aucune conversation</h3>
-                  <p className="text-gray-600 text-sm font-medium">
-                    {userProfile?.user_type === 'client' ? 
-                      'Contactez des développeurs pour commencer' : 
-                      'Candidatez à des projets pour voir vos conversations ici'}
-                  </p>
-                </div>
-              ) : conversations.length === 0 && !autoFixCompleted ? (
-                <div className="p-4 lg:p-6 text-center">
-                  <div className="w-20 h-20 bg-blue-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <span className="text-3xl">🔄</span>
-                  </div>
-                  <h3 className="text-black font-black mb-2 text-lg">Vérification en cours...</h3>
-                  <p className="text-gray-600 text-sm font-medium">
-                    Création automatique des conversations et messages manquants
-                  </p>
-                </div>
-              ) : (
-                conversations.map((conversation) => (
+                return (
                   <div
                     key={conversation.id}
-                    onClick={() => setSelectedConversation(conversation)}
-                    className={`group p-4 border-b-2 border-gray-200 cursor-pointer hover:bg-white transition-all duration-300 hover:border-black ${
-                      selectedConversation?.id === conversation.id ? 'bg-white border-black shadow-lg' : 'bg-gray-50'
+                    onClick={() => selectConversation(conversation)}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors relative ${
+                      selectedConversation?.id === conversation.id
+                        ? 'bg-blue-50 border border-blue-200'
+                        : 'bg-white hover:bg-gray-50 border border-gray-200'
                     }`}
                   >
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-black text-black text-base group-hover:text-gray-700 transition-colors">
-                        {userProfile?.user_type === 'client' ? 
-                          conversation.developer_name : 
-                          conversation.client_name
-                        }
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        {conversation.unread_count > 0 && (
-                          <span className="bg-black text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center font-bold">
-                            {conversation.unread_count}
-                          </span>
-                        )}
-                        <span className="text-gray-400 text-xs font-medium">
-                          {formatTime(conversation.last_message_at)}
-                        </span>
+                    {/* 🆕 NOUVEAU: Badge de messages non lus */}
+                    {unreadInConversation > 0 && (
+                      <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold z-10">
+                        {unreadInConversation > 9 ? '9+' : unreadInConversation}
                       </div>
-                    </div>
-                    <p className="text-gray-600 text-sm truncate font-medium">
-                      {conversation.subject}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Overlay pour mobile */}
-          {showSidebar && (
-            <div
-              className="lg:hidden fixed inset-0 bg-black/50 z-40"
-              onClick={() => setShowSidebar(false)}
-            />
-          )}
-
-          {/* Zone de chat */}
-          <div className="flex-1 flex flex-col bg-white">
-            {selectedConversation ? (
-              <>
-                {/* Header de la conversation */}
-                <div className="p-4 lg:p-6 border-b-2 border-gray-200 bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setShowSidebar(true)}
-                        className="lg:hidden w-10 h-10 bg-black text-white rounded-lg flex items-center justify-center hover:bg-gray-800 transition-colors font-black"
-                      >
-                        ☰
-                      </button>
-                      <div>
-                        <h2 className="text-lg lg:text-xl font-black text-black">
-                          {userProfile?.user_type === 'client' ? 
-                            selectedConversation.developer_name : 
-                            selectedConversation.client_name
-                          }
-                        </h2>
-                        <p className="text-gray-600 text-xs lg:text-sm truncate max-w-xs lg:max-w-none font-medium">
-                          {selectedConversation.subject}
+                    )}
+                    
+                    {/* Avatar + nom */}
+                    <div className="flex items-center space-x-3 mb-2">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                        {otherParticipant.avatar ? (
+                          <img
+                            src={otherParticipant.avatar}
+                            alt={otherParticipant.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback si l'image ne charge pas
+                              e.currentTarget.style.display = 'none'
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                            }}
+                          />
+                        ) : null}
+                        <div className={`w-full h-full bg-black flex items-center justify-center text-white font-bold text-sm ${otherParticipant.avatar ? 'hidden' : ''}`}>
+                          {otherParticipant.name.charAt(0).toUpperCase()}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className={`font-medium text-sm text-gray-900 truncate ${unreadInConversation > 0 ? 'font-bold' : ''}`}>
+                            {otherParticipant.name}
+                          </h3>
+                          {lastMessage && (
+                            <span className="text-xs text-gray-500">
+                              {new Date(lastMessage.created_at).toLocaleDateString('fr-FR', {
+                                day: '2-digit',
+                                month: '2-digit'
+                              })}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          {otherParticipant.type === 'developer' ? '⚡ Développeur' : '👤 Client'}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${
-                        selectedConversation.status === 'active' ? 
-                          'bg-white text-black border-black' : 
-                          'bg-gray-200 text-gray-600 border-gray-300'
-                      }`}>
-                        {selectedConversation.status === 'active' ? 'Active' : 'Fermée'}
-                      </span>
-                    </div>
+                    
+                    <p className="text-xs text-gray-600 mb-1 font-medium">
+                      {conversation.project_title || 'Projet'}
+                    </p>
+                    {lastMessage && (
+                      <p className={`text-xs text-gray-500 truncate ${unreadInConversation > 0 ? 'font-medium text-gray-700' : ''}`}>
+                        {lastMessage.content}
+                      </p>
+                    )}
                   </div>
-                </div>
-
-                {/* 🆕 AJOUT: Barre de statut avec debug */}
-                {applicationData ? (
-                  <div>
-                    <div className="bg-blue-50 p-2 text-xs text-blue-800">
-                      🔧 DEBUG: Status={applicationData.status}, IsCreator={isCreator}, AppId={applicationData.id}
-                    </div>
-                    <StatusBar
-                      applicationId={applicationData.id}
-                      currentStatus={applicationData.status || 'en_attente'}
-                      projectClientId={applicationData.project.client_id}
-                      isCreator={isCreator}
-                      onStatusUpdate={handleStatusUpdate}
-                    />
-                  </div>
-                ) : (
-                  <div className="bg-yellow-50 p-2 text-xs text-yellow-800">
-                    🔧 DEBUG: Pas de données de candidature pour cette conversation
-                  </div>
-                )}
-
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-3 lg:space-y-4 bg-white">
-                  {messages.length === 0 ? (
-                    <div className="text-center py-8">
-                      <div className="text-4xl mb-4">💭</div>
-                      <p className="text-gray-500">Aucun message dans cette conversation</p>
-                    </div>
-                  ) : (
-                    messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-4 py-3 rounded-2xl border-2 ${
-                            message.sender_id === user.id
-                              ? 'bg-black text-white border-black'
-                              : 'bg-gray-50 text-black border-gray-200 hover:border-black transition-colors'
-                          }`}
-                        >
-                          <p className="text-sm lg:text-base break-words font-medium whitespace-pre-wrap">{message.content}</p>
-                          <p className={`text-xs mt-2 font-medium ${
-                            message.sender_id === user.id ? 'text-gray-300' : 'text-gray-500'
-                          }`}>
-                            {formatTime(message.created_at)}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {/* Zone de saisie */}
-                <div className="p-4 lg:p-6 border-t-2 border-gray-200 bg-gray-50">
-                  <form onSubmit={sendMessage} className="flex gap-3">
-                    <Input
-                      type="text"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Tapez votre message..."
-                      className="flex-1 bg-white border-2 border-gray-300 text-black text-sm lg:text-base focus:border-black font-medium"
-                      disabled={sending}
-                    />
-                    <Button
-                      type="submit"
-                      disabled={sending || !newMessage.trim()}
-                      className="bg-black text-white hover:bg-gray-800 border-2 border-black px-4 py-2 font-black disabled:bg-gray-400 disabled:border-gray-400 transform hover:scale-105 transition-all duration-300"
-                    >
-                      {sending ? '...' : '📤'}
-                    </Button>
-                  </form>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center p-4 bg-white">
-                <div className="text-center">
-                  <button
-                    onClick={() => setShowSidebar(true)}
-                    className="lg:hidden mb-6 bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors font-black border-2 border-black transform hover:scale-105"
-                  >
-                    ☰ Voir les conversations
-                  </button>
-                  <div className="w-24 h-24 bg-gray-200 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                    <span className="text-4xl">💬</span>
-                  </div>
-                  <h3 className="text-2xl font-black text-black mb-3">
-                    Sélectionnez une conversation
-                  </h3>
-                  <p className="text-gray-600 text-lg font-medium">
-                    Choisissez une conversation pour commencer à échanger
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Styles pour les étoiles */}
-      <style jsx>{`
-        .stars, .twinkling {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 120%;
-          pointer-events: none;
-        }
+      {/* Zone de chat principale */}
+      <div className="flex-1 flex flex-col">
+        {selectedConversation ? (
+          <>
+            {/* Header de conversation - Avec avatar, nom et bouton Noter */}
+            <div className="p-3 border-b border-gray-200 bg-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  {/* Avatar dans le header */}
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+                    {otherParticipant?.avatar ? (
+                      <img
+                        src={otherParticipant.avatar}
+                        alt={otherParticipant.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-full h-full bg-black flex items-center justify-center text-white font-bold ${otherParticipant?.avatar ? 'hidden' : ''}`}>
+                      {otherParticipant?.name.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-gray-900 text-sm">
+                      {otherParticipant?.name || 'Utilisateur'}
+                    </h2>
+                    <p className="text-xs text-gray-500">
+                      {selectedConversation.project_title || 'Projet'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                    ● Active
+                  </span>
+                  {/* 🔧 AJOUT: Bouton Noter (seulement pour les clients notant des développeurs) */}
+                  {userProfile?.user_type === 'client' && otherParticipant?.type === 'developer' && (
+                    <Button
+                      onClick={openRatingModal}
+                      className="bg-yellow-500 text-white hover:bg-yellow-600 font-medium px-3 py-1 rounded-lg text-xs flex items-center space-x-1"
+                    >
+                      <span>⭐</span>
+                      <span>Noter</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              {/* 🆕 NOUVEAU: StatusBar intégrée si c'est une candidature */}
+              {selectedConversation.application_id && applicationData && (
+                <div className="mt-3">
+                  <StatusBar 
+                    applicationId={selectedConversation.application_id}
+                    currentStatus={applicationData.status}
+                    projectClientId={applicationData.projects?.client_id}
+                    isCreator={user?.id === applicationData.projects?.client_id}
+                  />
+                </div>
+              )}
+            </div>
 
-        .stars {
-          background-image: 
-            radial-gradient(2px 2px at 20px 30px, #eee, transparent),
-            radial-gradient(2px 2px at 40px 70px, #fff, transparent),
-            radial-gradient(1px 1px at 90px 40px, #eee, transparent),
-            radial-gradient(1px 1px at 130px 80px, #fff, transparent),
-            radial-gradient(2px 2px at 160px 30px, #ddd, transparent);
-          background-repeat: repeat;
-          background-size: 200px 100px;
-          animation: zoom 60s alternate infinite;
-        }
+            {/* Messages - Plus d'espace */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {messages.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  <p className="text-sm">Aucun message dans cette conversation</p>
+                  <p className="text-xs mt-1">Envoyez le premier message pour commencer !</p>
+                </div>
+              ) : (
+                messages.map((message) => {
+                  const senderProfile = profiles[message.sender_id]
+                  
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`flex items-end space-x-2 max-w-xs lg:max-w-md ${
+                        message.sender_id === user.id ? 'flex-row-reverse space-x-reverse' : ''
+                      }`}>
+                        {/* Avatar dans les messages */}
+                        {message.sender_id !== user.id && (
+                          <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                            {senderProfile?.avatar_url ? (
+                              <img
+                                src={senderProfile.avatar_url}
+                                alt={senderProfile.full_name || 'Utilisateur'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                                }}
+                              />
+                            ) : null}
+                            <div className={`w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs ${senderProfile?.avatar_url ? 'hidden' : ''}`}>
+                              {(senderProfile?.full_name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div
+                          className={`px-3 py-2 rounded-lg ${
+                            message.sender_id === user.id
+                              ? 'bg-black text-white rounded-br-sm'
+                              : 'bg-gray-100 text-gray-900 rounded-bl-sm'
+                          }`}
+                        >
+                          <p className="text-sm">{message.content}</p>
+                          <p className={`text-xs mt-1 ${
+                            message.sender_id === user.id ? 'text-gray-300' : 'text-gray-500'
+                          }`}>
+                            {new Date(message.created_at).toLocaleTimeString('fr-FR', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
 
-        .twinkling {
-          background-image: 
-            radial-gradient(1px 1px at 25px 25px, white, transparent),
-            radial-gradient(1px 1px at 50px 75px, white, transparent),
-            radial-gradient(1px 1px at 125px 25px, white, transparent),
-            radial-gradient(1px 1px at 75px 100px, white, transparent);
-          background-repeat: repeat;
-          background-size: 150px 100px;
-          animation: sparkle 5s ease-in-out infinite alternate;
-        }
+            {/* Zone de saisie - Compacte */}
+            <div className="p-3 border-t border-gray-200 bg-white">
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  placeholder="Tapez votre message..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+                <Button
+                  onClick={sendMessage}
+                  disabled={!newMessage.trim()}
+                  className="bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ✈️
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-gray-50">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">💬</span>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Sélectionnez une conversation
+              </h3>
+              <p className="text-sm text-gray-600">
+                Choisissez une conversation dans la liste pour commencer à discuter
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
 
-        @keyframes zoom {
-          from {
-            transform: scale(1);
-          }
-          to {
-            transform: scale(1.1);
-          }
-        }
-
-        @keyframes sparkle {
-          from {
-            opacity: 0.7;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-      `}</style>
+      {/* 🔧 AJOUT: Modal de notation */}
+      {showRatingModal && otherParticipant && (
+        <RatingModal
+          isOpen={showRatingModal}
+          onClose={() => setShowRatingModal(false)}
+          developerId={otherParticipant.id}
+          developerName={otherParticipant.name}
+          projectTitle={selectedConversation?.project_title || 'Projet'}
+          currentUser={user}
+          onRatingSubmitted={handleRatingSubmitted}
+        />
+      )}
     </div>
   )
 }

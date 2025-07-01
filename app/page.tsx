@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '../components/ui/button'
 import { createClient } from '@supabase/supabase-js'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,6 +27,29 @@ const LANGUAGES = {
   'hi': { name: 'हिन्दी', flag: '🇮🇳' }
 };
 
+// 🔧 AJOUT: Composant d'affichage des étoiles
+const StarRating = ({ rating, totalRatings }: { rating: number; totalRatings?: number }) => {
+  if (!rating) return null;
+  
+  return (
+    <div className="flex items-center space-x-1">
+      <div className="flex">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <span
+            key={star}
+            className={`text-sm ${star <= Math.round(rating) ? 'text-yellow-400' : 'text-gray-300'}`}
+          >
+            ⭐
+          </span>
+        ))}
+      </div>
+      <span className="text-xs text-gray-600 font-medium">
+        {rating.toFixed(1)} {totalRatings ? `(${totalRatings})` : ''}
+      </span>
+    </div>
+  );
+};
+
 export default function HomePage() {
   const [user, setUser] = useState<any>(null)
   const [userProfile, setUserProfile] = useState<any>(null)
@@ -45,6 +68,7 @@ export default function HomePage() {
   const [realProjects, setRealProjects] = useState<any[]>([])
   const [realDevelopers, setRealDevelopers] = useState<any[]>([])
   const router = useRouter()
+  const pathname = usePathname()
 
   const testimonials = [
     {
@@ -96,15 +120,72 @@ export default function HomePage() {
     return `${diffInWeeks}s`;
   };
 
+  // 🔧 AJOUT: Fonction pour vérifier l'état de connexion
+  const checkAuthState = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        setUser(user)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_type, full_name')
+          .eq('id', user.id)
+          .single()
+        setUserProfile(profile)
+        console.log('🔄 Page d\'accueil - Utilisateur connecté:', user.email, 'Type:', profile?.user_type)
+      } else {
+        setUser(null)
+        setUserProfile(null)
+        console.log('🔄 Page d\'accueil - Aucun utilisateur connecté')
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification de l\'état de connexion:', error)
+      setUser(null)
+      setUserProfile(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    checkUser()
+    checkAuthState()
     fetchStats()
     loadRealData()
     handleUrlParams()
     setIsVisible(true)
+
+    // 🔧 AJOUT: Écouter les changements d'authentification
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔄 Page d\'accueil - Changement d\'état auth:', event, session?.user?.email)
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user)
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('user_type, full_name')
+            .eq('id', session.user.id)
+            .single()
+          setUserProfile(profile)
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null)
+          setUserProfile(null)
+        }
+      }
+    )
+
+    return () => {
+      subscription?.unsubscribe()
+    }
   }, [])
 
-  // 🔧 MODIFICATION: Charger les vraies données avec profils complets
+  // 🔧 AJOUT: Re-vérifier l'état quand on revient sur la page
+  useEffect(() => {
+    checkAuthState()
+  }, [pathname])
+
+  // 🔧 MODIFICATION: Charger les vraies données avec profils complets et notes
   const loadRealData = async () => {
     try {
       console.log('=== CHARGEMENT DONNÉES RÉELLES ===');
@@ -121,7 +202,7 @@ export default function HomePage() {
         setRealProjects(projects);
       }
 
-      // 🔧 MODIFICATION: Charger les développeurs avec leurs profils détaillés
+      // 🔧 MODIFICATION: Charger les développeurs avec leurs profils ET leurs notes
       const { data: developers, error: developersError } = await supabase
         .from('profiles')
         .select('*')
@@ -131,7 +212,7 @@ export default function HomePage() {
       console.log('Développeurs de base chargés:', developers);
 
       if (developers && developers.length > 0) {
-        // 🔧 AJOUT: Charger les profils détaillés pour chaque développeur
+        // 🔧 AJOUT: Charger les profils détaillés avec les notes pour chaque développeur
         const developersWithDetails = await Promise.all(
           developers.map(async (dev) => {
             const { data: devProfile } = await supabase
@@ -142,7 +223,7 @@ export default function HomePage() {
 
             return {
               ...dev,
-              ...devProfile, // Fusionner les données détaillées
+              ...devProfile, // Fusionner les données détaillées (inclut average_rating et total_ratings)
               // S'assurer que les données de base ne sont pas écrasées
               id: dev.id,
               full_name: dev.full_name,
@@ -152,7 +233,7 @@ export default function HomePage() {
           })
         );
 
-        console.log('Développeurs avec détails chargés:', developersWithDetails);
+        console.log('Développeurs avec détails et notes chargés:', developersWithDetails);
         setRealDevelopers(developersWithDetails);
       }
 
@@ -339,6 +420,39 @@ export default function HomePage() {
     }
   }
 
+  // 🔧 AJOUT: Fonction pour le CTA "Comment ça marche"
+  const getHowItWorksCTA = () => {
+    if (user && userProfile) {
+      // Utilisateur connecté : rediriger selon son type
+      if (userProfile.user_type === 'client') {
+        return (
+          <Link href="/developers">
+            <Button className="bg-white text-black hover:bg-gray-100 font-black px-8 py-4 text-lg rounded-2xl border-2 border-white transform hover:scale-105 transition-all duration-300 shadow-2xl">
+              <span className="text-black font-black">Explorer les développeurs</span>
+            </Button>
+          </Link>
+        )
+      } else {
+        return (
+          <Link href="/projects">
+            <Button className="bg-white text-black hover:bg-gray-100 font-black px-8 py-4 text-lg rounded-2xl border-2 border-white transform hover:scale-105 transition-all duration-300 shadow-2xl">
+              <span className="text-black font-black">Voir les projets</span>
+            </Button>
+          </Link>
+        )
+      }
+    } else {
+      // Visiteur non connecté : inscription
+      return (
+        <Link href="/auth/signup">
+          <Button className="bg-white text-black hover:bg-gray-100 font-black px-8 py-4 text-lg rounded-2xl border-2 border-white transform hover:scale-105 transition-all duration-300 shadow-2xl">
+            <span className="text-black font-black">Commencer maintenant</span>
+          </Button>
+        </Link>
+      )
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center px-4">
@@ -352,7 +466,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-black overflow-hidden relative">
-      {/* Hero Section - Encore plus réduit */}
+      {/* Hero Section */}
       <div className="relative h-[50vh] flex items-center justify-center overflow-hidden">
         {/* Particules flottantes */}
         <div className="absolute inset-0 overflow-hidden">
@@ -424,7 +538,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white via-transparent animate-pulse opacity-20"></div>
       </div>
 
-      {/* Projects & Developers Section - Comme avant (centrés) */}
+      {/* Projects & Developers Section */}
       <div className="bg-white py-20 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 relative">
@@ -437,7 +551,7 @@ export default function HomePage() {
               <div className="absolute top-3/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-gray-400 rounded-full"></div>
             </div>
             
-            {/* Projects Column - VRAIS PROJETS */}
+            {/* Projects Column */}
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-2xl sm:text-3xl font-black text-black mb-3 relative">
@@ -528,7 +642,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* 🔧 MODIFICATION: Developers Column avec photos et drapeaux */}
+            {/* Developers Column avec notes */}
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-2xl sm:text-3xl font-black text-black mb-3 relative">
@@ -544,7 +658,7 @@ export default function HomePage() {
                 {realDevelopers.length > 0 ? realDevelopers.map((dev, index) => (
                   <div key={index} className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
                     <div className="flex items-start space-x-3">
-                      {/* 🔧 AJOUT: Photo de profil avec fallback */}
+                      {/* Photo de profil avec fallback */}
                       <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-gray-300 flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
                         {dev.avatar_url ? (
                           <img 
@@ -560,7 +674,7 @@ export default function HomePage() {
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        {/* 🔧 AJOUT: Nom avec drapeaux des langues */}
+                        {/* Nom avec drapeaux des langues */}
                         <div className="flex items-center gap-2 mb-0.5">
                           <h3 className="text-lg font-black text-black">{dev.full_name || 'Développeur'}</h3>
                           {/* Drapeaux des langues parlées */}
@@ -580,9 +694,13 @@ export default function HomePage() {
                           )}
                         </div>
                         
-                        <p className="text-gray-600 text-xs mb-2 font-medium">
-                          {dev.experience_years ? `${dev.experience_years}+ ans` : 'Expert'} d'expérience
-                        </p>
+                        {/* Affichage de la note */}
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-gray-600 text-xs font-medium">
+                            {dev.experience_years ? `${dev.experience_years}+ ans` : 'Expert'} d'expérience
+                          </p>
+                          <StarRating rating={dev.average_rating} totalRatings={dev.total_ratings} />
+                        </div>
                         
                         <div className="flex justify-between items-center mb-3">
                           <p className="text-gray-600 text-sm flex-1 truncate">{dev.bio || 'Développeur spécialisé'}</p>
@@ -615,9 +733,9 @@ export default function HomePage() {
                 )) : (
                   // Fallback si pas de développeurs
                   [
-                    { name: "Alexandre Dubois", exp: "5+ ans", desc: "Spécialiste IA conversationnelle", avatar: "A", skills: ["Python", "IA"] },
-                    { name: "Sophie Martin", exp: "7+ ans", desc: "Experte Machine Learning", avatar: "S", skills: ["TensorFlow", "ML"] },
-                    { name: "Lisa Chen", exp: "6+ ans", desc: "Experte Computer Vision", avatar: "L", skills: ["PyTorch", "Vision"] }
+                    { name: "Alexandre Dubois", exp: "5+ ans", desc: "Spécialiste IA conversationnelle", avatar: "A", skills: ["Python", "IA"], rating: 4.8, reviews: 12 },
+                    { name: "Sophie Martin", exp: "7+ ans", desc: "Experte Machine Learning", avatar: "S", skills: ["TensorFlow", "ML"], rating: 4.9, reviews: 18 },
+                    { name: "Lisa Chen", exp: "6+ ans", desc: "Experte Computer Vision", avatar: "L", skills: ["PyTorch", "Vision"], rating: 4.7, reviews: 9 }
                   ].map((dev, index) => (
                     <div key={index} className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
                       <div className="flex items-start space-x-3">
@@ -626,7 +744,11 @@ export default function HomePage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-lg font-black text-black mb-0.5">{dev.name}</h3>
-                          <p className="text-gray-600 text-xs mb-2 font-medium">{dev.exp} d'expérience</p>
+                          
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-gray-600 text-xs font-medium">{dev.exp} d'expérience</p>
+                            <StarRating rating={dev.rating} totalRatings={dev.reviews} />
+                          </div>
                           
                           <div className="flex justify-between items-center mb-3">
                             <p className="text-gray-600 text-sm flex-1 truncate">{dev.desc}</p>
@@ -663,7 +785,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Comment ça marche Section - FOND NOIR */}
+      {/* Comment ça marche Section */}
       <div className="bg-black py-20 relative overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl animate-pulse"></div>
         <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-white opacity-3 rounded-full blur-2xl animate-pulse"></div>
@@ -707,17 +829,14 @@ export default function HomePage() {
             ))}
           </div>
 
+          {/* Bouton adaptatif */}
           <div className="text-center mt-12">
-            <Link href="/auth/signup">
-              <Button className="bg-white text-black hover:bg-gray-100 font-black px-8 py-4 text-lg rounded-2xl border-2 border-white transform hover:scale-105 transition-all duration-300 shadow-2xl">
-                <span className="text-black font-black">Commencer maintenant</span>
-              </Button>
-            </Link>
+            {getHowItWorksCTA()}
           </div>
         </div>
       </div>
 
-      {/* Testimonials - 3 AVIS ALIGNÉS */}
+      {/* Testimonials */}
       <div className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -762,7 +881,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* CTA Final - RÉDUIT */}
+      {/* CTA Final */}
       <div className="bg-black py-20 relative overflow-hidden">
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-full h-full opacity-10">

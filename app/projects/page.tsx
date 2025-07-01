@@ -131,21 +131,38 @@ function ProjectsContent() {
     try {
       console.log('=== CHARGEMENT PROJETS ===');
       
-      // D'abord essayer sans la relation
+      // Charger d'abord les projets
       const { data: simpleData, error: simpleError } = await supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
 
       console.log('Projets sans relation:', simpleData);
-      console.log('Erreur simple:', simpleError);
 
       if (simpleData && simpleData.length > 0) {
-        // Ajouter un client fictif pour l'affichage
-        const projectsWithClient = simpleData.map(project => ({
-          ...project,
-          client: { full_name: 'Client' }
-        }));
+        // Charger les noms des clients pour chaque projet
+        const projectsWithClient = await Promise.all(
+          simpleData.map(async (project) => {
+            if (project.client_id) {
+              const { data: clientData } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('id', project.client_id)
+                .single();
+              
+              return {
+                ...project,
+                client: { full_name: clientData?.full_name || 'Client Anonyme' }
+              };
+            } else {
+              return {
+                ...project,
+                client: { full_name: 'Client Anonyme' }
+              };
+            }
+          })
+        );
+
         setProjects(projectsWithClient);
         console.log('Projets chargés avec succès:', projectsWithClient.length);
       } else {
@@ -471,102 +488,149 @@ function ProjectsContent() {
     }
   };
 
-  // NOUVEAU : Fonction pour formater le statut
-  const getStatusText = (status: string) => {
+  // NOUVEAU : Fonction pour obtenir le style du statut
+  const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'pending': return 'En attente';
-      case 'accepted': return 'Accepté';
-      case 'rejected': return 'Refusé';
-      default: return status;
+      case 'open':
+        return 'px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200';
+      case 'in_progress':
+        return 'px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200';
+      case 'completed':
+        return 'px-3 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full border border-purple-200';
+      case 'cancelled':
+        return 'px-3 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full border border-red-200';
+      case 'paused':
+        return 'px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full border border-yellow-200';
+      default:
+        return 'px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full border border-gray-200';
     }
   };
 
+  // NOUVEAU : Fonction pour formater le statut
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'open': return '● Ouvert';
+      case 'in_progress': return '● En cours';
+      case 'completed': return '● Terminé';
+      case 'cancelled': return '● Annulé';
+      case 'paused': return '● En pause';
+      case 'pending': return '● En attente';
+      case 'accepted': return '● Accepté';
+      case 'rejected': return '● Refusé';
+      default: return `● ${status}`;
+    }
+  };
+
+  // Fonction pour formater le temps écoulé
+  const getTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0) return "aujourd'hui";
+    if (diffInDays === 1) return "1j";
+    if (diffInDays < 7) return `${diffInDays}j`;
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    if (diffInWeeks === 1) return "1s";
+    return `${diffInWeeks}s`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
+
   const ProjectCard = ({ project }: { project: Project }) => {
     return (
-    <div className="bg-white border-2 border-gray-200 p-6 hover:border-black transition-all duration-300 transform hover:scale-105">
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">{getTypeIcon(project.project_type)}</span>
-          <h3 className="font-black text-lg text-black line-clamp-2">{project.title}</h3>
-        </div>
-        <span className="px-3 py-1 text-xs font-bold uppercase tracking-wider border-2 bg-black text-white border-black ml-4 flex-shrink-0">
-          {project.status.toUpperCase()}
-        </span>
-      </div>
-      
-      <p className="text-gray-600 text-sm mb-4 line-clamp-3">{project.description}</p>
-      
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center text-sm text-gray-600">
-          <DollarSign className="h-4 w-4 mr-2" />
-          <span className="font-black text-black">
-            {project.budget_min.toLocaleString()}€ - {project.budget_max.toLocaleString()}€
+      <div className="group bg-gray-50 rounded-2xl p-4 border-2 border-transparent hover:border-black transition-all duration-300 hover:shadow-lg">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="px-3 py-1 bg-black text-white text-xs font-bold rounded-full">
+            {getTypeIcon(project.project_type)} {project.project_type || 'Projet'}
+          </span>
+          <span className={getStatusStyle(project.status)}>
+            {getStatusText(project.status)}
           </span>
         </div>
         
-        <div className="flex items-center text-sm text-gray-600">
-          <Clock className="h-4 w-4 mr-2" />
-          <span>{project.timeline}</span>
-        </div>
+        <h3 className="text-lg font-black text-black mb-2 group-hover:text-gray-700 transition-colors">
+          {project.title}
+        </h3>
         
-        <div className="flex items-center text-sm text-gray-600">
-          <Zap className="h-4 w-4 mr-2" />
-          <span className={`px-2 py-1 rounded text-xs font-bold ${getComplexityColor(project.complexity)}`}>
-            {project.complexity}
-          </span>
-        </div>
-
-        <div className="flex items-center text-sm text-gray-600">
-          <Calendar className="h-4 w-4 mr-2" />
-          <span>{new Date(project.created_at).toLocaleDateString()}</span>
-        </div>
-      </div>
-
-      {project.required_skills && project.required_skills.length > 0 && (
-        <div className="mb-4">
-          <div className="flex flex-wrap gap-1">
-            {project.required_skills.slice(0, 3).map((skill, index) => (
-              <span key={index} className="px-2 py-1 bg-gray-100 text-xs font-bold text-gray-700">
-                {skill}
-              </span>
-            ))}
-            {project.required_skills.length > 3 && (
-              <span className="px-2 py-1 bg-gray-100 text-xs font-bold text-gray-700">
-                +{project.required_skills.length - 3}
-              </span>
-            )}
+        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{project.description}</p>
+        
+        <div className="space-y-1 mb-3 text-xs">
+          <div className="flex items-center text-gray-600">
+            <DollarSign className="h-3 w-3 mr-1" />
+            <span className="font-bold text-black">
+              {project.budget_min?.toLocaleString()}€ - {project.budget_max?.toLocaleString()}€
+            </span>
+          </div>
+          
+          <div className="flex items-center text-gray-600">
+            <Clock className="h-3 w-3 mr-1" />
+            <span>{project.timeline}</span>
+          </div>
+          
+          <div className="flex items-center text-gray-600">
+            <Zap className="h-3 w-3 mr-1" />
+            <span className={`px-2 py-0.5 rounded text-xs font-medium ${getComplexityColor(project.complexity)}`}>
+              {project.complexity}
+            </span>
           </div>
         </div>
-      )}
 
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-gray-600">
-          <span className="font-bold">Client:</span> {project.client?.full_name || 'Anonyme'}
+        {project.required_skills && project.required_skills.length > 0 && (
+          <div className="mb-3">
+            <div className="flex flex-wrap gap-1">
+              {project.required_skills.slice(0, 2).map((skill, index) => (
+                <span key={index} className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded transition-colors duration-300">
+                  {skill}
+                </span>
+              ))}
+              {project.required_skills.length > 2 && (
+                <span className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs font-medium rounded">
+                  +{project.required_skills.length - 2}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-between items-center mb-3">
+          <div className="text-black font-bold text-xs">
+            Par: {project.client?.full_name || 'Anonyme'}
+          </div>
+          <div className="text-gray-400 text-xs">il y a {getTimeAgo(project.created_at)}</div>
         </div>
+
         <div className="flex gap-2">
           <button 
             onClick={() => router.push(`/projects/${project.id}`)}
-            className="bg-gray-100 text-black px-4 py-2 text-sm font-black hover:bg-gray-200 transition-all duration-300"
+            className="bg-gray-100 text-black hover:bg-gray-200 font-bold px-3 py-1 rounded-lg text-xs transition-colors duration-300"
           >
-            Voir Détails
+            Voir →
           </button>
           
-          {/* Afficher le bouton candidater pour tous SAUF si l'utilisateur connecté est le créateur */}
-          {(!user || !project.client_id || user.id !== project.client_id) && (
+          {/* Bouton candidater - simple condition */}
+          {user?.id !== project.client_id && (
             <button 
               onClick={() => handleApplyToProject(project)}
-              className="bg-black text-white px-4 py-2 text-sm font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+              className="bg-black text-white hover:bg-gray-800 font-bold px-3 py-1 rounded-lg text-xs transition-colors duration-300 flex items-center gap-1"
             >
-              <Send className="h-4 w-4" />
-              {!user ? 'Se connecter pour candidater' : 
-               userProfile?.user_type === 'client' ? 'Candidater (Client)' : 'Candidater'}
+              <Send className="h-3 w-3" />
+              {!user ? 'Se connecter' : 'Candidater'}
             </button>
           )}
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   if (loading) {
     return (
@@ -611,6 +675,9 @@ function ProjectsContent() {
         </div>
       </div>
 
+      {/* Transition */}
+      <div className="h-4 bg-gradient-to-b from-black to-white"></div>
+
       {/* Filtres et recherche */}
       <div className="bg-gray-50 py-8 border-b-2 border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -622,7 +689,7 @@ function ProjectsContent() {
                 placeholder="Rechercher un projet..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
               />
             </div>
 
@@ -630,7 +697,7 @@ function ProjectsContent() {
               <select
                 value={selectedBudget}
                 onChange={(e) => setSelectedBudget(e.target.value)}
-                className="px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                className="px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
               >
                 <option value="all">Tous budgets</option>
                 <option value="low">&lt; 5 000€</option>
@@ -641,7 +708,7 @@ function ProjectsContent() {
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
-                className="px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                className="px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
               >
                 <option value="all">Tous types</option>
                 <option value="automation">🤖 Automation</option>
@@ -651,7 +718,7 @@ function ProjectsContent() {
                 <option value="other">💻 Autre</option>
               </select>
 
-              <div className="flex border-2 border-gray-200">
+              <div className="flex border-2 border-gray-200 rounded-lg overflow-hidden">
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`p-3 font-black transition-all duration-300 ${
@@ -672,7 +739,7 @@ function ProjectsContent() {
 
               <button
                 onClick={handleCreateProject}
-                className="bg-black text-white px-6 py-3 font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+                className="bg-black text-white px-6 py-3 rounded-lg font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
               >
                 <Plus className="h-5 w-5" />
                 Créer un projet
@@ -698,10 +765,16 @@ function ProjectsContent() {
               ))}
             </div>
           ) : (
-            <div className="bg-white border-2 border-gray-200 p-12 text-center">
-              <Search className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-              <h3 className="font-black text-xl text-black mb-2">Aucun projet trouvé</h3>
-              <p className="text-gray-600 mb-6">Essayez de modifier vos critères de recherche</p>
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">🔍</span>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Aucun projet trouvé
+              </h3>
+              <p className="text-gray-600">
+                Essayez de modifier vos critères de recherche
+              </p>
               
               {user && userProfile?.user_type === 'client' && (
                 <div className="border-t-2 border-gray-200 pt-6 mt-6">
@@ -709,7 +782,7 @@ function ProjectsContent() {
                   <p className="text-gray-600 mb-4">Publiez votre projet et trouvez le développeur parfait !</p>
                   <button
                     onClick={handleCreateProject}
-                    className="bg-black text-white px-8 py-4 font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto"
+                    className="bg-black text-white px-8 py-4 rounded-xl font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto"
                   >
                     <Plus className="h-5 w-5" />
                     Créer mon premier projet
@@ -724,7 +797,7 @@ function ProjectsContent() {
       {/* NOUVELLE Modal d'alerte pour candidature existante */}
       {showExistingApplicationAlert && existingApplicationData.project && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-md w-full rounded-lg shadow-xl border-2 border-red-200">
+          <div className="bg-white max-w-md w-full rounded-xl shadow-xl border-2 border-red-200">
             <div className="p-6 text-center">
               <div className="flex justify-center mb-4">
                 <div className="bg-red-100 p-3 rounded-full">
@@ -753,13 +826,13 @@ function ProjectsContent() {
               <div className="flex gap-3">
                 <button
                   onClick={closeExistingApplicationAlert}
-                  className="flex-1 px-4 py-3 border-2 border-gray-200 text-black font-black hover:border-black transition-colors"
+                  className="flex-1 px-4 py-3 border-2 border-gray-200 text-black font-black rounded-lg hover:border-black transition-colors"
                 >
                   Fermer
                 </button>
                 <button
                   onClick={goToMessages}
-                  className="flex-1 bg-black text-white px-4 py-3 font-black hover:bg-gray-800 transition-colors"
+                  className="flex-1 bg-black text-white px-4 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors"
                 >
                   Voir mes messages
                 </button>
@@ -772,7 +845,7 @@ function ProjectsContent() {
       {/* Modal de création de projet */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white max-w-3xl w-full max-h-[90vh] overflow-y-auto rounded-xl">
             <div className="p-6 border-b-2 border-gray-200 flex justify-between items-center">
               <h2 className="text-2xl font-black">Créer un nouveau projet</h2>
               <button 
@@ -795,7 +868,7 @@ function ProjectsContent() {
                       required
                       value={formData.title}
                       onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
                       placeholder="Ex: Application e-commerce"
                     />
                   </div>
@@ -808,7 +881,7 @@ function ProjectsContent() {
                       required
                       value={formData.project_type}
                       onChange={(e) => setFormData(prev => ({ ...prev, project_type: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
                     >
                       <option value="automation">🤖 Automation</option>
                       <option value="ai">🧠 Intelligence Artificielle</option>
@@ -828,7 +901,7 @@ function ProjectsContent() {
                     rows={4}
                     value={formData.description}
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold resize-none"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold resize-none"
                     placeholder="Décrivez votre projet en détail..."
                   />
                 </div>
@@ -844,7 +917,7 @@ function ProjectsContent() {
                       min="100"
                       value={formData.budget_min}
                       onChange={(e) => setFormData(prev => ({ ...prev, budget_min: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
                       placeholder="1000"
                     />
                   </div>
@@ -859,7 +932,7 @@ function ProjectsContent() {
                       min="100"
                       value={formData.budget_max}
                       onChange={(e) => setFormData(prev => ({ ...prev, budget_max: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
                       placeholder="5000"
                     />
                   </div>
@@ -875,7 +948,7 @@ function ProjectsContent() {
                       required
                       value={formData.timeline}
                       onChange={(e) => setFormData(prev => ({ ...prev, timeline: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
                       placeholder="Ex: 2 semaines, 1 mois"
                     />
                   </div>
@@ -888,7 +961,7 @@ function ProjectsContent() {
                       required
                       value={formData.complexity}
                       onChange={(e) => setFormData(prev => ({ ...prev, complexity: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
                     >
                       <option value="simple">Simple</option>
                       <option value="medium">Moyenne</option>
@@ -907,13 +980,13 @@ function ProjectsContent() {
                       value={skillInput}
                       onChange={(e) => setSkillInput(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
-                      className="flex-1 px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                      className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
                       placeholder="Ex: React, Node.js, Python..."
                     />
                     <button
                       type="button"
                       onClick={addSkill}
-                      className="bg-black text-white px-4 py-3 font-black hover:bg-gray-800 transition-colors"
+                      className="bg-black text-white px-4 py-3 rounded-lg font-black hover:bg-gray-800 transition-colors"
                     >
                       <Plus className="h-5 w-5" />
                     </button>
@@ -923,7 +996,7 @@ function ProjectsContent() {
                       {formData.required_skills.map((skill, index) => (
                         <span
                           key={index}
-                          className="bg-black text-white px-3 py-1 text-sm font-bold flex items-center gap-2"
+                          className="bg-black text-white px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2"
                         >
                           {skill}
                           <button
@@ -943,14 +1016,14 @@ function ProjectsContent() {
                   <button
                     type="button"
                     onClick={closeCreateModal}
-                    className="px-6 py-3 border-2 border-gray-200 text-black font-black hover:border-black transition-colors"
+                    className="px-6 py-3 border-2 border-gray-200 text-black font-black rounded-lg hover:border-black transition-colors"
                   >
                     Annuler
                   </button>
                   <button
                     type="submit"
                     disabled={createLoading}
-                    className="bg-black text-white px-6 py-3 font-black hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-black text-white px-6 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {createLoading ? 'Création...' : 'Créer le projet'}
                   </button>
@@ -964,7 +1037,7 @@ function ProjectsContent() {
       {/* Modal de candidature */}
       {showApplicationModal && selectedProject && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-xl">
             <div className="p-6 border-b-2 border-gray-200 flex justify-between items-center">
               <div>
                 <h2 className="text-2xl font-black">Candidater au projet</h2>
@@ -987,7 +1060,7 @@ function ProjectsContent() {
                 </p>
                 <button
                   onClick={closeApplicationModal}
-                  className="bg-black text-white px-6 py-3 font-black hover:bg-gray-800 transition-colors"
+                  className="bg-black text-white px-6 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors"
                 >
                   Fermer
                 </button>
@@ -1004,7 +1077,7 @@ function ProjectsContent() {
                       rows={6}
                       value={applicationData.message}
                       onChange={(e) => setApplicationData(prev => ({ ...prev, message: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold resize-none"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold resize-none"
                       placeholder="Présentez-vous et expliquez pourquoi vous êtes le candidat idéal pour ce projet..."
                     />
                     <p className="text-sm text-gray-600 mt-2">
@@ -1016,14 +1089,14 @@ function ProjectsContent() {
                     <button
                       type="button"
                       onClick={closeApplicationModal}
-                      className="px-6 py-3 border-2 border-gray-200 text-black font-black hover:border-black transition-colors"
+                      className="px-6 py-3 border-2 border-gray-200 text-black font-black rounded-lg hover:border-black transition-colors"
                     >
                       Annuler
                     </button>
                     <button
                       type="submit"
                       disabled={applicationLoading}
-                      className="bg-black text-white px-6 py-3 font-black hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="bg-black text-white px-6 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       {applicationLoading ? (
                         <>
@@ -1087,6 +1160,13 @@ function ProjectsContent() {
           from { opacity: 0.7; }
           to { opacity: 1; }
         }
+
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
       `}</style>
     </div>
   );
@@ -1109,3 +1189,4 @@ export default function ProjectsPage() {
     </Suspense>
   );
 }
+              

@@ -1,143 +1,369 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '../ui/button'
-import { useAuth } from './auth-context'
+import { createClient } from '@supabase/supabase-js'
+import { NotificationBadge } from '../ui/notification-badge'
+import { useUnreadMessages } from '../../hooks/useUnreadMessages'
 
-export default function UnifiedNavbar() {
-  const { user, userProfile, loading } = useAuth()
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+// 🆕 NOUVEAU: Type pour les liens de navigation
+interface NavigationLink {
+  href: string;
+  label: string;
+  hasNotification?: boolean;
+}
+
+export default function Navbar() {
+  const [user, setUser] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const pathname = usePathname()
+  
+  // 🆕 NOUVEAU: Hook pour compter les messages non lus
+  const { unreadCount } = useUnreadMessages()
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
+  // 🔧 AJOUT: Fonction pour vérifier l'état de connexion
+  const checkAuthState = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        setUser(user)
+        // Charger le profil utilisateur
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_type, full_name, email')
+          .eq('id', user.id)
+          .single()
+        
+        setUserProfile(profile)
+        console.log('🔄 Navbar - Utilisateur connecté:', user.email, 'Type:', profile?.user_type)
+      } else {
+        setUser(null)
+        setUserProfile(null)
+        console.log('🔄 Navbar - Aucun utilisateur connecté')
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification de l\'état de connexion:', error)
+      setUser(null)
+      setUserProfile(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    // Vérification initiale
+    checkAuthState()
+
+    // 🔧 AJOUT: Écouter les changements d'état d'authentification
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔄 Navbar - Changement d\'état auth:', event, session?.user?.email)
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user)
+          // Charger le profil
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('user_type, full_name, email')
+            .eq('id', session.user.id)
+            .single()
+          setUserProfile(profile)
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null)
+          setUserProfile(null)
+        }
+        
+        setLoading(false)
+      }
+    )
+
+    return () => {
+      subscription?.unsubscribe()
+    }
+  }, [])
+
+  // 🔧 AJOUT: Re-vérifier l'état quand l'URL change
+  useEffect(() => {
+    checkAuthState()
+  }, [pathname])
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+      setUser(null)
+      setUserProfile(null)
+      router.push('/')
+      router.refresh() // Force le refresh de la page
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error)
+    }
   }
 
   const getDashboardLink = () => {
-    if (!userProfile) return '/auth/login'
+    if (!userProfile) return '/dashboard'
     return userProfile.user_type === 'client' ? '/dashboard/client' : '/dashboard/developer'
   }
 
-  return (
-    <nav className="bg-white border-b-2 border-gray-200 sticky top-0 z-50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 sm:h-20">
-          
-          {/* Logo LinkerAI - Style Uber */}
-          <Link href="/" className="flex items-center flex-shrink-0 group">
-            <div className="flex items-center">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black rounded-lg flex items-center justify-center mr-3 group-hover:scale-105 transition-transform duration-300">
-                <span className="text-white font-black text-lg sm:text-xl">L</span>
-              </div>
-              <div className="text-xl sm:text-2xl font-black text-black group-hover:text-gray-700 transition-colors duration-300">
-                LinkerAI
-              </div>
-            </div>
-          </Link>
+  // 🔧 CORRECTION: Fonction avec type NavigationLink[]
+  const getNavigationLinks = (): NavigationLink[] => {
+    const baseLinks: NavigationLink[] = [
+      { href: '/', label: 'Accueil' },
+      { href: '/projects', label: 'Projets' },
+      { href: '/developers', label: 'Développeurs' }
+    ]
 
-          {/* Navigation Links - Style Uber */}
-          <div className="flex items-center space-x-1 sm:space-x-4 flex-1 justify-center">
-            <Link 
-              href="/" 
-              className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
-            >
-              <span className="hidden sm:inline">Accueil</span>
-              <span className="sm:hidden">🏠</span>
-            </Link>
-            <Link 
-              href="/projects" 
-              className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
-            >
-              <span className="hidden sm:inline">Projets</span>
-              <span className="sm:hidden">📋</span>
-            </Link>
-            <Link 
-              href="/developers" 
-              className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
-            >
-              <span className="hidden sm:inline">Développeurs</span>
-              <span className="sm:hidden">👨‍💻</span>
-            </Link>
-            
-            {/* NOUVEAU : Lien Profil conditionnel pour développeurs */}
-            {user && userProfile?.user_type === 'developer' && (
-              <Link 
-                href="/dashboard/developer/profile" 
-                className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
-              >
-                <span className="hidden sm:inline">Mon Profil</span>
-                <span className="sm:hidden">👤</span>
+    if (user && userProfile) {
+      return [
+        ...baseLinks,
+        { href: '/messages', label: 'Messages', hasNotification: true }
+      ]
+    }
+
+    return baseLinks
+  }
+
+  if (loading) {
+    return (
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-12">
+            <div className="flex items-center">
+              <Link href="/" className="flex items-center space-x-2">
+                <div className="w-6 h-6 bg-black rounded-lg flex items-center justify-center">
+                  <span className="text-white font-black text-xs">L</span>
+                </div>
+                <span className="text-lg font-black text-black">LinkerAI</span>
               </Link>
-            )}
-            
-            <Link 
-              href="/messages" 
-              className="text-black hover:bg-gray-50 transition-all duration-300 text-sm sm:text-base font-bold px-3 sm:px-4 py-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
-            >
-              <span className="hidden sm:inline">Messages</span>
-              <span className="sm:hidden">💬</span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="w-3 h-3 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
+        </div>
+      </nav>
+    )
+  }
+
+  return (
+    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-12">
+          {/* Logo */}
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center space-x-2">
+              <div className="w-6 h-6 bg-black rounded-lg flex items-center justify-center">
+                <span className="text-white font-black text-xs">L</span>
+              </div>
+              <span className="text-lg font-black text-black">LinkerAI</span>
             </Link>
           </div>
 
-          {/* Auth Section - Style Uber */}
-          <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
-            {loading ? (
-              <div className="w-8 h-8 border-2 border-gray-300 border-t-black rounded-full animate-spin"></div>
-            ) : user ? (
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                {/* Dashboard Button */}
-                <Link href={getDashboardLink()}>
-                  <Button className="bg-black hover:bg-gray-800 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-black transition-all duration-300 border-2 border-black transform hover:scale-105">
-                    <span className="hidden sm:inline">Dashboard</span>
-                    <span className="sm:hidden">📊</span>
-                  </Button>
-                </Link>
+          {/* Navigation Desktop */}
+          <div className="hidden md:flex items-center space-x-6">
+            {getNavigationLinks().map((link) => (
+              <div key={link.href}>
+                {link.hasNotification ? (
+                  // 🆕 NOUVEAU: Wrapper avec badge pour les liens avec notifications
+                  <NotificationBadge count={unreadCount}>
+                    <Link
+                      href={link.href}
+                      className={`text-sm font-medium transition-colors hover:text-black ${
+                        pathname === link.href ? 'text-black' : 'text-gray-600'
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  </NotificationBadge>
+                ) : (
+                  <Link
+                    href={link.href}
+                    className={`text-sm font-medium transition-colors hover:text-black ${
+                      pathname === link.href ? 'text-black' : 'text-gray-600'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                )}
+              </div>
+            ))}
+          </div>
 
-                {/* User Profile & Logout */}
-                <div className="flex items-center space-x-2">
-                  <div className="hidden md:flex flex-col items-end">
-                    <span className="text-black text-sm font-black">
-                      {userProfile?.full_name || user.email?.split('@')[0] || 'Utilisateur'}
-                    </span>
-                    <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">
-                      {userProfile?.user_type || 'Membre'}
+          {/* Actions utilisateur */}
+          <div className="flex items-center space-x-3">
+            {user && userProfile ? (
+              <>
+                {/* Utilisateur connecté */}
+                <div className="hidden md:flex items-center space-x-2">
+                  <Link href={getDashboardLink()}>
+                    <Button className="bg-black text-white hover:bg-gray-800 font-medium px-3 py-1.5 rounded-lg text-xs">
+                      Dashboard
+                    </Button>
+                  </Link>
+                  
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
+                      <span className="text-xs font-medium text-gray-700">
+                        {userProfile.full_name?.charAt(0).toUpperCase() || userProfile.email?.charAt(0).toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-600 font-medium max-w-20 truncate">
+                      {userProfile.full_name || userProfile.email?.split('@')[0]}
                     </span>
                   </div>
                   
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-black rounded-lg flex items-center justify-center text-white font-black text-sm sm:text-base border-2 border-black hover:scale-105 transition-transform duration-300 cursor-default">
-                    {userProfile?.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
-                  </div>
-
-                  <button
-                    onClick={handleSignOut}
-                    className="text-black hover:text-white hover:bg-black transition-all duration-300 p-2 rounded-lg border-2 border-transparent hover:border-black transform hover:scale-105"
-                    title="Se déconnecter"
+                  <Button
+                    onClick={handleLogout}
+                    className="border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium px-3 py-1.5 rounded-lg text-xs"
                   >
-                    <span className="text-base sm:text-lg">🚪</span>
-                  </button>
+                    Déconnexion
+                  </Button>
                 </div>
-              </div>
+
+                {/* Mobile - Utilisateur connecté */}
+                <div className="md:hidden">
+                  <Button
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    className="border border-gray-300 text-gray-700 hover:bg-gray-50 p-1.5 rounded-lg"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </Button>
+                </div>
+              </>
             ) : (
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <Link href="/auth/login">
-                  <Button className="bg-black hover:bg-gray-800 text-white px-3 sm:px-4 py-2 text-xs sm:text-sm border-2 border-black transition-all duration-300 font-black transform hover:scale-105">
-                    <span className="hidden sm:inline">Connexion</span>
-                    <span className="sm:hidden">🔑</span>
+              <>
+                {/* Visiteur non connecté */}
+                <div className="hidden md:flex items-center space-x-2">
+                  <Link href="/auth/login">
+                    <Button className="border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium px-3 py-1.5 rounded-lg text-xs">
+                      Connexion
+                    </Button>
+                  </Link>
+                  <Link href="/auth/signup">
+                    <Button className="bg-black text-white hover:bg-gray-800 font-medium px-3 py-1.5 rounded-lg text-xs">
+                      S'inscrire
+                    </Button>
+                  </Link>
+                </div>
+
+                {/* Mobile - Visiteur */}
+                <div className="md:hidden">
+                  <Button
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    className="border border-gray-300 text-gray-700 hover:bg-gray-50 p-1.5 rounded-lg"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
                   </Button>
-                </Link>
-                <Link href="/auth/signup">
-                  <Button className="bg-black hover:bg-gray-800 text-white px-3 sm:px-4 py-2 text-xs sm:text-sm border-2 border-black transition-all duration-300 font-black transform hover:scale-105">
-                    <span className="hidden sm:inline">S&apos;inscrire</span>
-                    <span className="sm:hidden">✨</span>
-                  </Button>
-                </Link>
-              </div>
+                </div>
+              </>
             )}
           </div>
         </div>
+
+        {/* Menu Mobile */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-gray-200 py-2">
+            <div className="space-y-2">
+              {getNavigationLinks().map((link) => (
+                <div key={link.href}>
+                  {link.hasNotification ? (
+                    // 🆕 NOUVEAU: Badge pour mobile aussi
+                    <NotificationBadge count={unreadCount} className="inline-block">
+                      <Link
+                        href={link.href}
+                        className={`block text-sm font-medium transition-colors hover:text-black py-1 ${
+                          pathname === link.href ? 'text-black' : 'text-gray-600'
+                        }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {link.label}
+                      </Link>
+                    </NotificationBadge>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className={`block text-sm font-medium transition-colors hover:text-black py-1 ${
+                        pathname === link.href ? 'text-black' : 'text-gray-600'
+                      }`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {link.label}
+                    </Link>
+                  )}
+                </div>
+              ))}
+              
+              {user && userProfile ? (
+                <div className="space-y-2 pt-2 border-t border-gray-200">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
+                      <span className="text-xs font-medium text-gray-700">
+                        {userProfile.full_name?.charAt(0).toUpperCase() || userProfile.email?.charAt(0).toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {userProfile.full_name || userProfile.email}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Link href={getDashboardLink()}>
+                    <Button 
+                      className="w-full bg-black text-white hover:bg-gray-800 font-medium py-1.5 rounded-lg text-xs"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Mon Dashboard
+                    </Button>
+                  </Link>
+                  
+                  <Button
+                    onClick={() => {
+                      handleLogout()
+                      setIsMobileMenuOpen(false)
+                    }}
+                    className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-1.5 rounded-lg text-xs"
+                  >
+                    Déconnexion
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2 pt-2 border-t border-gray-200">
+                  <Link href="/auth/login">
+                    <Button 
+                      className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-1.5 rounded-lg text-xs"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Connexion
+                    </Button>
+                  </Link>
+                  <Link href="/auth/signup">
+                    <Button 
+                      className="w-full bg-black text-white hover:bg-gray-800 font-medium py-1.5 rounded-lg text-xs"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      S'inscrire
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   )

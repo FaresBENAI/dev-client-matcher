@@ -1,39 +1,80 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-import { Eye, MessageCircle, Clock, Play, CheckCircle, Users, Calendar, DollarSign, XCircle } from 'lucide-react';
+import { Eye, MessageCircle, Clock, Play, CheckCircle, Users, Calendar, DollarSign, XCircle, Star, User, Plus } from 'lucide-react';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// Composant d'affichage des étoiles
+const StarRating = ({ rating, totalRatings }: { rating: number; totalRatings?: number }) => {
+  if (!rating) return (
+    <span className="text-xs text-gray-400">Pas encore noté</span>
+  );
+  
+  return (
+    <div className="flex items-center space-x-1">
+      <div className="flex">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <span
+            key={star}
+            className={`text-xs ${star <= Math.round(rating) ? 'text-yellow-400' : 'text-gray-300'}`}
+          >
+            ⭐
+          </span>
+        ))}
+      </div>
+      <span className="text-xs text-gray-600 font-medium">
+        {rating.toFixed(1)} {totalRatings ? `(${totalRatings})` : ''}
+      </span>
+    </div>
+  );
+};
 
 export default function ClientDashboard() {
   const [projects, setProjects] = useState([]);
-  const [applications, setApplications] = useState([]);
+  const [developers, setDevelopers] = useState([]);
+  const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('projects');
   const [user, setUser] = useState(null);
-  const supabase = createClientComponentClient();
+  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       if (user) {
+        await loadUserProfile(user.id);
         await loadDashboardData(user.id);
       }
     };
     getUser();
   }, []);
 
+  const loadUserProfile = async (userId) => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      setUserProfile(profile);
+    } catch (error) {
+      console.error('Erreur profil utilisateur:', error);
+    }
+  };
+
   const loadDashboardData = async (userId) => {
     try {
-      // Charger les projets du client avec le nombre de candidatures
+      // 1. Charger les projets du client
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select(`
-          *,
-          applications:project_applications(count),
-          profile:profiles!projects_client_id_fkey(*)
-        `)
+        .select('*')
         .eq('client_id', userId)
         .order('created_at', { ascending: false });
 
@@ -43,22 +84,62 @@ export default function ClientDashboard() {
         setProjects(projectsData || []);
       }
 
-      // Charger toutes les candidatures avec détails
-      const { data: applicationsData, error: applicationsError } = await supabase
-        .from('project_applications')
-        .select(`
-          *,
-          project:projects!inner(*),
-          developer:profiles(*),
-          conversation:conversations(*)
-        `)
-        .eq('project.client_id', userId)
-        .order('created_at', { ascending: false });
+      // 2. Charger les conversations pour identifier les développeurs
+      const { data: conversationsData, error: conversationsError } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('client_id', userId)
+        .order('updated_at', { ascending: false });
 
-      if (applicationsError) {
-        console.error('Erreur candidatures:', applicationsError);
+      if (conversationsError) {
+        console.error('Erreur conversations:', conversationsError);
       } else {
-        setApplications(applicationsData || []);
+        setConversations(conversationsData || []);
+        
+        // 3. Charger les développeurs avec leurs détails et notes
+        if (conversationsData && conversationsData.length > 0) {
+          // 🔧 CORRECTION: Utiliser Array.from() au lieu du spread operator
+          const developerIds = Array.from(new Set(conversationsData.map(conv => conv.developer_id)));
+          
+          const developersWithDetails = await Promise.all(
+            developerIds.map(async (devId) => {
+              // Charger le profil de base
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', devId)
+                .single();
+
+              // Charger les détails développeur
+              const { data: devProfile } = await supabase
+                .from('developer_profiles')
+                .select('*')
+                .eq('id', devId)
+                .single();
+
+              // Charger les messages non lus
+              const { data: unreadMessages } = await supabase
+                .from('messages')
+                .select('id')
+                .eq('conversation_id', conversationsData.find(c => c.developer_id === devId)?.id)
+                .eq('is_read', false)
+                .neq('sender_id', userId);
+
+              return {
+                ...profile,
+                ...devProfile,
+                id: profile?.id,
+                full_name: profile?.full_name,
+                email: profile?.email,
+                avatar_url: profile?.avatar_url,
+                unread_count: unreadMessages?.length || 0,
+                conversation_id: conversationsData.find(c => c.developer_id === devId)?.id
+              };
+            })
+          );
+
+          setDevelopers(developersWithDetails.filter(dev => dev.id));
+        }
       }
 
     } catch (error) {
@@ -68,30 +149,30 @@ export default function ClientDashboard() {
     }
   };
 
-  const getStatusConfig = (status) => {
+  const getProjectStatusConfig = (status) => {
     const configs = {
-      en_attente: {
-        label: 'En attente',
-        color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        icon: Clock
-      },
-      en_developpement: {
-        label: 'En développement',
-        color: 'bg-blue-100 text-blue-800 border-blue-200',
+      open: {
+        label: 'Ouvert',
+        color: 'bg-green-100 text-green-800 border-green-200',
         icon: Play
       },
-      rejete: {
-        label: 'Rejeté',
+      in_progress: {
+        label: 'En cours',
+        color: 'bg-blue-100 text-blue-800 border-blue-200',
+        icon: Clock
+      },
+      completed: {
+        label: 'Terminé',
+        color: 'bg-gray-100 text-gray-800 border-gray-200',
+        icon: CheckCircle
+      },
+      cancelled: {
+        label: 'Annulé',
         color: 'bg-red-100 text-red-800 border-red-200',
         icon: XCircle
-      },
-      projet_termine: {
-        label: 'Terminé',
-        color: 'bg-green-100 text-green-800 border-green-200',
-        icon: CheckCircle
       }
     };
-    return configs[status] || configs.en_attente;
+    return configs[status] || configs.open;
   };
 
   const formatDate = (dateString) => {
@@ -102,265 +183,345 @@ export default function ClientDashboard() {
     });
   };
 
-  const formatBudget = (budget) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(budget);
-  };
-
-  const getApplicationsStats = () => {
-    const total = applications.length;
-    const enAttente = applications.filter(app => app.status === 'en_attente').length;
-    const enDeveloppement = applications.filter(app => app.status === 'en_developpement').length;
-    const rejetes = applications.filter(app => app.status === 'rejete').length;
-    const termines = applications.filter(app => app.status === 'projet_termine').length;
-    
-    return { total, enAttente, enDeveloppement, rejetes, termines };
+  const formatBudget = (min, max) => {
+    if (!min && !max) return 'Budget à négocier';
+    if (!max) return `${min}€+`;
+    return `${min}€ - ${max}€`;
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-black"></div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+          <div className="absolute top-2 left-2 w-12 h-12 border-4 border-transparent border-t-white rounded-full animate-spin"></div>
+        </div>
       </div>
     );
   }
 
-  const stats = getApplicationsStats();
-
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-black mb-2">Dashboard Client</h1>
-        <p className="text-gray-600">Gérez vos projets et suivez les candidatures</p>
-      </div>
-
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow">
+    <div className="min-h-screen bg-gray-50">
+      
+      {/* Header avec fond noir */}
+      <div className="bg-black text-white py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Projets actifs</p>
-              <p className="text-2xl font-bold">{projects.length}</p>
+              <h1 className="text-3xl font-black mb-2">
+                Dashboard Client
+              </h1>
+              <p className="text-gray-300">
+                Bienvenue {userProfile?.full_name || user?.email} - Gérez vos projets et développeurs
+              </p>
             </div>
-            <div className="bg-black p-3 rounded-lg">
-              <Users className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Candidatures</p>
-              <p className="text-2xl font-bold">{stats.total}</p>
-            </div>
-            <div className="bg-yellow-500 p-3 rounded-lg">
-              <Clock className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">En développement</p>
-              <p className="text-2xl font-bold">{stats.enDeveloppement}</p>
-            </div>
-            <div className="bg-blue-500 p-3 rounded-lg">
-              <Play className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Terminés</p>
-              <p className="text-2xl font-bold">{stats.termines}</p>
-            </div>
-            <div className="bg-green-500 p-3 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('projects')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'projects'
-                  ? 'border-black text-black'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+            <Link
+              href="/projects/create"
+              className="bg-white text-black px-6 py-3 font-black rounded-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-2"
             >
-              Mes Projets ({projects.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('applications')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'applications'
-                  ? 'border-black text-black'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Candidatures ({stats.total})
-            </button>
-          </nav>
+              <Plus className="h-5 w-5" />
+              Nouveau Projet
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* Contenu des tabs */}
-      {activeTab === 'projects' && (
-        <div className="space-y-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Statistiques rapides */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Mes Projets</p>
+                <p className="text-3xl font-black text-black">{projects.length}</p>
+              </div>
+              <div className="bg-black p-3 rounded-xl">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Développeurs</p>
+                <p className="text-3xl font-black text-black">{developers.length}</p>
+              </div>
+              <div className="bg-blue-500 p-3 rounded-xl">
+                <User className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Conversations</p>
+                <p className="text-3xl font-black text-black">{conversations.length}</p>
+              </div>
+              <div className="bg-green-500 p-3 rounded-xl">
+                <MessageCircle className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Messages non lus</p>
+                <p className="text-3xl font-black text-black">
+                  {developers.reduce((total, dev) => total + dev.unread_count, 0)}
+                </p>
+              </div>
+              <div className="bg-yellow-500 p-3 rounded-xl">
+                <Clock className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Mes Projets */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-black text-black">Mes Projets</h2>
+            <Link
+              href="/projects"
+              className="text-black hover:text-gray-600 font-medium"
+            >
+              Voir tous →
+            </Link>
+          </div>
+
           {projects.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">Aucun projet créé pour le moment</p>
+            <div className="bg-white rounded-2xl p-12 text-center border-2 border-gray-200">
+              <div className="text-6xl mb-4">📋</div>
+              <h3 className="text-xl font-black text-black mb-2">Aucun projet créé</h3>
+              <p className="text-gray-600 mb-6">Créez votre premier projet pour commencer à collaborer avec des développeurs</p>
               <Link
                 href="/projects/create"
-                className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors"
+                className="bg-black text-white px-8 py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300"
               >
                 Créer mon premier projet
               </Link>
             </div>
           ) : (
-            projects.map((project) => (
-              <div key={project.id} className="bg-white border rounded-lg p-6 hover:shadow-lg transition-shadow">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold mb-2">{project.title}</h3>
-                    <p className="text-gray-600 mb-3 line-clamp-2">{project.description}</p>
-                    
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-                      <div className="flex items-center space-x-1">
-                        <DollarSign className="w-4 h-4" />
-                        <span>{formatBudget(project.budget_min)} - {formatBudget(project.budget_max)}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>Créé le {formatDate(project.created_at)}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Users className="w-4 h-4" />
-                        <span>{project.applications?.[0]?.count || 0} candidature(s)</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projects.slice(0, 6).map((project) => {
+                const statusConfig = getProjectStatusConfig(project.status);
+                const StatusIcon = statusConfig.icon;
+                
+                return (
+                  <div key={project.id} className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-black text-black mb-2 line-clamp-1">
+                          {project.title}
+                        </h3>
+                        <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full border text-sm ${statusConfig.color}`}>
+                          <StatusIcon className="w-4 h-4" />
+                          <span className="font-medium">{statusConfig.label}</span>
+                        </div>
                       </div>
                     </div>
+                    
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                      {project.description}
+                    </p>
+                    
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center text-sm text-gray-500">
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        {formatBudget(project.budget_min, project.budget_max)}
+                      </div>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Créé le {formatDate(project.created_at)}
+                      </div>
+                    </div>
+
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">
+                        {project.project_type}
+                      </span>
+                      {project.complexity && (
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
+                          {project.complexity}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <Link
+                        href={`/projects/${project.id}`}
+                        className="flex-1 bg-black text-white py-2 px-4 rounded-lg font-bold text-sm hover:bg-gray-800 transition-all duration-300 text-center"
+                      >
+                        Voir le projet
+                      </Link>
+                      <Link
+                        href={`/projects/${project.id}/edit`}
+                        className="border-2 border-gray-300 text-gray-700 py-2 px-4 rounded-lg font-bold text-sm hover:border-black hover:text-black transition-all duration-300 text-center"
+                      >
+                        Modifier
+                      </Link>
+                    </div>
                   </div>
-                  
-                  <div className="flex space-x-2">
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Développeurs Assignés */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-black text-black">Développeurs Collaborateurs</h2>
+            <Link
+              href="/developers"
+              className="text-black hover:text-gray-600 font-medium"
+            >
+              Voir tous →
+            </Link>
+          </div>
+
+          {developers.length === 0 ? (
+            <div className="bg-white rounded-2xl p-12 text-center border-2 border-gray-200">
+              <div className="text-6xl mb-4">👥</div>
+              <h3 className="text-xl font-black text-black mb-2">Aucun développeur assigné</h3>
+              <p className="text-gray-600 mb-6">Commencez à collaborer avec des développeurs en créant un projet</p>
+              <Link
+                href="/developers"
+                className="bg-black text-white px-8 py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300"
+              >
+                Explorer les développeurs
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {developers.map((developer) => (
+                <div key={developer.id} className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                  <div className="flex items-start space-x-4 mb-4">
+                    {/* Avatar */}
+                    <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-300 flex-shrink-0">
+                      {developer.avatar_url ? (
+                        <img 
+                          src={developer.avatar_url} 
+                          alt={developer.full_name || 'Développeur'} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-black flex items-center justify-center text-white font-black text-xl">
+                          {developer.full_name?.charAt(0).toUpperCase() || 'D'}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Infos développeur */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-black text-black mb-1 truncate">
+                        {developer.full_name || 'Développeur'}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {developer.title || (developer.experience_years ? `${developer.experience_years}+ ans d'expérience` : 'Expert')}
+                      </p>
+                      
+                      {/* Note */}
+                      <StarRating rating={developer.average_rating} totalRatings={developer.total_ratings} />
+                    </div>
+                  </div>
+
+                  {/* Informations supplémentaires */}
+                  <div className="space-y-2 mb-4">
+                    {developer.location && (
+                      <div className="flex items-center text-sm text-gray-500">
+                        <span>📍 {developer.location}</span>
+                      </div>
+                    )}
+                    {developer.hourly_rate && (
+                      <div className="flex items-center text-sm text-gray-500">
+                        <DollarSign className="w-4 h-4 mr-1" />
+                        {developer.hourly_rate}€/heure
+                      </div>
+                    )}
+                    {developer.unread_count > 0 && (
+                      <div className="flex items-center text-sm text-red-600 font-medium">
+                        <MessageCircle className="w-4 h-4 mr-1" />
+                        {developer.unread_count} message{developer.unread_count > 1 ? 's' : ''} non lu{developer.unread_count > 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Compétences */}
+                  {developer.skills && developer.skills.length > 0 && (
+                    <div className="mb-4">
+                      <div className="flex flex-wrap gap-1">
+                        {developer.skills.slice(0, 3).map((skill, index) => (
+                          <span key={index} className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">
+                            {skill}
+                          </span>
+                        ))}
+                        {developer.skills.length > 3 && (
+                          <span className="bg-gray-200 text-gray-600 px-2 py-1 rounded text-xs font-medium">
+                            +{developer.skills.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
                     <Link
-                      href={`/projects/${project.id}`}
-                      className="bg-black text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
+                      href={`/developer/${developer.id}`}
+                      className="flex-1 border-2 border-gray-300 text-gray-700 py-2 px-4 rounded-lg font-bold text-sm hover:border-black hover:text-black transition-all duration-300 text-center flex items-center justify-center gap-2"
                     >
                       <Eye className="w-4 h-4" />
-                      <span>Voir</span>
+                      Profil
+                    </Link>
+                    <Link
+                      href="/messages"
+                      className="flex-1 bg-black text-white py-2 px-4 rounded-lg font-bold text-sm hover:bg-gray-800 transition-all duration-300 text-center flex items-center justify-center gap-2"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Contacter
                     </Link>
                   </div>
                 </div>
-
-                {/* Tags */}
-                <div className="flex flex-wrap gap-2">
-                  <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">
-                    {project.project_type}
-                  </span>
-                  <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                    {project.complexity}
-                  </span>
-                  {project.required_skills && project.required_skills.map((skill, index) => (
-                    <span key={index} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {activeTab === 'applications' && (
-        <div className="space-y-4">
-          {applications.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">Aucune candidature reçue pour le moment</p>
+              ))}
             </div>
-          ) : (
-            applications.map((application) => {
-              const statusConfig = getStatusConfig(application.status);
-              const StatusIcon = statusConfig.icon;
-              
-              return (
-                <div key={application.id} className="bg-white border rounded-lg p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <h3 className="text-lg font-semibold">
-                          {application.developer?.full_name || application.developer?.email}
-                        </h3>
-                        <div className={`flex items-center space-x-2 px-3 py-1 rounded-full border text-sm ${statusConfig.color}`}>
-                          <StatusIcon className="w-4 h-4" />
-                          <span>{statusConfig.label}</span>
-                        </div>
-                      </div>
-                      
-                      <p className="text-gray-600 mb-2">
-                        <strong>Projet :</strong> {application.project?.title}
-                      </p>
-                      
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>Candidature du {formatDate(application.created_at)}</span>
-                        </div>
-                        {application.developer?.specialization && (
-                          <div className="flex items-center space-x-1">
-                            <Users className="w-4 h-4" />
-                            <span>{application.developer.specialization}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {application.message && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                          <p className="text-sm text-gray-700 italic">
-                            "{application.message}"
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex space-x-2 ml-4">
-                      <Link
-                        href={`/developers/${application.developer_id}`}
-                        className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors flex items-center space-x-2"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span>Profil</span>
-                      </Link>
-                      
-                      {application.conversation && application.conversation.length > 0 && (
-                        <Link
-                          href="/messages"
-                          className="bg-black text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          <span>Discuter</span>
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
           )}
         </div>
-      )}
+
+        {/* Actions rapides */}
+        <div className="bg-black text-white rounded-2xl p-8 text-center">
+          <h2 className="text-2xl font-black mb-4">Besoin d'aide ?</h2>
+          <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
+            Explorez notre plateforme pour trouver les meilleurs développeurs ou gérez vos projets existants
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/developers"
+              className="bg-white text-black px-8 py-4 font-black rounded-lg hover:bg-gray-100 transition-all duration-300"
+            >
+              Explorer les développeurs
+            </Link>
+            <Link
+              href="/projects"
+              className="border-2 border-white text-white px-8 py-4 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300"
+            >
+              Gérer mes projets
+            </Link>
+            <Link
+              href="/messages"
+              className="border-2 border-white text-white px-8 py-4 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300"
+            >
+              Mes conversations
+            </Link>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
