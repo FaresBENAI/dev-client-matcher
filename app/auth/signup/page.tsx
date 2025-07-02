@@ -34,7 +34,9 @@ export default function SignupPage() {
     title: '',
     bio: '',
     experience_years: '',
-    hourly_rate: '',
+    daily_rate: '',
+    // 🆕 NOUVEAU: Option TJM à définir (correspond à la BDD)
+    daily_rate_defined: true,
     skills: [] as string[],
     specializations: [] as string[],
     github_url: '',
@@ -184,11 +186,15 @@ export default function SignupPage() {
 
       // Ajouter les données développeur si applicable
       if (userType === 'developer') {
+        // 🆕 NOUVEAU: Gérer le TJM selon la checkbox (correspond à la BDD)
+        const dailyRateValue = devData.daily_rate_defined ? (devData.daily_rate ? parseInt(devData.daily_rate) : null) : null
+        
         Object.assign(userMetadata, {
           title: devData.title,
           bio: devData.bio,
           experience_years: devData.experience_years ? parseInt(devData.experience_years) : 0,
-          hourly_rate: devData.hourly_rate ? parseInt(devData.hourly_rate) : 0,
+          daily_rate: dailyRateValue,
+          daily_rate_defined: devData.daily_rate_defined, // 🆕 NOUVEAU
           skills: devData.skills,
           specializations: devData.specializations,
           github_url: devData.github_url,
@@ -284,6 +290,15 @@ export default function SignupPage() {
       specializations: prev.specializations.includes(spec)
         ? prev.specializations.filter(s => s !== spec)
         : [...prev.specializations, spec]
+    }))
+  }
+
+  // 🆕 NOUVEAU: Fonction pour gérer la checkbox TJM à définir
+  const handleDailyRateDefinedChange = (checked: boolean) => {
+    setDevData(prev => ({
+      ...prev,
+      daily_rate_defined: checked,
+      daily_rate: checked ? prev.daily_rate : '' // Vider le champ si non défini
     }))
   }
 
@@ -521,7 +536,7 @@ export default function SignupPage() {
                   />
                 </div>
 
-                {/* Expérience et tarif */}
+                {/* Expérience et tarif - MODIFIÉ */}
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-black mb-2">
@@ -537,15 +552,39 @@ export default function SignupPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-black mb-2">
-                      Tarif horaire (€)
+                      Tarif journalier moyen (€)
                     </label>
+                    
+                    {/* 🆕 NOUVEAU: Checkbox TJM à définir */}
+                    <div className="mb-3">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!devData.daily_rate_defined}
+                          onChange={(e) => handleDailyRateDefinedChange(!e.target.checked)}
+                          className="w-4 h-4 border-2 border-gray-300 rounded bg-white checked:bg-black checked:border-black focus:ring-black"
+                        />
+                        <span className="text-sm font-medium text-black">TJM à définir lors du projet</span>
+                      </label>
+                    </div>
+                    
+                    {/* Champ tarif - désactivé si checkbox cochée */}
                     <Input
                       type="number"
-                      value={devData.hourly_rate}
-                      onChange={(e) => setDevData(prev => ({...prev, hourly_rate: e.target.value}))}
-                      placeholder="50"
-                      className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
+                      value={devData.daily_rate}
+                      onChange={(e) => setDevData(prev => ({...prev, daily_rate: e.target.value}))}
+                      placeholder="400"
+                      disabled={!devData.daily_rate_defined}
+                      className={`bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black ${
+                        !devData.daily_rate_defined ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
                     />
+                    
+                    {!devData.daily_rate_defined && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        💡 Votre tarif sera affiché comme "À définir" sur votre profil
+                      </p>
+                    )}
                   </div>
                 </div>
 

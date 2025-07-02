@@ -5,6 +5,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/layout/auth-context';
 import ContactModal from '@/components/ContactModal';
+import DeveloperRateDisplay from '@/components/DeveloperRateDisplay'; // 🆕 NOUVEAU
 import { ArrowLeft, MapPin, Calendar, Star, Mail, MessageCircle, Globe, Briefcase } from 'lucide-react';
 
 interface DeveloperProfile {
@@ -40,48 +41,6 @@ const LANGUAGES = {
   'ko': { name: '한국어', flag: '🇰🇷' },
   'ru': { name: 'Русский', flag: '🇷🇺' },
   'hi': { name: 'हिन्दी', flag: '🇮🇳' }
-};
-
-const TJMDisplay = ({ daily_rate, daily_rate_defined }: { daily_rate?: number; daily_rate_defined?: boolean }) => {
-  if (daily_rate_defined === false || (!daily_rate_defined && !daily_rate)) {
-    return (
-      <div className="bg-blue-50 border-2 border-blue-200 p-4 rounded-lg">
-        <div className="flex items-center space-x-2">
-          <span className="text-2xl">💬</span>
-          <div>
-            <p className="font-bold text-blue-800">TJM à définir</p>
-            <p className="text-sm text-blue-600">Tarif négociable selon le projet</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  if (daily_rate && daily_rate > 0) {
-    return (
-      <div className="bg-green-50 border-2 border-green-200 p-4 rounded-lg">
-        <div className="flex items-center space-x-2">
-          <span className="text-2xl">💰</span>
-          <div>
-            <p className="font-bold text-green-800">{daily_rate}€ / jour</p>
-            <p className="text-sm text-green-600">Taux Journalier Moyen</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="bg-gray-50 border-2 border-gray-200 p-4 rounded-lg">
-      <div className="flex items-center space-x-2">
-        <span className="text-2xl">💼</span>
-        <div>
-          <p className="font-bold text-gray-800">TJM à discuter</p>
-          <p className="text-sm text-gray-600">Contactez-moi pour plus d'infos</p>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const StarRating = ({ rating, totalRatings }: { rating?: number; totalRatings?: number }) => {
@@ -319,10 +278,15 @@ function DeveloperProfileContent() {
           
           <div className="space-y-6">
             
-            <TJMDisplay 
-              daily_rate={developer.daily_rate} 
-              daily_rate_defined={developer.daily_rate_defined} 
-            />
+            {/* 🆕 NOUVEAU: Remplacement du TJMDisplay par DeveloperRateDisplay */}
+            <div className="bg-gray-50 border-2 border-gray-200 p-6">
+              <h3 className="text-lg font-black text-black mb-4">Tarification</h3>
+              <DeveloperRateDisplay 
+                dailyRate={developer.daily_rate}
+                dailyRateDefined={developer.daily_rate_defined}
+                size="large"
+              />
+            </div>
             
             <div className="bg-gray-50 border-2 border-gray-200 p-6">
               <h3 className="text-lg font-black text-black mb-4">Informations</h3>

@@ -6,6 +6,7 @@ import { Input } from '../../../components/ui/input'
 import { supabase } from '../../../lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import LoginSuccessPopup, { useLoginSuccessPopup } from '../../../components/LoginSuccessPopup'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -13,6 +14,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  
+  // 🆕 Hook pour le popup
+  const { isVisible, userInfo, showPopup, hidePopup } = useLoginSuccessPopup()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,15 +32,47 @@ export default function LoginPage() {
       if (error) {
         setError(error.message)
       } else {
-        alert('Connexion réussie !')
-        // On redirigera vers le dashboard plus tard
-        router.push('/')
+        // 🆕 Récupérer les informations du profil utilisateur
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('full_name, user_type')
+          .eq('id', data.user.id)
+          .single()
+
+        if (profileError) {
+          console.error('Erreur lors de la récupération du profil:', profileError)
+        }
+
+        // 🆕 Afficher le popup au lieu de l'alert
+        showPopup({
+          name: profile?.full_name || 'Utilisateur',
+          email: data.user.email || email,
+          userType: profile?.user_type || 'developer'
+        })
+
+        // 🆕 Redirection automatique après 4.5 secondes
+        setTimeout(() => {
+          const dashboardRoute = profile?.user_type === 'client' 
+            ? '/dashboard/client' 
+            : '/dashboard/developer'
+          router.push(dashboardRoute)
+        }, 4500)
       }
     } catch (err) {
       setError('Une erreur est survenue lors de la connexion')
     } finally {
       setLoading(false)
     }
+  }
+
+  // 🆕 Fonction pour fermer le popup manuellement
+  const handlePopupClose = () => {
+    hidePopup()
+    // Redirection immédiate si l'utilisateur ferme manuellement
+    const dashboardRoute = userInfo.userType === 'client' 
+      ? '/dashboard/client' 
+      : '/dashboard/developer'
+    router.push(dashboardRoute)
   }
 
   return (
@@ -163,6 +199,13 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* 🆕 Popup de succès */}
+      <LoginSuccessPopup
+        isVisible={isVisible}
+        userInfo={userInfo}
+        onClose={handlePopupClose}
+      />
     </div>
   )
 }

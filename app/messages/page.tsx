@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/button'
 import RatingModal from '../../components/rating/RatingModal'
 import StatusBar from '../../components/StatusBar'
 import { markConversationAsRead } from '../../utils/markMessagesAsRead'
+import { ArrowLeft, MessageCircle } from 'lucide-react'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,6 +24,9 @@ export default function MessagesPage() {
   const [profiles, setProfiles] = useState<any>({}) // Cache des profils
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [applicationData, setApplicationData] = useState<any>(null) // 🆕 NOUVEAU: Données de candidature
+  
+  // 🆕 NOUVEAU: État pour gérer l'affichage mobile
+  const [showConversationList, setShowConversationList] = useState(true)
 
   useEffect(() => {
     checkUser()
@@ -166,6 +170,9 @@ export default function MessagesPage() {
     setSelectedConversation(conversation)
     loadMessages(conversation.id)
     
+    // 🆕 Sur mobile, masquer la liste des conversations quand on sélectionne une conversation
+    setShowConversationList(false)
+    
     // 🆕 Marquer les messages de cette conversation comme lus
     await markConversationAsRead(conversation.id)
     
@@ -195,6 +202,12 @@ export default function MessagesPage() {
     
     // 🆕 Recharger les conversations pour mettre à jour les compteurs
     await loadConversations(user.id)
+  }
+
+  // 🆕 NOUVEAU: Fonction pour revenir à la liste des conversations (mobile)
+  const backToConversationList = () => {
+    setShowConversationList(true)
+    setSelectedConversation(null)
   }
 
   // 🔧 CORRECTION: Fonction pour obtenir les informations de l'autre participant
@@ -260,17 +273,19 @@ export default function MessagesPage() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+        </div>
       </div>
     )
   }
 
   if (!user) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Accès refusé</h1>
+          <h1 className="text-xl sm:text-2xl font-bold mb-4">Accès refusé</h1>
           <p className="text-gray-600">Vous devez être connecté pour accéder aux messages.</p>
         </div>
       </div>
@@ -281,11 +296,13 @@ export default function MessagesPage() {
 
   return (
     <div className="h-screen flex">
-      {/* Liste des conversations - Sidebar compacte */}
-      <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
+      {/* Liste des conversations - Sidebar responsive */}
+      <div className={`${
+        showConversationList ? 'block' : 'hidden'
+      } w-full sm:w-80 sm:block bg-gray-50 border-r border-gray-200 flex flex-col`}>
         {/* Header compact */}
-        <div className="p-3 border-b border-gray-200 bg-white">
-          <h1 className="text-lg font-bold text-gray-900">💬 Conversations</h1>
+        <div className="p-3 sm:p-3 border-b border-gray-200 bg-white">
+          <h1 className="text-lg sm:text-lg font-bold text-gray-900">💬 Conversations</h1>
           <p className="text-xs text-gray-500">{conversations.length} conversation{conversations.length > 1 ? 's' : ''}</p>
         </div>
 
@@ -293,6 +310,9 @@ export default function MessagesPage() {
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
+              </div>
               <p className="text-sm">Aucune conversation</p>
               <p className="text-xs mt-1">Démarrez une conversation depuis un projet</p>
             </div>
@@ -379,16 +399,26 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      {/* Zone de chat principale */}
-      <div className="flex-1 flex flex-col">
+      {/* Zone de chat principale - responsive */}
+      <div className={`${
+        showConversationList ? 'hidden' : 'flex'
+      } sm:flex flex-1 flex-col`}>
         {selectedConversation ? (
           <>
-            {/* Header de conversation - Avec avatar, nom et bouton Noter */}
+            {/* Header de conversation - Responsive avec bouton retour mobile */}
             <div className="p-3 border-b border-gray-200 bg-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
+                  {/* Bouton retour sur mobile */}
+                  <button
+                    onClick={backToConversationList}
+                    className="sm:hidden p-2 hover:bg-gray-100 rounded-full"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  
                   {/* Avatar dans le header */}
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                     {otherParticipant?.avatar ? (
                       <img
                         src={otherParticipant.avatar}
@@ -400,31 +430,31 @@ export default function MessagesPage() {
                         }}
                       />
                     ) : null}
-                    <div className={`w-full h-full bg-black flex items-center justify-center text-white font-bold ${otherParticipant?.avatar ? 'hidden' : ''}`}>
+                    <div className={`w-full h-full bg-black flex items-center justify-center text-white font-bold text-xs sm:text-sm ${otherParticipant?.avatar ? 'hidden' : ''}`}>
                       {otherParticipant?.name.charAt(0).toUpperCase() || 'U'}
                     </div>
                   </div>
-                  <div>
-                    <h2 className="font-bold text-gray-900 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="font-bold text-gray-900 text-sm sm:text-base truncate">
                       {otherParticipant?.name || 'Utilisateur'}
                     </h2>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 truncate">
                       {selectedConversation.project_title || 'Projet'}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  <span className="hidden sm:inline-flex px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                     ● Active
                   </span>
                   {/* 🔧 AJOUT: Bouton Noter (seulement pour les clients notant des développeurs) */}
                   {userProfile?.user_type === 'client' && otherParticipant?.type === 'developer' && (
                     <Button
                       onClick={openRatingModal}
-                      className="bg-yellow-500 text-white hover:bg-yellow-600 font-medium px-3 py-1 rounded-lg text-xs flex items-center space-x-1"
+                      className="bg-yellow-500 text-white hover:bg-yellow-600 font-medium px-2 sm:px-3 py-1 rounded-lg text-xs flex items-center space-x-1"
                     >
                       <span>⭐</span>
-                      <span>Noter</span>
+                      <span className="hidden sm:inline">Noter</span>
                     </Button>
                   )}
                 </div>
@@ -443,10 +473,13 @@ export default function MessagesPage() {
               )}
             </div>
 
-            {/* Messages - Plus d'espace */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {/* Messages - Responsive */}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
               {messages.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <MessageCircle className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
+                  </div>
                   <p className="text-sm">Aucun message dans cette conversation</p>
                   <p className="text-xs mt-1">Envoyez le premier message pour commencer !</p>
                 </div>
@@ -459,12 +492,12 @@ export default function MessagesPage() {
                       key={message.id}
                       className={`flex ${message.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className={`flex items-end space-x-2 max-w-xs lg:max-w-md ${
+                      <div className={`flex items-end space-x-2 max-w-xs sm:max-w-sm lg:max-w-md ${
                         message.sender_id === user.id ? 'flex-row-reverse space-x-reverse' : ''
                       }`}>
-                        {/* Avatar dans les messages */}
+                        {/* Avatar dans les messages - masqué sur mobile pour économiser l'espace */}
                         {message.sender_id !== user.id && (
-                          <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                          <div className="hidden sm:block w-6 h-6 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                             {senderProfile?.avatar_url ? (
                               <img
                                 src={senderProfile.avatar_url}
@@ -489,7 +522,7 @@ export default function MessagesPage() {
                               : 'bg-gray-100 text-gray-900 rounded-bl-sm'
                           }`}
                         >
-                          <p className="text-sm">{message.content}</p>
+                          <p className="text-sm break-words">{message.content}</p>
                           <p className={`text-xs mt-1 ${
                             message.sender_id === user.id ? 'text-gray-300' : 'text-gray-500'
                           }`}>
@@ -506,7 +539,7 @@ export default function MessagesPage() {
               )}
             </div>
 
-            {/* Zone de saisie - Compacte */}
+            {/* Zone de saisie - Responsive */}
             <div className="p-3 border-t border-gray-200 bg-white">
               <div className="flex space-x-2">
                 <input
@@ -520,7 +553,7 @@ export default function MessagesPage() {
                 <Button
                   onClick={sendMessage}
                   disabled={!newMessage.trim()}
-                  className="bg-black text-white hover:bg-gray-800 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-black text-white hover:bg-gray-800 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                 >
                   ✈️
                 </Button>
@@ -528,17 +561,24 @@ export default function MessagesPage() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-gray-50">
+          <div className="flex-1 flex items-center justify-center bg-gray-50 p-4">
             <div className="text-center">
-              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">💬</span>
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2">
                 Sélectionnez une conversation
               </h3>
               <p className="text-sm text-gray-600">
                 Choisissez une conversation dans la liste pour commencer à discuter
               </p>
+              {/* Bouton pour afficher la liste sur mobile si aucune conversation sélectionnée */}
+              <button
+                onClick={() => setShowConversationList(true)}
+                className="sm:hidden mt-4 bg-black text-white px-4 py-2 rounded-lg font-medium"
+              >
+                Voir les conversations
+              </button>
             </div>
           </div>
         )}

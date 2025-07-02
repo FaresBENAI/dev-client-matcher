@@ -3,7 +3,12 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { User, Briefcase, CheckCircle, Clock, TrendingUp, AlertCircle, XCircle, Send, Hourglass, DollarSign, BarChart3, Play, Trophy } from 'lucide-react'
-import { supabase } from '../../../lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export default function AlignedDeveloperDashboard() {
   const [user, setUser] = useState<any>(null)
@@ -110,6 +115,14 @@ export default function AlignedDeveloperDashboard() {
               <p className="text-gray-600 mt-1 text-sm sm:text-base">Aperçu de vos candidatures et activités</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              {/* 🆕 NOUVEAU: Bouton Modifier mon profil */}
+              <Link href="/dashboard/developer/profile">
+                <button className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 text-sm flex items-center justify-center gap-2">
+                  <User className="h-4 w-4" />
+                  Modifier mon profil
+                </button>
+              </Link>
+              
               <Link href="/dashboard/developer/applications">
                 <button className="w-full sm:w-auto border-2 border-black text-black px-4 py-2 rounded-lg font-bold hover:bg-black hover:text-white transition-colors text-sm">
                   Mes candidatures

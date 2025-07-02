@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Button } from '../components/ui/button'
 import { createClient } from '@supabase/supabase-js'
 import { useRouter, usePathname } from 'next/navigation'
+import DeveloperRateDisplay from '../components/DeveloperRateDisplay' // 🆕 NOUVEAU
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -711,21 +712,29 @@ export default function HomePage() {
                           </Link>
                         </div>
                         
-                        <div className="flex gap-1 flex-wrap">
-                          {dev.skills && dev.skills.length > 0 ? dev.skills.slice(0, 2).map((skill: string, skillIndex: number) => (
-                            <span key={skillIndex} className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded hover:scale-105 transition-all duration-300">
-                              {skill}
-                            </span>
-                          )) : (
-                            <>
-                              <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded hover:scale-105 transition-all duration-300">
-                                React
+                        {/* 🆕 NOUVEAU: Affichage du TJM avec DeveloperRateDisplay */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex gap-1 flex-wrap">
+                            {dev.skills && dev.skills.length > 0 ? dev.skills.slice(0, 2).map((skill: string, skillIndex: number) => (
+                              <span key={skillIndex} className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded hover:scale-105 transition-all duration-300">
+                                {skill}
                               </span>
-                              <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded hover:scale-105 transition-all duration-300">
-                                IA
-                              </span>
-                            </>
-                          )}
+                            )) : (
+                              <>
+                                <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded hover:scale-105 transition-all duration-300">
+                                  React
+                                </span>
+                                <span className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded hover:scale-105 transition-all duration-300">
+                                  IA
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <DeveloperRateDisplay 
+                            dailyRate={dev.daily_rate} 
+                            dailyRateDefined={dev.daily_rate_defined} 
+                            size="small"
+                          />
                         </div>
                       </div>
                     </div>
