@@ -1,14 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { Eye, MessageCircle, Clock, Play, CheckCircle, Calendar, DollarSign, User, Briefcase, XCircle } from 'lucide-react';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { supabase } from '../../../../lib/supabase';
 
 export default function DeveloperApplicationsPage() {
   const [applications, setApplications] = useState([]);
@@ -249,8 +244,8 @@ export default function DeveloperApplicationsPage() {
   // Affichage d'erreur avec debug
   if (error) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+      <div className="p-4 sm:p-6 max-w-4xl mx-auto">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 sm:p-6">
           <h2 className="text-red-800 font-bold mb-4">❌ Erreur</h2>
           <p className="text-red-700 mb-4">{error}</p>
           
@@ -303,59 +298,59 @@ export default function DeveloperApplicationsPage() {
   const stats = getStats();
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-black mb-2">Mes Candidatures</h1>
-        <p className="text-gray-600">Suivez l'état de vos candidatures et projets</p>
-        <p className="text-sm text-gray-500">Total: {stats.total} candidatures</p>
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-black mb-2">Mes Candidatures</h1>
+        <p className="text-gray-600 text-sm sm:text-base">Suivez l'état de vos candidatures et projets</p>
+        <p className="text-xs sm:text-sm text-gray-500">Total: {stats.total} candidatures</p>
       </div>
 
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow">
+      {/* Statistiques - Responsive Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white p-4 sm:p-6 rounded-lg border hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total candidatures</p>
-              <p className="text-2xl font-bold">{stats.total}</p>
+              <p className="text-xl sm:text-2xl font-bold">{stats.total}</p>
             </div>
-            <div className="bg-gray-800 p-3 rounded-lg">
-              <Briefcase className="w-6 h-6 text-white" />
+            <div className="bg-gray-800 p-2 sm:p-3 rounded-lg">
+              <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow">
+        <div className="bg-white p-4 sm:p-6 rounded-lg border hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">En attente</p>
-              <p className="text-2xl font-bold">{stats.enAttente}</p>
+              <p className="text-xl sm:text-2xl font-bold">{stats.enAttente}</p>
             </div>
-            <div className="bg-yellow-500 p-3 rounded-lg">
-              <Clock className="w-6 h-6 text-white" />
+            <div className="bg-yellow-500 p-2 sm:p-3 rounded-lg">
+              <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg border hover:shadow-lg transition-shadow">
+        <div className="bg-white p-4 sm:p-6 rounded-lg border hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">En développement</p>
-              <p className="text-2xl font-bold">{stats.enDeveloppement}</p>
+              <p className="text-xl sm:text-2xl font-bold">{stats.enDeveloppement}</p>
             </div>
-            <div className="bg-blue-500 p-3 rounded-lg">
-              <Play className="w-6 h-6 text-white" />
+            <div className="bg-blue-500 p-2 sm:p-3 rounded-lg">
+              <Play className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filtres */}
+      {/* Filtres - Responsive */}
       <div className="mb-6">
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
               filter === 'all'
                 ? 'bg-black text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -365,7 +360,7 @@ export default function DeveloperApplicationsPage() {
           </button>
           <button
             onClick={() => setFilter('en_attente')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
               filter === 'en_attente'
                 ? 'bg-yellow-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -375,7 +370,7 @@ export default function DeveloperApplicationsPage() {
           </button>
           <button
             onClick={() => setFilter('en_developpement')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
               filter === 'en_developpement'
                 ? 'bg-blue-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -391,8 +386,8 @@ export default function DeveloperApplicationsPage() {
         {filteredApplications.length === 0 ? (
           <div className="text-center py-12">
             <div className="mb-4">
-              <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">
+              <Briefcase className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 text-base sm:text-lg">
                 {filter === 'all' 
                   ? 'Aucune candidature envoyée pour le moment' 
                   : `Aucune candidature ${getStatusConfig(filter).label.toLowerCase()}`
@@ -402,9 +397,9 @@ export default function DeveloperApplicationsPage() {
             {filter === 'all' && (
               <Link
                 href="/projects"
-                className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors inline-flex items-center space-x-2"
+                className="bg-black text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors inline-flex items-center space-x-2 text-sm sm:text-base"
               >
-                <Briefcase className="w-5 h-5" />
+                <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>Parcourir les projets</span>
               </Link>
             )}
@@ -415,60 +410,60 @@ export default function DeveloperApplicationsPage() {
             const StatusIcon = statusConfig.icon;
             
             return (
-              <div key={application.id} className="bg-white border rounded-lg p-6 hover:shadow-lg transition-shadow">
-                <div className="flex justify-between items-start">
+              <div key={application.id} className="bg-white border rounded-lg p-4 sm:p-6 hover:shadow-lg transition-shadow">
+                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <h3 className="text-xl font-bold">{application.project?.title || 'Projet inconnu'}</h3>
-                      {/* 🆕 STATUT À CÔTÉ DU TITRE */}
-                      <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border text-sm ${statusConfig.color}`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
+                      <h3 className="text-lg sm:text-xl font-bold">{application.project?.title || 'Projet inconnu'}</h3>
+                      {/* Statut à côté du titre */}
+                      <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border text-sm ${statusConfig.color} w-fit`}>
                         <StatusIcon className="w-4 h-4" />
                         <span>{statusConfig.label}</span>
                       </div>
                     </div>
                     
-                    <p className="text-gray-600 mb-4 line-clamp-2">
+                    <p className="text-gray-600 mb-4 line-clamp-2 text-sm sm:text-base">
                       {application.project?.description || 'Description non disponible'}
                     </p>
 
-                    {/* Informations du projet */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    {/* Informations du projet - Responsive Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
                       <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <User className="w-4 h-4" />
-                        <span>Client: {application.client?.full_name || application.client?.email || 'Client inconnu'}</span>
+                        <User className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">Client: {application.client?.full_name || application.client?.email || 'Client inconnu'}</span>
                       </div>
                       {application.project?.budget_min && application.project?.budget_max && (
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <DollarSign className="w-4 h-4" />
-                          <span>{formatBudget(application.project.budget_min, application.project.budget_max)}</span>
+                          <DollarSign className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{formatBudget(application.project.budget_min, application.project.budget_max)}</span>
                         </div>
                       )}
                       <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <Calendar className="w-4 h-4" />
-                        <span>Candidature: {formatDate(application.created_at)}</span>
+                        <Calendar className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">Candidature: {formatDate(application.created_at)}</span>
                       </div>
                       {application.project?.project_type && (
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <Briefcase className="w-4 h-4" />
-                          <span>{application.project.project_type} • {application.project.complexity}</span>
+                          <Briefcase className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{application.project.project_type} • {application.project.complexity}</span>
                         </div>
                       )}
                     </div>
 
                     {/* Message de candidature */}
                     {application.message && (
-                      <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                      <div className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-4">
                         <p className="text-sm text-gray-700">
                           <strong>Votre message:</strong> "{application.message}"
                         </p>
                       </div>
                     )}
 
-                    {/* Compétences requises */}
+                    {/* Compétences requises - Responsive */}
                     {application.project?.required_skills && application.project.required_skills.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-4">
                         {application.project.required_skills.map((skill, index) => (
-                          <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                          <span key={index} className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm">
                             {skill}
                           </span>
                         ))}
@@ -481,10 +476,11 @@ export default function DeveloperApplicationsPage() {
                     </div>
                   </div>
                   
-                  <div className="flex flex-col space-y-2 ml-6">
+                  {/* Actions - Responsive Stack */}
+                  <div className="flex flex-row lg:flex-col gap-2 lg:ml-6 flex-shrink-0">
                     <Link
                       href={`/projects/${application.project_id}`}
-                      className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors flex items-center space-x-2"
+                      className="flex-1 lg:flex-none bg-gray-100 text-gray-700 px-3 sm:px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2 text-sm"
                     >
                       <Eye className="w-4 h-4" />
                       <span>Voir projet</span>
@@ -493,13 +489,13 @@ export default function DeveloperApplicationsPage() {
                     {application.conversation ? (
                       <Link
                         href="/messages"
-                        className="bg-black text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
+                        className="flex-1 lg:flex-none bg-black text-white px-3 sm:px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2 text-sm"
                       >
                         <MessageCircle className="w-4 h-4" />
                         <span>Messages</span>
                       </Link>
                     ) : (
-                      <div className="bg-gray-200 text-gray-500 px-4 py-2 rounded-lg font-medium text-center text-sm">
+                      <div className="flex-1 lg:flex-none bg-gray-200 text-gray-500 px-3 sm:px-4 py-2 rounded-lg font-medium text-center text-sm">
                         Pas de conversation
                       </div>
                     )}

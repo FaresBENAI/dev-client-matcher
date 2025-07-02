@@ -64,7 +64,8 @@ export default function DeveloperProfilePage() {
     phone: '',
     website: '',
     experience_years: '',
-    hourly_rate: '',
+    daily_rate: '', // 🆕 CHANGÉ: hourly_rate -> daily_rate
+    daily_rate_defined: true, // 🆕 NOUVEAU: option "à définir"
     availability: 'available',
     profile_image: '',
     languages: [], // Max 2 langues
@@ -118,7 +119,7 @@ export default function DeveloperProfilePage() {
       const { data: devProfile, error: devError } = await supabase
         .from('developer_profiles')
         .select('*')
-        .eq('id', userId) // 🔧 Utiliser 'id' au lieu de 'user_id'
+        .eq('id', userId)
         .single();
 
       console.log('📥 Profil développeur chargé:', devProfile);
@@ -145,7 +146,8 @@ export default function DeveloperProfilePage() {
           phone: devProfile.phone || '',
           website: devProfile.website || devProfile.portfolio_url || '',
           experience_years: devProfile.experience_years || '',
-          hourly_rate: devProfile.hourly_rate || '',
+          daily_rate: devProfile.daily_rate || '', // 🆕 CHANGÉ
+          daily_rate_defined: devProfile.daily_rate_defined !== false, // 🆕 NOUVEAU: défaut true
           availability: devProfile.availability || 'available',
           languages: Array.isArray(devProfile.languages) ? devProfile.languages : [],
           skills: Array.isArray(devProfile.skills) ? devProfile.skills : []
@@ -172,7 +174,6 @@ export default function DeveloperProfilePage() {
     }
   };
 
-  // 🔧 FONCTION UPLOAD CORRIGÉE - CONFORME AUX POLITIQUES RLS
   const uploadImage = async () => {
     if (!imageFile || !user) {
       console.error('❌ Prérequis manquants:', { 
@@ -202,10 +203,6 @@ export default function DeveloperProfilePage() {
       // 2. Créer le nom de fichier avec la structure attendue par RLS
       const fileExt = imageFile.name.split('.').pop();
       const fileName = `avatar-${Date.now()}.${fileExt}`;
-      
-      // 🔧 STRUCTURE CRITIQUE: Les politiques RLS attendent user_id/filename
-      // Politique: (auth.uid())::text = (string_to_array(name, '/'))[1]
-      // Donc le path doit être: "user_id/filename.ext"
       const filePath = `${user.id}/${fileName}`;
       
       console.log('📂 Chemin fichier:', filePath);
@@ -213,7 +210,6 @@ export default function DeveloperProfilePage() {
       // 3. Supprimer l'ancienne image si elle existe
       if (formData.profile_image) {
         try {
-          // Extraire le chemin relatif de l'URL complète
           const oldImageUrl = formData.profile_image;
           const match = oldImageUrl.match(/\/avatars\/(.+)$/);
           
@@ -249,18 +245,6 @@ export default function DeveloperProfilePage() {
 
       if (uploadError) {
         console.error('❌ Erreur upload:', uploadError);
-        
-        // Diagnostic détaillé des erreurs
-        if (uploadError.message?.includes('row-level security')) {
-          throw new Error('RLS: La structure du chemin ne correspond pas aux politiques. Vérifiez que le chemin commence par votre user_id.');
-        } else if (uploadError.message?.includes('Unauthorized')) {
-          throw new Error('UNAUTHORIZED: Vérifiez que vous êtes bien connecté.');
-        } else if (uploadError.message?.includes('not found')) {
-          throw new Error('BUCKET_NOT_FOUND: Le bucket avatars n\'existe pas.');
-        } else if (uploadError.message?.includes('403') || uploadError.message?.includes('Forbidden')) {
-          throw new Error('FORBIDDEN: Les politiques RLS bloquent l\'upload. Vérifiez la structure du chemin.');
-        }
-        
         throw new Error(`Upload échoué: ${uploadError.message}`);
       }
 
@@ -272,19 +256,6 @@ export default function DeveloperProfilePage() {
         .getPublicUrl(filePath);
 
       console.log('🔗 URL publique générée:', urlData.publicUrl);
-
-      // 6. Vérifier que l'image est accessible (optionnel)
-      try {
-        const response = await fetch(urlData.publicUrl, { method: 'HEAD' });
-        if (response.ok) {
-          console.log('✅ Image accessible publiquement');
-        } else {
-          console.log('⚠️ Image uploadée mais pas encore accessible (délai de propagation normal)');
-        }
-      } catch (fetchError) {
-        console.log('⚠️ Test d\'accessibilité échoué (normal, délai de propagation)');
-      }
-
       console.log('🎉 UPLOAD TERMINÉ AVEC SUCCÈS');
       return urlData.publicUrl;
 
@@ -338,53 +309,36 @@ export default function DeveloperProfilePage() {
     console.log('🔍 VALIDATION - Début');
     console.log('📝 FormData à valider:', formData);
     
-    // 🔍 DIAGNOSTIC DÉTAILLÉ
-    console.log('🔍 full_name:', `"${formData.full_name}"`, 'length:', formData.full_name.length);
-    console.log('🔍 bio:', `"${formData.bio}"`, 'length:', formData.bio.length);
-    console.log('🔍 imagePreview:', !!imagePreview);
-    console.log('🔍 profile_image:', `"${formData.profile_image}"`);
-    console.log('🔍 languages:', formData.languages);
-    console.log('🔍 skills:', formData.skills);
-    
-    // Vérifications obligatoires avec logs détaillés
+    // Vérifications obligatoires
     if (!formData.full_name || formData.full_name.trim().length === 0) {
       console.error('❌ VALIDATION - Nom manquant ou vide');
       setMessage({ type: 'error', content: 'Le nom complet est obligatoire' });
       return false;
     }
-    console.log('✅ Nom valide');
     
     if (!formData.bio || formData.bio.trim().length === 0) {
       console.error('❌ VALIDATION - Bio manquante ou vide');
-      console.error('❌ Bio value:', `"${formData.bio}"`);
-      console.error('❌ Bio après trim:', `"${formData.bio.trim()}"`);
       setMessage({ type: 'error', content: 'La biographie est obligatoire' });
       return false;
     }
-    console.log('✅ Bio valide');
     
-    // 🔧 RÉACTIVATION: Validation de l'image redevient obligatoire
     if (!imagePreview && !formData.profile_image) {
       console.error('❌ VALIDATION - Photo manquante');
       setMessage({ type: 'error', content: 'La photo de profil est obligatoire' });
       return false;
     }
-    console.log('✅ Photo valide');
     
     if (!formData.languages || formData.languages.length === 0) {
       console.error('❌ VALIDATION - Langues manquantes');
       setMessage({ type: 'error', content: 'Au moins une langue est obligatoire' });
       return false;
     }
-    console.log('✅ Langues valides');
     
     if (!formData.skills || formData.skills.length < 3) {
       console.error('❌ VALIDATION - Compétences insuffisantes');
-      console.error('❌ Skills count:', formData.skills.length);
       setMessage({ type: 'error', content: 'Au moins 3 compétences IA sont obligatoires' });
       return false;
     }
-    console.log('✅ Compétences valides');
     
     console.log('✅ VALIDATION - Réussie');
     return true;
@@ -392,8 +346,6 @@ export default function DeveloperProfilePage() {
 
   const handleSubmit = async () => {
     console.log('🚀 DEBUT handleSubmit');
-    console.log('👤 User state:', user);
-    console.log('📝 FormData state:', formData);
     
     if (!user) {
       console.error('❌ Pas d\'utilisateur connecté');
@@ -401,21 +353,16 @@ export default function DeveloperProfilePage() {
       return;
     }
 
-    console.log('👤 User ID:', user.id);
-    console.log('📧 User email:', user.email);
-
     if (!validateForm()) {
       console.error('❌ Validation échouée');
       return;
     }
 
-    console.log('✅ Validation réussie');
-
     setSaving(true);
     setMessage({ type: '', content: '' });
 
     try {
-      // 🔧 RÉACTIVATION: Upload d'image si une nouvelle image est sélectionnée
+      // Upload d'image si une nouvelle image est sélectionnée
       let avatarUrl = formData.profile_image;
       
       if (imageFile) {
@@ -427,14 +374,10 @@ export default function DeveloperProfilePage() {
             console.log('📤 Image uploadée avec succès:', uploadedUrl);
           } else {
             console.log('⚠️ Upload d\'image échoué, continue avec l\'avatar actuel');
-            // Ne pas faire échouer toute la sauvegarde pour un problème d'image
           }
         } catch (uploadError) {
           console.log('⚠️ Erreur upload image, continue sans:', uploadError);
-          // Continuer la sauvegarde même si l'upload échoue
         }
-      } else {
-        console.log('📷 Aucune nouvelle image à uploader');
       }
 
       // Mise à jour du profil de base
@@ -445,15 +388,11 @@ export default function DeveloperProfilePage() {
         updated_at: new Date().toISOString()
       };
 
-      console.log('💾 Données profil de base:', profileUpdateData);
-
       const { data: profileResult, error: profileError } = await supabase
         .from('profiles')
         .update(profileUpdateData)
         .eq('id', user.id)
         .select();
-
-      console.log('💾 Résultat profil de base:', profileResult);
 
       if (profileError) {
         console.error('❌ Erreur profil de base:', profileError);
@@ -462,11 +401,11 @@ export default function DeveloperProfilePage() {
 
       console.log('✅ Profil de base mis à jour');
 
-      // 🔧 CORRECTION: Gestion du profil développeur avec vérification préalable
+      // Gestion du profil développeur
       console.log('💾 Gestion du profil développeur...');
 
       const devProfileData = {
-        id: user.id, // 🔧 Utiliser l'ID de l'utilisateur comme ID du profil
+        id: user.id,
         user_id: user.id,
         title: formData.full_name,
         bio: formData.bio || '',
@@ -475,7 +414,8 @@ export default function DeveloperProfilePage() {
         website: formData.website || '',
         portfolio_url: formData.website || '',
         experience_years: formData.experience_years ? parseInt(formData.experience_years) : null,
-        hourly_rate: formData.hourly_rate ? parseInt(formData.hourly_rate) : null,
+        daily_rate: formData.daily_rate_defined && formData.daily_rate ? parseInt(formData.daily_rate) : null, // 🆕 CHANGÉ
+        daily_rate_defined: formData.daily_rate_defined, // 🆕 NOUVEAU
         availability: formData.availability || 'available',
         languages: formData.languages || [],
         skills: formData.skills || [],
@@ -484,21 +424,15 @@ export default function DeveloperProfilePage() {
         updated_at: new Date().toISOString()
       };
 
-      console.log('💾 Données profil développeur:', devProfileData);
-
-      // 🔧 Vérifier d'abord si le profil existe
-      console.log('🔍 Vérification de l\'existence du profil...');
-      const { data: existingProfile, error: checkError } = await supabase
+      // Vérifier si le profil existe
+      const { data: existingProfile } = await supabase
         .from('developer_profiles')
         .select('id')
         .eq('id', user.id)
         .single();
 
-      console.log('🔍 Profil existant:', existingProfile);
-
       if (existingProfile) {
         // Le profil existe, faire un UPDATE
-        console.log('💾 Profil existe, mise à jour...');
         const updateData = {
           title: formData.full_name,
           bio: formData.bio || '',
@@ -507,7 +441,8 @@ export default function DeveloperProfilePage() {
           website: formData.website || '',
           portfolio_url: formData.website || '',
           experience_years: formData.experience_years ? parseInt(formData.experience_years) : null,
-          hourly_rate: formData.hourly_rate ? parseInt(formData.hourly_rate) : null,
+          daily_rate: formData.daily_rate_defined && formData.daily_rate ? parseInt(formData.daily_rate) : null, // 🆕 CHANGÉ
+          daily_rate_defined: formData.daily_rate_defined, // 🆕 NOUVEAU
           availability: formData.availability || 'available',
           languages: formData.languages || [],
           skills: formData.skills || [],
@@ -521,8 +456,6 @@ export default function DeveloperProfilePage() {
           .eq('id', user.id)
           .select();
 
-        console.log('💾 Résultat UPDATE:', updateResult);
-
         if (updateError) {
           console.error('❌ Erreur UPDATE:', updateError);
           throw new Error(`Erreur UPDATE: ${updateError.message}`);
@@ -531,13 +464,10 @@ export default function DeveloperProfilePage() {
         console.log('✅ Profil développeur mis à jour');
       } else {
         // Le profil n'existe pas, faire un INSERT
-        console.log('💾 Profil n\'existe pas, création...');
         const { data: insertResult, error: insertError } = await supabase
           .from('developer_profiles')
           .insert(devProfileData)
           .select();
-
-        console.log('💾 Résultat INSERT:', insertResult);
 
         if (insertError) {
           console.error('❌ Erreur INSERT:', insertError);
@@ -551,7 +481,6 @@ export default function DeveloperProfilePage() {
       
       // Recharger les données après 1 seconde
       setTimeout(async () => {
-        console.log('🔄 Rechargement du profil...');
         await loadProfile(user.id);
       }, 1000);
       
@@ -563,7 +492,6 @@ export default function DeveloperProfilePage() {
       });
     } finally {
       setSaving(false);
-      console.log('🏁 FIN handleSubmit');
     }
   };
 
@@ -837,7 +765,7 @@ export default function DeveloperProfilePage() {
             </p>
           </div>
 
-          {/* Informations professionnelles */}
+          {/* Informations professionnelles avec TJM */}
           <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6">
             <h2 className="text-xl font-black text-black mb-4 flex items-center gap-2">
               <Briefcase className="h-5 w-5" />
@@ -860,20 +788,61 @@ export default function DeveloperProfilePage() {
                 />
               </div>
               
-              <div>
+              {/* 🆕 NOUVEAU: Section TJM avec option "à définir" */}
+              <div className="md:col-span-2">
                 <label className="block text-sm font-black text-black mb-2">
-                  Tarif horaire (€)
+                  💰 Taux Journalier Moyen (TJM)
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.hourly_rate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, hourly_rate: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
-                  placeholder="50"
-                />
+                
+                {/* Checkbox "À définir" */}
+                <div className="mb-3">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!formData.daily_rate_defined}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev, 
+                        daily_rate_defined: !e.target.checked,
+                        daily_rate: e.target.checked ? '' : prev.daily_rate
+                      }))}
+                      className="w-4 h-4 border-2 border-gray-300 rounded bg-white checked:bg-black checked:border-black focus:ring-black"
+                    />
+                    <span className="text-sm text-gray-700 font-medium">
+                      📋 À définir avec le client (négociable selon le projet)
+                    </span>
+                  </label>
+                </div>
+                
+                {/* Input TJM conditionnel */}
+                {formData.daily_rate_defined ? (
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.daily_rate}
+                      onChange={(e) => setFormData(prev => ({ ...prev, daily_rate: e.target.value }))}
+                      placeholder="400"
+                      className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold pr-12"
+                    />
+                    <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">
+                      €/jour
+                    </span>
+                  </div>
+                ) : (
+                  <div className="bg-gray-100 border-2 border-gray-300 rounded-lg px-4 py-3 text-gray-600 font-medium">
+                    🤝 TJM à négocier selon la complexité et la durée du projet
+                  </div>
+                )}
+                
+                <p className="text-xs text-gray-500 mt-2">
+                  {formData.daily_rate_defined 
+                    ? "Votre TJM sera affiché publiquement sur votre profil" 
+                    : "Les clients pourront vous contacter pour discuter du tarif"}
+                </p>
               </div>
-              
+            </div>
+            
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-black text-black mb-2">
                   Disponibilité
@@ -888,19 +857,19 @@ export default function DeveloperProfilePage() {
                   <option value="unavailable">🔴 Indisponible</option>
                 </select>
               </div>
-            </div>
-            
-            <div className="mt-4">
-              <label className="block text-sm font-black text-black mb-2">
-                Site web / Portfolio
-              </label>
-              <input
-                type="url"
-                value={formData.website}
-                onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
-                className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
-                placeholder="https://monportfolio.com"
-              />
+              
+              <div>
+                <label className="block text-sm font-black text-black mb-2">
+                  Site web / Portfolio
+                </label>
+                <input
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
+                  className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                  placeholder="https://monportfolio.com"
+                />
+              </div>
             </div>
           </div>
 
@@ -909,7 +878,7 @@ export default function DeveloperProfilePage() {
             <button
               onClick={handleSubmit}
               disabled={saving}
-              className="w-full bg-black text-white py-4 px-6 font-black text-lg hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-3 mb-4"
+              className="w-full bg-black text-white py-4 px-6 font-black text-lg hover:bg-gray-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-3"
             >
               {saving ? (
                 <>
@@ -924,35 +893,9 @@ export default function DeveloperProfilePage() {
               )}
             </button>
             
-            {/* 🧪 BOUTON DE TEST POUR DIAGNOSTIC */}
-            <button
-              onClick={() => {
-                console.log('🔥 TEST CLIC DÉTECTÉ !');
-                console.log('👤 User state:', user);
-                console.log('📝 FormData state:', formData);
-                console.log('🖼️ ImagePreview:', imagePreview);
-                console.log('📁 ImageFile:', imageFile);
-                
-                // Test de validation sans sauvegarder
-                console.log('🧪 DÉBUT TEST VALIDATION');
-                const isValid = validateForm();
-                console.log('✅ Validation result:', isValid);
-                
-                if (isValid) {
-                  console.log('🎯 Validation OK - Appel de handleSubmit');
-                  handleSubmit();
-                } else {
-                  console.log('❌ Validation KO - Pas d\'appel handleSubmit');
-                }
-              }}
-              className="w-full bg-red-500 text-white py-2 px-4 font-bold hover:bg-red-600 transition-colors"
-            >
-              🧪 BOUTON DE TEST - REGARDEZ LA CONSOLE
-            </button>
-            
-            <div className="mt-4 p-3 bg-green-50 border-2 border-green-200 rounded">
-              <p className="text-sm text-green-800 font-bold">
-                ✅ <strong>Upload d'images CORRIGÉ:</strong> La fonction upload est maintenant compatible avec les politiques RLS de Supabase.
+            <div className="mt-4 p-3 bg-blue-50 border-2 border-blue-200 rounded">
+              <p className="text-sm text-blue-800 font-bold">
+                💡 <strong>Nouveau :</strong> Vous pouvez maintenant choisir d'afficher votre TJM ou de le laisser "à définir" pour négocier avec chaque client.
               </p>
             </div>
           </div>

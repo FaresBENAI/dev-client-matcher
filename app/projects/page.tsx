@@ -1,15 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, MapPin, Calendar, DollarSign, Grid, List, Plus, X, CheckCircle, Clock, Zap, Send, AlertTriangle } from 'lucide-react';
-
-// Utiliser la même config que la navbar
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '../../lib/supabase';
 
 interface Project {
   id: string;
@@ -549,8 +543,8 @@ function ProjectsContent() {
   const ProjectCard = ({ project }: { project: Project }) => {
     return (
       <div className="group bg-gray-50 rounded-2xl p-4 border-2 border-transparent hover:border-black transition-all duration-300 hover:shadow-lg">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="px-3 py-1 bg-black text-white text-xs font-bold rounded-full">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+          <span className="px-3 py-1 bg-black text-white text-xs font-bold rounded-full w-fit">
             {getTypeIcon(project.project_type)} {project.project_type || 'Projet'}
           </span>
           <span className={getStatusStyle(project.status)}>
@@ -566,19 +560,19 @@ function ProjectsContent() {
         
         <div className="space-y-1 mb-3 text-xs">
           <div className="flex items-center text-gray-600">
-            <DollarSign className="h-3 w-3 mr-1" />
+            <DollarSign className="h-3 w-3 mr-1 flex-shrink-0" />
             <span className="font-bold text-black">
               {project.budget_min?.toLocaleString()}€ - {project.budget_max?.toLocaleString()}€
             </span>
           </div>
           
           <div className="flex items-center text-gray-600">
-            <Clock className="h-3 w-3 mr-1" />
+            <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
             <span>{project.timeline}</span>
           </div>
           
           <div className="flex items-center text-gray-600">
-            <Zap className="h-3 w-3 mr-1" />
+            <Zap className="h-3 w-3 mr-1 flex-shrink-0" />
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${getComplexityColor(project.complexity)}`}>
               {project.complexity}
             </span>
@@ -602,17 +596,17 @@ function ProjectsContent() {
           </div>
         )}
 
-        <div className="flex justify-between items-center mb-3">
-          <div className="text-black font-bold text-xs">
+        <div className="flex justify-between items-center mb-3 text-xs">
+          <div className="text-black font-bold truncate">
             Par: {project.client?.full_name || 'Anonyme'}
           </div>
-          <div className="text-gray-400 text-xs">il y a {getTimeAgo(project.created_at)}</div>
+          <div className="text-gray-400 flex-shrink-0">il y a {getTimeAgo(project.created_at)}</div>
         </div>
 
         <div className="flex gap-2">
           <button 
             onClick={() => router.push(`/projects/${project.id}`)}
-            className="bg-gray-100 text-black hover:bg-gray-200 font-bold px-3 py-1 rounded-lg text-xs transition-colors duration-300"
+            className="flex-1 bg-gray-100 text-black hover:bg-gray-200 font-bold px-3 py-2 rounded-lg text-xs transition-colors duration-300"
           >
             Voir →
           </button>
@@ -621,7 +615,7 @@ function ProjectsContent() {
           {user?.id !== project.client_id && (
             <button 
               onClick={() => handleApplyToProject(project)}
-              className="bg-black text-white hover:bg-gray-800 font-bold px-3 py-1 rounded-lg text-xs transition-colors duration-300 flex items-center gap-1"
+              className="flex-1 bg-black text-white hover:bg-gray-800 font-bold px-3 py-2 rounded-lg text-xs transition-colors duration-300 flex items-center justify-center gap-1"
             >
               <Send className="h-3 w-3" />
               {!user ? 'Se connecter' : 'Candidater'}
@@ -632,23 +626,13 @@ function ProjectsContent() {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-white">
       {/* Message de succès */}
       {showSuccessMessage && (
-        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 flex items-center gap-3">
-          <CheckCircle className="h-6 w-6" />
-          <span className="font-bold">Projet créé avec succès !</span>
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg shadow-lg z-50 flex items-center gap-3">
+          <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6" />
+          <span className="font-bold text-sm sm:text-base">Projet créé avec succès !</span>
           <button 
             onClick={() => setShowSuccessMessage(false)}
             className="ml-2 hover:bg-green-600 p-1 rounded"
@@ -658,18 +642,18 @@ function ProjectsContent() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="relative bg-black text-white py-24 overflow-hidden">
+      {/* Header - Responsive */}
+      <div className="relative bg-black text-white py-16 sm:py-24 overflow-hidden">
         <div className="absolute inset-0">
           <div className="stars"></div>
           <div className="twinkling"></div>
         </div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl font-black mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black mb-4 sm:mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
             Projets Disponibles
           </h1>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+          <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto">
             Découvrez les opportunités qui correspondent à vos compétences et commencez votre prochain défi
           </p>
         </div>
@@ -678,101 +662,112 @@ function ProjectsContent() {
       {/* Transition */}
       <div className="h-4 bg-gradient-to-b from-black to-white"></div>
 
-      {/* Filtres et recherche */}
-      <div className="bg-gray-50 py-8 border-b-2 border-gray-200">
+      {/* Filtres et recherche - Responsive */}
+      <div className="bg-gray-50 py-6 sm:py-8 border-b-2 border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex flex-col gap-4">
+            {/* Barre de recherche */}
+            <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Rechercher un projet..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
+                className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
               />
             </div>
 
-            <div className="flex gap-4 items-center">
-              <select
-                value={selectedBudget}
-                onChange={(e) => setSelectedBudget(e.target.value)}
-                className="px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
-              >
-                <option value="all">Tous budgets</option>
-                <option value="low">&lt; 5 000€</option>
-                <option value="medium">5 000€ - 15 000€</option>
-                <option value="high">&gt; 15 000€</option>
-              </select>
-
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
-              >
-                <option value="all">Tous types</option>
-                <option value="automation">🤖 Automation</option>
-                <option value="ai">🧠 IA</option>
-                <option value="chatbot">💬 Chatbot</option>
-                <option value="data_analysis">📊 Data Analysis</option>
-                <option value="other">💻 Autre</option>
-              </select>
-
-              <div className="flex border-2 border-gray-200 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-3 font-black transition-all duration-300 ${
-                    viewMode === 'grid' ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-50'
-                  }`}
+            {/* Filtres et contrôles */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
+                <select
+                  value={selectedBudget}
+                  onChange={(e) => setSelectedBudget(e.target.value)}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm"
                 >
-                  <Grid className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-3 font-black transition-all duration-300 ${
-                    viewMode === 'list' ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-50'
-                  }`}
+                  <option value="all">Tous budgets</option>
+                  <option value="low">&lt; 5 000€</option>
+                  <option value="medium">5 000€ - 15 000€</option>
+                  <option value="high">&gt; 15 000€</option>
+                </select>
+
+                <select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  className="px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm"
                 >
-                  <List className="h-5 w-5" />
-                </button>
+                  <option value="all">Tous types</option>
+                  <option value="automation">🤖 Automation</option>
+                  <option value="ai">🧠 IA</option>
+                  <option value="chatbot">💬 Chatbot</option>
+                  <option value="data_analysis">📊 Data Analysis</option>
+                  <option value="other">💻 Autre</option>
+                </select>
               </div>
 
-              <button
-                onClick={handleCreateProject}
-                className="bg-black text-white px-6 py-3 rounded-lg font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
-              >
-                <Plus className="h-5 w-5" />
-                Créer un projet
-              </button>
+              <div className="flex gap-3 sm:gap-4 items-center">
+                <div className="flex border-2 border-gray-200 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 sm:p-3 font-black transition-all duration-300 ${
+                      viewMode === 'grid' ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-50'
+                    }`}
+                  >
+                    <Grid className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 sm:p-3 font-black transition-all duration-300 ${
+                      viewMode === 'list' ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-50'
+                    }`}
+                  >
+                    <List className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={handleCreateProject}
+                  className="bg-black text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center gap-2 text-sm whitespace-nowrap"
+                >
+                  <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="hidden sm:inline">Créer un projet</span>
+                  <span className="sm:hidden">Créer</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Liste des projets */}
-      <div className="py-12">
+      <div className="py-8 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-black text-black">
+          <div className="flex justify-between items-center mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-black">
               {filteredProjects.length} projet{filteredProjects.length !== 1 ? 's' : ''} trouvé{filteredProjects.length !== 1 ? 's' : ''}
             </h2>
           </div>
 
           {filteredProjects.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className={`grid gap-4 sm:gap-6 ${
+              viewMode === 'grid' 
+                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
+                : 'grid-cols-1'
+            }`}>
               {filteredProjects.map((project) => (
                 <ProjectCard key={project.id} project={project} />
               ))}
             </div>
           ) : (
             <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">🔍</span>
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-xl sm:text-2xl">🔍</span>
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 Aucun projet trouvé
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 mb-6">
                 Essayez de modifier vos critères de recherche
               </p>
               
@@ -782,9 +777,9 @@ function ProjectsContent() {
                   <p className="text-gray-600 mb-4">Publiez votre projet et trouvez le développeur parfait !</p>
                   <button
                     onClick={handleCreateProject}
-                    className="bg-black text-white px-8 py-4 rounded-xl font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto"
+                    className="bg-black text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto text-sm sm:text-base"
                   >
-                    <Plus className="h-5 w-5" />
+                    <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
                     Créer mon premier projet
                   </button>
                 </div>
@@ -794,45 +789,45 @@ function ProjectsContent() {
         </div>
       </div>
 
-      {/* NOUVELLE Modal d'alerte pour candidature existante */}
+      {/* NOUVELLE Modal d'alerte pour candidature existante - Responsive */}
       {showExistingApplicationAlert && existingApplicationData.project && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white max-w-md w-full rounded-xl shadow-xl border-2 border-red-200">
-            <div className="p-6 text-center">
+            <div className="p-4 sm:p-6 text-center">
               <div className="flex justify-center mb-4">
                 <div className="bg-red-100 p-3 rounded-full">
-                  <AlertTriangle className="h-8 w-8 text-red-600" />
+                  <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
                 </div>
               </div>
               
-              <h2 className="text-2xl font-black text-black mb-3">
+              <h2 className="text-xl sm:text-2xl font-black text-black mb-3">
                 Candidature déjà envoyée !
               </h2>
               
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 mb-4 text-sm sm:text-base">
                 Vous avez déjà candidaté à ce projet.
               </p>
               
-              <div className="bg-gray-50 p-4 rounded-lg mb-6">
+              <div className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-4 sm:mb-6">
                 <p className="text-sm font-bold text-gray-700 mb-2">
                   Statut actuel : {getStatusText(existingApplicationData.status)}
                 </p>
               </div>
               
-              <p className="text-sm text-gray-600 mb-6">
+              <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
                 Vous pouvez suivre l'évolution de votre candidature dans vos messages.
               </p>
               
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={closeExistingApplicationAlert}
-                  className="flex-1 px-4 py-3 border-2 border-gray-200 text-black font-black rounded-lg hover:border-black transition-colors"
+                  className="flex-1 px-4 py-3 border-2 border-gray-200 text-black font-black rounded-lg hover:border-black transition-colors text-sm"
                 >
                   Fermer
                 </button>
                 <button
                   onClick={goToMessages}
-                  className="flex-1 bg-black text-white px-4 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors"
+                  className="flex-1 bg-black text-white px-4 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors text-sm"
                 >
                   Voir mes messages
                 </button>
@@ -842,23 +837,23 @@ function ProjectsContent() {
         </div>
       )}
 
-      {/* Modal de création de projet */}
+      {/* Modal de création de projet - Responsive */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white max-w-3xl w-full max-h-[90vh] overflow-y-auto rounded-xl">
-            <div className="p-6 border-b-2 border-gray-200 flex justify-between items-center">
-              <h2 className="text-2xl font-black">Créer un nouveau projet</h2>
+            <div className="p-4 sm:p-6 border-b-2 border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl sm:text-2xl font-black">Créer un nouveau projet</h2>
               <button 
                 onClick={closeCreateModal}
                 className="p-2 hover:bg-gray-100 rounded"
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
             </div>
             
-            <div className="p-6">
-              <form onSubmit={handleSubmitProject} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 sm:p-6">
+              <form onSubmit={handleSubmitProject} className="space-y-4 sm:space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                   <div>
                     <label className="block text-sm font-black text-black mb-2">
                       Titre du projet *
@@ -868,7 +863,7 @@ function ProjectsContent() {
                       required
                       value={formData.title}
                       onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
                       placeholder="Ex: Application e-commerce"
                     />
                   </div>
@@ -881,7 +876,7 @@ function ProjectsContent() {
                       required
                       value={formData.project_type}
                       onChange={(e) => setFormData(prev => ({ ...prev, project_type: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
                     >
                       <option value="automation">🤖 Automation</option>
                       <option value="ai">🧠 Intelligence Artificielle</option>
@@ -901,12 +896,12 @@ function ProjectsContent() {
                     rows={4}
                     value={formData.description}
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold resize-none"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold resize-none text-sm sm:text-base"
                     placeholder="Décrivez votre projet en détail..."
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div>
                     <label className="block text-sm font-black text-black mb-2">
                       Budget minimum (€) *
@@ -917,7 +912,7 @@ function ProjectsContent() {
                       min="100"
                       value={formData.budget_min}
                       onChange={(e) => setFormData(prev => ({ ...prev, budget_min: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
                       placeholder="1000"
                     />
                   </div>
@@ -932,13 +927,13 @@ function ProjectsContent() {
                       min="100"
                       value={formData.budget_max}
                       onChange={(e) => setFormData(prev => ({ ...prev, budget_max: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
                       placeholder="5000"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div>
                     <label className="block text-sm font-black text-black mb-2">
                       Délai souhaité *
@@ -948,7 +943,7 @@ function ProjectsContent() {
                       required
                       value={formData.timeline}
                       onChange={(e) => setFormData(prev => ({ ...prev, timeline: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
                       placeholder="Ex: 2 semaines, 1 mois"
                     />
                   </div>
@@ -961,7 +956,7 @@ function ProjectsContent() {
                       required
                       value={formData.complexity}
                       onChange={(e) => setFormData(prev => ({ ...prev, complexity: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
                     >
                       <option value="simple">Simple</option>
                       <option value="medium">Moyenne</option>
@@ -980,15 +975,15 @@ function ProjectsContent() {
                       value={skillInput}
                       onChange={(e) => setSkillInput(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
-                      className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold"
+                      className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
                       placeholder="Ex: React, Node.js, Python..."
                     />
                     <button
                       type="button"
                       onClick={addSkill}
-                      className="bg-black text-white px-4 py-3 rounded-lg font-black hover:bg-gray-800 transition-colors"
+                      className="bg-black text-white px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-black hover:bg-gray-800 transition-colors"
                     >
-                      <Plus className="h-5 w-5" />
+                      <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
                     </button>
                   </div>
                   {formData.required_skills.length > 0 && (
@@ -996,7 +991,7 @@ function ProjectsContent() {
                       {formData.required_skills.map((skill, index) => (
                         <span
                           key={index}
-                          className="bg-black text-white px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2"
+                          className="bg-black text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold flex items-center gap-2"
                         >
                           {skill}
                           <button
@@ -1012,18 +1007,18 @@ function ProjectsContent() {
                   )}
                 </div>
                 
-                <div className="flex gap-4 pt-4">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
                   <button
                     type="button"
                     onClick={closeCreateModal}
-                    className="px-6 py-3 border-2 border-gray-200 text-black font-black rounded-lg hover:border-black transition-colors"
+                    className="px-4 sm:px-6 py-2 sm:py-3 border-2 border-gray-200 text-black font-black rounded-lg hover:border-black transition-colors text-sm sm:text-base"
                   >
                     Annuler
                   </button>
                   <button
                     type="submit"
                     disabled={createLoading}
-                    className="bg-black text-white px-6 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-black text-white px-4 sm:px-6 py-2 sm:py-3 font-black rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                   >
                     {createLoading ? 'Création...' : 'Créer le projet'}
                   </button>
@@ -1034,40 +1029,40 @@ function ProjectsContent() {
         </div>
       )}
 
-      {/* Modal de candidature */}
+      {/* Modal de candidature - Responsive */}
       {showApplicationModal && selectedProject && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-xl">
-            <div className="p-6 border-b-2 border-gray-200 flex justify-between items-center">
+            <div className="p-4 sm:p-6 border-b-2 border-gray-200 flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-black">Candidater au projet</h2>
-                <p className="text-gray-600 mt-1">{selectedProject.title}</p>
+                <h2 className="text-xl sm:text-2xl font-black">Candidater au projet</h2>
+                <p className="text-gray-600 mt-1 text-sm sm:text-base truncate">{selectedProject.title}</p>
               </div>
               <button 
                 onClick={closeApplicationModal}
-                className="p-2 hover:bg-gray-100 rounded"
+                className="p-2 hover:bg-gray-100 rounded flex-shrink-0"
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
             </div>
             
             {applicationSuccess ? (
-              <div className="p-8 text-center">
-                <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500" />
-                <h3 className="text-2xl font-black text-black mb-2">Candidature envoyée !</h3>
-                <p className="text-gray-600 mb-4">
+              <div className="p-6 sm:p-8 text-center">
+                <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 text-green-500" />
+                <h3 className="text-xl sm:text-2xl font-black text-black mb-2">Candidature envoyée !</h3>
+                <p className="text-gray-600 mb-4 text-sm sm:text-base">
                   Votre candidature a été envoyée au client. Vous recevrez une réponse dans votre messagerie.
                 </p>
                 <button
                   onClick={closeApplicationModal}
-                  className="bg-black text-white px-6 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors"
+                  className="bg-black text-white px-4 sm:px-6 py-2 sm:py-3 font-black rounded-lg hover:bg-gray-800 transition-colors text-sm sm:text-base"
                 >
                   Fermer
                 </button>
               </div>
             ) : (
-              <div className="p-6">
-                <form onSubmit={handleSubmitApplication} className="space-y-6">
+              <div className="p-4 sm:p-6">
+                <form onSubmit={handleSubmitApplication} className="space-y-4 sm:space-y-6">
                   <div>
                     <label className="block text-sm font-black text-black mb-2">
                       Message de candidature *
@@ -1077,26 +1072,26 @@ function ProjectsContent() {
                       rows={6}
                       value={applicationData.message}
                       onChange={(e) => setApplicationData(prev => ({ ...prev, message: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold resize-none"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold resize-none text-sm sm:text-base"
                       placeholder="Présentez-vous et expliquez pourquoi vous êtes le candidat idéal pour ce projet..."
                     />
-                    <p className="text-sm text-gray-600 mt-2">
+                    <p className="text-xs sm:text-sm text-gray-600 mt-2">
                       💡 Vous pourrez envoyer votre CV directement dans la conversation après votre candidature.
                     </p>
                   </div>
                   
-                  <div className="flex gap-4 pt-4">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
                     <button
                       type="button"
                       onClick={closeApplicationModal}
-                      className="px-6 py-3 border-2 border-gray-200 text-black font-black rounded-lg hover:border-black transition-colors"
+                      className="px-4 sm:px-6 py-2 sm:py-3 border-2 border-gray-200 text-black font-black rounded-lg hover:border-black transition-colors text-sm sm:text-base"
                     >
                       Annuler
                     </button>
                     <button
                       type="submit"
                       disabled={applicationLoading}
-                      className="bg-black text-white px-6 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="bg-black text-white px-4 sm:px-6 py-2 sm:py-3 font-black rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
                     >
                       {applicationLoading ? (
                         <>
@@ -1118,7 +1113,7 @@ function ProjectsContent() {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .stars, .twinkling {
           position: absolute;
           top: 0;
@@ -1167,6 +1162,12 @@ function ProjectsContent() {
           -webkit-box-orient: vertical;
           overflow: hidden;
         }
+
+        @media (max-width: 640px) {
+          .stars, .twinkling {
+            background-size: 150px 80px;
+          }
+        }
       `}</style>
     </div>
   );
@@ -1189,4 +1190,3 @@ export default function ProjectsPage() {
     </Suspense>
   );
 }
-              

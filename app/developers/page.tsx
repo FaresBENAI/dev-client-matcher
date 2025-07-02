@@ -58,6 +58,32 @@ const StarRating = ({ rating, totalRatings }: { rating: number; totalRatings?: n
   );
 };
 
+// 🆕 NOUVEAU: Composant d'affichage du TJM
+const TJMDisplay = ({ daily_rate, daily_rate_defined }: { daily_rate?: number; daily_rate_defined?: boolean }) => {
+  if (daily_rate_defined === false || (!daily_rate_defined && !daily_rate)) {
+    return (
+      <span className="font-medium text-blue-600 text-sm bg-blue-50 px-2 py-1 rounded">
+        💬 TJM à définir
+      </span>
+    );
+  }
+  
+  if (daily_rate && daily_rate > 0) {
+    return (
+      <span className="font-medium text-green-600 text-sm bg-green-50 px-2 py-1 rounded">
+        💰 {daily_rate}€/jour
+      </span>
+    );
+  }
+  
+  // Fallback pour compatibilité avec anciens profils
+  return (
+    <span className="font-medium text-gray-500 text-sm bg-gray-50 px-2 py-1 rounded">
+      💬 TJM à définir
+    </span>
+  );
+};
+
 export default function DevelopersPage() {
   const [developers, setDevelopers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -154,6 +180,10 @@ export default function DevelopersPage() {
           return (a.full_name || '').localeCompare(b.full_name || '')
         case 'recent':
           return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+        case 'tjm': // 🆕 NOUVEAU: Tri par TJM
+          const tjmA = a.daily_rate_defined === false ? 0 : (a.daily_rate || 0)
+          const tjmB = b.daily_rate_defined === false ? 0 : (b.daily_rate || 0)
+          return tjmB - tjmA
         default:
           return 0
       }
@@ -254,6 +284,7 @@ export default function DevelopersPage() {
               >
                 <option value="rating">⭐ Mieux notés</option>
                 <option value="experience">📈 Plus d'expérience</option>
+                <option value="tjm">💰 TJM croissant</option>
                 <option value="recent">🆕 Plus récents</option>
                 <option value="name">📝 Ordre alphabétique</option>
               </select>
@@ -388,11 +419,11 @@ export default function DevelopersPage() {
                         {developer.experience_years ? `${developer.experience_years}+ ans` : 'Expert'} d'expérience
                       </span>
                     </div>
-                    {developer.hourly_rate && (
-                      <span className="font-medium text-green-600 text-sm">
-                        {developer.hourly_rate}€/h
-                      </span>
-                    )}
+                    {/* 🆕 NOUVEAU: Affichage TJM amélioré */}
+                    <TJMDisplay 
+                      daily_rate={developer.daily_rate} 
+                      daily_rate_defined={developer.daily_rate_defined} 
+                    />
                   </div>
                   
                   <p className="text-gray-600 text-sm line-clamp-2">

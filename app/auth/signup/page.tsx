@@ -95,6 +95,8 @@ export default function SignupPage() {
       const fileExt = profilePhoto.name.split('.').pop()
       const fileName = `${userId}/profile.${fileExt}`
 
+      console.log('📤 Upload photo:', fileName)
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('profile-photos')
         .upload(fileName, profilePhoto, {
@@ -103,7 +105,7 @@ export default function SignupPage() {
         })
 
       if (uploadError) {
-        console.error('Erreur upload:', uploadError)
+        console.error('❌ Erreur upload:', uploadError)
         return null
       }
 
@@ -112,15 +114,38 @@ export default function SignupPage() {
         .from('profile-photos')
         .getPublicUrl(fileName)
 
+      console.log('✅ Photo uploadée:', publicUrl)
       return publicUrl
     } catch (error) {
-      console.error('Erreur lors de l\'upload:', error)
+      console.error('❌ Erreur lors de l\'upload:', error)
       return null
     }
   }
 
   const handleBasicSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validation des champs obligatoires
+    if (!basicData.email || !basicData.password || !basicData.fullName || !basicData.phone) {
+      setError('Tous les champs sont obligatoires')
+      return
+    }
+
+    // Validation email basique
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(basicData.email)) {
+      setError('Email non valide')
+      return
+    }
+
+    // Validation mot de passe
+    if (basicData.password.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caractères')
+      return
+    }
+
+    setError('')
+
     if (userType === 'developer') {
       setStep(2) // Passer aux infos développeur
     } else {
@@ -132,6 +157,14 @@ export default function SignupPage() {
     setLoading(true)
     setError('')
 
+    console.log('🔄 DEBUT INSCRIPTION')
+    console.log('📝 Données:', { 
+      email: basicData.email, 
+      password: basicData.password.length + ' caractères', 
+      fullName: basicData.fullName,
+      userType 
+    })
+
     try {
       // Validation photo obligatoire pour développeurs
       if (userType === 'developer' && !profilePhoto) {
@@ -140,57 +173,96 @@ export default function SignupPage() {
         return
       }
 
-      const { data, error } = await supabase.auth.signUp({
+      console.log('📤 Envoi requête Supabase...')
+
+      // Préparer les métadonnées utilisateur
+      const userMetadata = {
+        full_name: basicData.fullName,
+        phone: basicData.phone,
+        user_type: userType
+      }
+
+      // Ajouter les données développeur si applicable
+      if (userType === 'developer') {
+        Object.assign(userMetadata, {
+          title: devData.title,
+          bio: devData.bio,
+          experience_years: devData.experience_years ? parseInt(devData.experience_years) : 0,
+          hourly_rate: devData.hourly_rate ? parseInt(devData.hourly_rate) : 0,
+          skills: devData.skills,
+          specializations: devData.specializations,
+          github_url: devData.github_url,
+          linkedin_url: devData.linkedin_url,
+          portfolio_url: devData.portfolio_url
+        })
+      }
+
+      console.log('📊 Métadonnées utilisateur:', userMetadata)
+
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: basicData.email,
         password: basicData.password,
         options: {
-          data: {
-            full_name: basicData.fullName,
-            phone: basicData.phone,
-            user_type: userType,
-            // Données développeur si applicable
-            ...(userType === 'developer' && {
-              title: devData.title,
-              bio: devData.bio,
-              experience_years: parseInt(devData.experience_years) || 0,
-              hourly_rate: parseInt(devData.hourly_rate) || 0,
-              skills: devData.skills,
-              specializations: devData.specializations,
-              github_url: devData.github_url,
-              linkedin_url: devData.linkedin_url,
-              portfolio_url: devData.portfolio_url
-            })
-          }
+          data: userMetadata
         }
       })
 
-      if (error) {
-        setError(error.message)
+      console.log('📊 REPONSE SUPABASE:')
+      console.log('✅ Data:', authData)
+      console.log('❌ Error:', authError)
+
+      if (authError) {
+        console.log('🚨 ERREUR DETAILS:', authError.message, authError.status)
+        setError(authError.message)
         setLoading(false)
         return
       }
 
+      if (!authData.user) {
+        setError('Erreur lors de la création du compte')
+        setLoading(false)
+        return
+      }
+
+      console.log('✅ Utilisateur créé:', authData.user.id)
+
       // Upload photo si développeur
-      if (userType === 'developer' && data.user && profilePhoto) {
-        const photoUrl = await uploadProfilePhoto(data.user.id)
+      let photoUrl = null
+      if (userType === 'developer' && profilePhoto) {
+        console.log('📸 Upload de la photo...')
+        photoUrl = await uploadProfilePhoto(authData.user.id)
         
         if (photoUrl) {
-          // Mettre à jour le profil avec l'URL de la photo
+          console.log('🔄 Mise à jour du profil avec la photo...')
+          // Attendre un peu pour que le trigger ait créé le profil
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          
           const { error: updateError } = await supabase
             .from('profiles')
             .update({ profile_photo_url: photoUrl })
-            .eq('id', data.user.id)
+            .eq('id', authData.user.id)
 
           if (updateError) {
-            console.error('Erreur mise à jour photo:', updateError)
+            console.error('❌ Erreur mise à jour photo:', updateError)
+          } else {
+            console.log('✅ Photo mise à jour dans le profil')
           }
         }
       }
 
-      alert('Compte créé avec succès ! Bienvenue !')
+      console.log('🎉 Compte créé avec succès!')
+      
+      // Message de succès différencié
+      if (authData.user.email_confirmed_at) {
+        alert('Compte créé avec succès ! Vous pouvez vous connecter.')
+      } else {
+        alert('Compte créé avec succès ! Vérifiez votre email pour confirmer votre compte avant de vous connecter.')
+      }
+      
       router.push('/auth/login')
 
     } catch (err) {
+      console.error('❌ Erreur générale:', err)
       setError('Une erreur est survenue lors de la création du compte')
     } finally {
       setLoading(false)
@@ -343,6 +415,7 @@ export default function SignupPage() {
                       placeholder="••••••••"
                       className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
                   </div>
                 </div>
 

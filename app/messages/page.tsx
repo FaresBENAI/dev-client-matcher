@@ -317,9 +317,9 @@ export default function MessagesPage() {
                         : 'bg-white hover:bg-gray-50 border border-gray-200'
                     }`}
                   >
-                    {/* 🆕 NOUVEAU: Badge de messages non lus */}
+                    {/* 🆕 NOUVEAU: Badge de messages non lus - NOIR */}
                     {unreadInConversation > 0 && (
-                      <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold z-10">
+                      <div className="absolute -top-1 -right-1 bg-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold z-10">
                         {unreadInConversation > 9 ? '9+' : unreadInConversation}
                       </div>
                     )}

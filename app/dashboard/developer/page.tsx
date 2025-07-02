@@ -2,27 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { createClient } from '@supabase/supabase-js'
-import { 
-  User, 
-  Briefcase, 
-  CheckCircle, 
-  Clock, 
-  TrendingUp, 
-  AlertCircle,
-  XCircle,
-  Send,
-  Hourglass,
-  DollarSign,
-  BarChart3,
-  Play,
-  Trophy
-} from 'lucide-react'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { User, Briefcase, CheckCircle, Clock, TrendingUp, AlertCircle, XCircle, Send, Hourglass, DollarSign, BarChart3, Play, Trophy } from 'lucide-react'
+import { supabase } from '../../../lib/supabase'
 
 export default function AlignedDeveloperDashboard() {
   const [user, setUser] = useState<any>(null)
@@ -122,20 +103,20 @@ export default function AlignedDeveloperDashboard() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-black text-gray-900">Dashboard Développeur</h1>
-              <p className="text-gray-600 mt-1">Aperçu de vos candidatures et activités</p>
+              <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Dashboard Développeur</h1>
+              <p className="text-gray-600 mt-1 text-sm sm:text-base">Aperçu de vos candidatures et activités</p>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <Link href="/dashboard/developer/applications">
-                <button className="border-2 border-black text-black px-4 py-2 rounded-lg font-bold hover:bg-black hover:text-white transition-colors">
+                <button className="w-full sm:w-auto border-2 border-black text-black px-4 py-2 rounded-lg font-bold hover:bg-black hover:text-white transition-colors text-sm">
                   Mes candidatures
                 </button>
               </Link>
               <Link href="/projects">
-                <button className="bg-black text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-800 transition-colors">
+                <button className="w-full sm:w-auto bg-black text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-800 transition-colors text-sm">
                   Parcourir les projets
                 </button>
               </Link>
@@ -144,84 +125,84 @@ export default function AlignedDeveloperDashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         
-        {/* KPIs - Mis à jour */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* KPIs - Responsive Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           
           {/* Total des candidatures */}
-          <div className="group bg-white p-6 rounded-2xl shadow-sm border-2 border-gray-200 hover:border-black transition-all duration-300">
+          <div className="group bg-white p-4 sm:p-6 rounded-2xl shadow-sm border-2 border-gray-200 hover:border-black transition-all duration-300">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Send className="h-6 w-6 text-blue-600" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Send className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                 </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total candidatures</p>
-                <p className="text-2xl font-black text-gray-900">{stats.totalApplications}</p>
+              <div className="ml-3 sm:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Total candidatures</p>
+                <p className="text-xl sm:text-2xl font-black text-gray-900">{stats.totalApplications}</p>
               </div>
             </div>
           </div>
 
           {/* Candidatures en attente */}
-          <div className="group bg-white p-6 rounded-2xl shadow-sm border-2 border-gray-200 hover:border-black transition-all duration-300">
+          <div className="group bg-white p-4 sm:p-6 rounded-2xl shadow-sm border-2 border-gray-200 hover:border-black transition-all duration-300">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Hourglass className="h-6 w-6 text-yellow-600" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Hourglass className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600" />
                 </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">En attente</p>
-                <p className="text-2xl font-black text-gray-900">{stats.pendingApplications}</p>
+              <div className="ml-3 sm:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">En attente</p>
+                <p className="text-xl sm:text-2xl font-black text-gray-900">{stats.pendingApplications}</p>
               </div>
             </div>
           </div>
 
           {/* Projets en développement */}
-          <div className="group bg-white p-6 rounded-2xl shadow-sm border-2 border-gray-200 hover:border-black transition-all duration-300">
+          <div className="group bg-white p-4 sm:p-6 rounded-2xl shadow-sm border-2 border-gray-200 hover:border-black transition-all duration-300">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Play className="h-6 w-6 text-blue-600" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Play className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                 </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">En développement</p>
-                <p className="text-2xl font-black text-gray-900">{stats.inDevelopmentProjects}</p>
+              <div className="ml-3 sm:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">En développement</p>
+                <p className="text-xl sm:text-2xl font-black text-gray-900">{stats.inDevelopmentProjects}</p>
               </div>
             </div>
           </div>
 
           {/* Projets réalisés */}
-          <div className="group bg-white p-6 rounded-2xl shadow-sm border-2 border-gray-200 hover:border-black transition-all duration-300">
+          <div className="group bg-white p-4 sm:p-6 rounded-2xl shadow-sm border-2 border-gray-200 hover:border-black transition-all duration-300">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Trophy className="h-6 w-6 text-green-600" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                 </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Projets réalisés</p>
-                <p className="text-2xl font-black text-gray-900">{stats.completedProjects}</p>
+              <div className="ml-3 sm:ml-4 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Projets réalisés</p>
+                <p className="text-xl sm:text-2xl font-black text-gray-900">{stats.completedProjects}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Statistiques de performance - Mise à jour */}
+        {/* Statistiques de performance - Responsive */}
         {stats.totalApplications > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border-2 border-gray-200 p-6 mb-8">
-            <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center">
-              <BarChart3 className="h-6 w-6 mr-2" />
+          <div className="bg-white rounded-2xl shadow-sm border-2 border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+            <h2 className="text-lg sm:text-xl font-black text-gray-900 mb-4 flex items-center">
+              <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2" />
               Statistiques de performance
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
               {/* Taux de réalisation */}
               <div className="text-center">
-                <div className="text-3xl font-black text-green-600 mb-2">
+                <div className="text-2xl sm:text-3xl font-black text-green-600 mb-2">
                   {Math.round((stats.completedProjects / stats.totalApplications) * 100)}%
                 </div>
                 <p className="text-sm text-gray-600 font-medium">Taux de réalisation</p>
@@ -229,7 +210,7 @@ export default function AlignedDeveloperDashboard() {
               
               {/* Projets actifs */}
               <div className="text-center">
-                <div className="text-3xl font-black text-blue-600 mb-2">
+                <div className="text-2xl sm:text-3xl font-black text-blue-600 mb-2">
                   {Math.round((stats.inDevelopmentProjects / stats.totalApplications) * 100)}%
                 </div>
                 <p className="text-sm text-gray-600 font-medium">Projets en cours</p>
@@ -237,7 +218,7 @@ export default function AlignedDeveloperDashboard() {
               
               {/* En attente */}
               <div className="text-center">
-                <div className="text-3xl font-black text-yellow-600 mb-2">
+                <div className="text-2xl sm:text-3xl font-black text-yellow-600 mb-2">
                   {Math.round((stats.pendingApplications / stats.totalApplications) * 100)}%
                 </div>
                 <p className="text-sm text-gray-600 font-medium">En attente</p>
@@ -246,44 +227,44 @@ export default function AlignedDeveloperDashboard() {
           </div>
         )}
 
-        {/* Actions rapides */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Actions rapides - Responsive Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           
           {/* Navigation vers candidatures */}
-          <div className="group bg-white rounded-2xl shadow-sm border-2 border-gray-200 hover:border-black transition-all duration-300 p-6">
+          <div className="group bg-white rounded-2xl shadow-sm border-2 border-gray-200 hover:border-black transition-all duration-300 p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-black text-gray-900 mb-2">Mes candidatures</h3>
                 <p className="text-gray-600 text-sm mb-4">
                   Consultez le statut détaillé de toutes vos candidatures
                 </p>
                 <Link href="/dashboard/developer/applications">
-                  <button className="bg-black text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-800 transition-colors text-sm">
+                  <button className="w-full sm:w-auto bg-black text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-800 transition-colors text-sm">
                     Voir toutes mes candidatures
                   </button>
                 </Link>
               </div>
-              <div className="text-4xl group-hover:scale-110 transition-transform">
+              <div className="text-3xl sm:text-4xl group-hover:scale-110 transition-transform ml-4 flex-shrink-0">
                 📋
               </div>
             </div>
           </div>
 
           {/* Navigation vers projets */}
-          <div className="group bg-white rounded-2xl shadow-sm border-2 border-gray-200 hover:border-black transition-all duration-300 p-6">
+          <div className="group bg-white rounded-2xl shadow-sm border-2 border-gray-200 hover:border-black transition-all duration-300 p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-black text-gray-900 mb-2">Nouveaux projets</h3>
                 <p className="text-gray-600 text-sm mb-4">
                   Découvrez les derniers projets disponibles
                 </p>
                 <Link href="/projects">
-                  <button className="border-2 border-black text-black px-4 py-2 rounded-lg font-bold hover:bg-black hover:text-white transition-colors text-sm">
+                  <button className="w-full sm:w-auto border-2 border-black text-black px-4 py-2 rounded-lg font-bold hover:bg-black hover:text-white transition-colors text-sm">
                     Parcourir les projets
                   </button>
                 </Link>
               </div>
-              <div className="text-4xl group-hover:scale-110 transition-transform">
+              <div className="text-3xl sm:text-4xl group-hover:scale-110 transition-transform ml-4 flex-shrink-0">
                 🚀
               </div>
             </div>
@@ -292,16 +273,16 @@ export default function AlignedDeveloperDashboard() {
 
         {/* Message d'encouragement si pas de candidatures */}
         {stats.totalApplications === 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border-2 border-gray-200 p-8 text-center mt-8">
-            <div className="text-6xl mb-4">🎯</div>
+          <div className="bg-white rounded-2xl shadow-sm border-2 border-gray-200 p-6 sm:p-8 text-center mt-6 sm:mt-8">
+            <div className="text-4xl sm:text-6xl mb-4">🎯</div>
             <h3 className="text-xl font-black text-gray-900 mb-2">
               Prêt à décrocher votre premier projet ?
             </h3>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            <p className="text-gray-600 mb-6 max-w-md mx-auto text-sm sm:text-base">
               Explorez les projets disponibles et postulez à ceux qui correspondent à vos compétences !
             </p>
             <Link href="/projects">
-              <button className="bg-black text-white px-6 py-3 rounded-lg font-black hover:bg-gray-800 transition-colors">
+              <button className="w-full sm:w-auto bg-black text-white px-6 py-3 rounded-lg font-black hover:bg-gray-800 transition-colors">
                 Découvrir les projets
               </button>
             </Link>
@@ -310,16 +291,16 @@ export default function AlignedDeveloperDashboard() {
 
         {/* Section motivationnelle pour projets actifs */}
         {stats.inDevelopmentProjects > 0 && (
-          <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-2xl shadow-sm border-2 border-blue-200 p-8 text-center mt-8">
-            <div className="text-4xl mb-4">🚀</div>
+          <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-2xl shadow-sm border-2 border-blue-200 p-6 sm:p-8 text-center mt-6 sm:mt-8">
+            <div className="text-3xl sm:text-4xl mb-4">🚀</div>
             <h3 className="text-xl font-black text-gray-900 mb-2">
               {stats.inDevelopmentProjects} projet{stats.inDevelopmentProjects > 1 ? 's' : ''} en cours !
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 mb-4 text-sm sm:text-base">
               Continuez sur cette lancée ! Vos clients comptent sur vous.
             </p>
             <Link href="/messages">
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors">
+              <button className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors">
                 Accéder aux messages
               </button>
             </Link>
