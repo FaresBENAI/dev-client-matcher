@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase'
 import { Button } from '../../../../components/ui/button'
 import { Input } from '../../../../components/ui/input'
 import Link from 'next/link'

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '../components/ui/button'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase'
 import { useRouter, usePathname } from 'next/navigation'
 import DeveloperRateDisplay from '../components/DeveloperRateDisplay' // 🆕 NOUVEAU
 

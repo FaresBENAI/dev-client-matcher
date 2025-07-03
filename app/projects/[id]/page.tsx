@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Calendar, DollarSign, Clock, Zap, User, Building, Send, X, CheckCircle, AlertCircle, Edit, Settings } from 'lucide-react';
 

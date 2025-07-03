@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { User, Briefcase, CheckCircle, Clock, TrendingUp, AlertCircle, XCircle, Send, Hourglass, DollarSign, BarChart3, Play, Trophy } from 'lucide-react'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

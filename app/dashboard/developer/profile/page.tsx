@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase';
 import { Camera, Upload, X, Plus, Globe, Briefcase, MapPin, Calendar, Mail, User, Check, AlertCircle } from 'lucide-react';
 
 const supabase = createClient(

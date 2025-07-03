@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '../ui/button'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase'
 import { NotificationBadge } from '../ui/notification-badge'
 import { useUnreadMessages } from '../../hooks/useUnreadMessages'
 

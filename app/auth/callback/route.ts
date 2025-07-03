@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 
 const supabase = createClient(
