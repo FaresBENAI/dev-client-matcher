@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-export default function AuthCallback() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState('Traitement de l\'authentification...');
@@ -94,6 +94,53 @@ export default function AuthCallback() {
     handleAuthCallback();
   }, [router, searchParams]);
 
-  // Le reste du composant (écrans de chargement et d'erreur)
-  // ... (voir l'artefact complet)
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+          <div className="text-center">
+            <div className="text-red-500 text-6xl mb-4">❌</div>
+            <h1 className="text-xl font-bold text-gray-900 mb-2">Erreur d'authentification</h1>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={() => router.push('/auth/login')}
+              className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              Retour à la connexion
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Authentification en cours</h1>
+          <p className="text-gray-600">{status}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+            <h1 className="text-xl font-bold text-gray-900 mb-2">Chargement...</h1>
+            <p className="text-gray-600">Initialisation de l'authentification</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
+  );
 }

@@ -1,114 +1,212 @@
-// lib/supabase.ts
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { Database } from '@/types/supabase'
+// types/supabase.ts
+// Définition des types pour Supabase
 
-// Instance singleton pour éviter les connexions multiples
-let supabaseInstance: ReturnType<typeof createSupabaseClient<Database>> | null = null
+export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
-export function createClient() {
-  // Retourner l'instance existante si elle existe
-  if (supabaseInstance) return supabaseInstance
-  
-  // Créer une nouvelle instance avec optimisations
-  supabaseInstance = createSupabaseClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-      },
-      global: {
-        // Headers optimisés pour le cache
-        headers: {
-          'x-client-info': 'linkerai-saas',
-        },
-      },
-      db: {
-        // Optimisations de la base de données
-        schema: 'public',
-      },
-      // Réutiliser les connexions
-      realtime: {
-        params: {
-          eventsPerSecond: 2
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string
+          email: string
+          full_name: string | null
+          avatar_url: string | null
+          user_type: 'client' | 'developer'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          email: string
+          full_name?: string | null
+          avatar_url?: string | null
+          user_type: 'client' | 'developer'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          full_name?: string | null
+          avatar_url?: string | null
+          user_type?: 'client' | 'developer'
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      projects: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          budget_min: number | null
+          budget_max: number | null
+          project_type: string
+          complexity: string | null
+          status: string
+          client_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          budget_min?: number | null
+          budget_max?: number | null
+          project_type: string
+          complexity?: string | null
+          status?: string
+          client_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          budget_min?: number | null
+          budget_max?: number | null
+          project_type?: string
+          complexity?: string | null
+          status?: string
+          client_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      developer_profiles: {
+        Row: {
+          id: string
+          title: string | null
+          bio: string | null
+          skills: string[] | null
+          experience_years: number | null
+          hourly_rate: number | null
+          daily_rate: number | null
+          location: string | null
+          average_rating: number | null
+          total_ratings: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          title?: string | null
+          bio?: string | null
+          skills?: string[] | null
+          experience_years?: number | null
+          hourly_rate?: number | null
+          daily_rate?: number | null
+          location?: string | null
+          average_rating?: number | null
+          total_ratings?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string | null
+          bio?: string | null
+          skills?: string[] | null
+          experience_years?: number | null
+          hourly_rate?: number | null
+          daily_rate?: number | null
+          location?: string | null
+          average_rating?: number | null
+          total_ratings?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      conversations: {
+        Row: {
+          id: string
+          client_id: string
+          developer_id: string
+          project_id: string | null
+          subject: string | null
+          status: string
+          last_message_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          developer_id: string
+          project_id?: string | null
+          subject?: string | null
+          status?: string
+          last_message_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          developer_id?: string
+          project_id?: string | null
+          subject?: string | null
+          status?: string
+          last_message_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          sender_id: string
+          content: string
+          is_read: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          sender_id: string
+          content: string
+          is_read?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          sender_id?: string
+          content?: string
+          is_read?: boolean
+          created_at?: string
+        }
+      }
+      project_applications: {
+        Row: {
+          id: string
+          project_id: string
+          developer_id: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          developer_id: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          developer_id?: string
+          status?: string
+          created_at?: string
+          updated_at?: string
         }
       }
     }
-  )
-  
-  return supabaseInstance
-}
-
-// Version optimisée pour les requêtes avec jointures
-export async function fetchWithJoins(
-  table: string,
-  query: string,
-  filters?: { column: string; value: any }[]
-) {
-  const supabase = createClient()
-  let queryBuilder = supabase.from(table).select(query)
-  
-  // Appliquer les filtres
-  if (filters) {
-    filters.forEach(filter => {
-      queryBuilder = queryBuilder.eq(filter.column, filter.value)
-    })
   }
-  
-  const { data, error } = await queryBuilder
-  
-  if (error) {
-    console.error(`Error fetching ${table}:`, error)
-    throw error
-  }
-  
-  return data
-}
-
-// Helper pour l'authentification
-export async function getUser() {
-  const supabase = createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
-  
-  if (error || !user) {
-    return null
-  }
-  
-  return user
-}
-
-// Helper pour le profil utilisateur avec cache
-const profileCache = new Map()
-
-export async function getUserProfile(userId: string) {
-  // Vérifier le cache
-  if (profileCache.has(userId)) {
-    const cached = profileCache.get(userId)
-    if (Date.now() - cached.timestamp < 300000) { // 5 minutes
-      return cached.data
-    }
-  }
-  
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('profiles')
-    .select(`
-      *,
-      client_profiles(*),
-      developer_profiles(*)
-    `)
-    .eq('id', userId)
-    .single()
-  
-  if (!error && data) {
-    profileCache.set(userId, {
-      data,
-      timestamp: Date.now()
-    })
-  }
-  
-  return data
 }
