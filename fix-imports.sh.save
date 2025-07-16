@@ -1,0 +1,6 @@
+# Rendre le script exécutable
+chmod +x fix-all-imports.sh
+
+# Exécuter la correction complète
+./fix-all-imports.sh
+

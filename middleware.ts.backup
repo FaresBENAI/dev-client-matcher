@@ -1,0 +1,47 @@
+// middleware.ts
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next()
+  
+  // Skip les assets statiques pour la performance
+  const path = req.nextUrl.pathname
+  if (path.match(/\.(jpg|jpeg|png|gif|webp|svg|ico|css|js)$/)) {
+    return res
+  }
+
+  // Créer le client Supabase pour le middleware
+  const supabase = createMiddlewareClient({ req, res })
+
+  // Rafraîchir la session si elle existe
+  const { data: { session } } = await supabase.auth.getSession()
+
+  // Routes protégées
+  const protectedPaths = ['/dashboard', '/messages', '/projects/create']
+  const isProtectedPath = protectedPaths.some(p => path.startsWith(p))
+
+  if (isProtectedPath && !session) {
+    const redirectUrl = new URL('/auth/login', req.url)
+    redirectUrl.searchParams.set('redirectTo', path)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // Redirection après login
+  if (session && (path === '/auth/login' || path === '/auth/signup')) {
+    const userType = session.user.user_metadata?.user_type
+    const dashboardUrl = userType === 'client' 
+      ? '/dashboard/client' 
+      : '/dashboard/developer'
+    return NextResponse.redirect(new URL(dashboardUrl, req.url))
+  }
+
+  return res
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
+}
