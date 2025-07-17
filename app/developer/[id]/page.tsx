@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Calendar, Star, Mail, MessageCircle, Globe, Briefcase, DollarSign, Phone, User, Edit } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Star, Mail, MessageCircle, Globe, Briefcase, DollarSign, Phone, User, Edit, Clock } from 'lucide-react';
 import StarRating from '@/components/StarRating';
 import RatingModal from '@/components/rating/RatingModal';
 import ContactDeveloperModal from '@/components/messaging/contact-developer-modal';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // Interface pour les ratings
 interface Rating {
@@ -63,6 +64,7 @@ export default function DeveloperProfilePage() {
   const searchParams = useSearchParams();
   const developerId = params?.id as string;
   const projectId = searchParams?.get('project'); // Récupérer l'ID du projet depuis l'URL
+  const { t } = useLanguage();
 
   const checkCurrentUser = async () => {
     try {
@@ -264,7 +266,7 @@ export default function DeveloperProfilePage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement du profil...</p>
+          <p className="text-gray-600">{t('profile.developer.loading')}</p>
         </div>
       </div>
     );
@@ -274,9 +276,9 @@ export default function DeveloperProfilePage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || 'Profil non trouvé'}</p>
+          <p className="text-red-600 mb-4">{error || t('profile.developer.not.found')}</p>
           <Link href="/developers" className="text-black underline">
-            Retour aux développeurs
+            {t('profile.developer.back.to.developers')}
           </Link>
         </div>
       </div>
@@ -293,7 +295,7 @@ export default function DeveloperProfilePage() {
             className="flex items-center text-gray-600 hover:text-black transition-colors mb-4"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
-            Retour
+            {t('profile.developer.back')}
           </button>
           
           <div className="flex flex-col lg:flex-row lg:items-start gap-8">
@@ -339,7 +341,7 @@ export default function DeveloperProfilePage() {
                   {developer.hourly_rate && (
                     <div className="text-center mb-4">
                       <div className="text-2xl font-black text-black">
-                        {developer.hourly_rate}€/h
+                        {developer.hourly_rate}€{t('profile.developer.hourly.rate')}
                       </div>
                     </div>
                   )}
@@ -347,131 +349,106 @@ export default function DeveloperProfilePage() {
 
                 {/* Informations de contact */}
                 <div className="space-y-3 border-t border-gray-200 pt-6">
+                  <h3 className="font-black text-lg text-black mb-4">{t('profile.developer.contact.info')}</h3>
+
                   {developer.location && (
                     <div className="flex items-center text-gray-600">
-                      <MapPin className="h-4 w-4 mr-3 flex-shrink-0" />
-                      <span className="text-sm">{developer.location}</span>
+                      <MapPin className="h-4 w-4 mr-3 text-gray-400" />
+                      <span>{developer.location}</span>
                     </div>
                   )}
-                  
-                  {developer.email && (
-                    <div className="flex items-center text-gray-600">
-                      <Mail className="h-4 w-4 mr-3 flex-shrink-0" />
-                      <span className="text-sm">{developer.email}</span>
-                    </div>
-                  )}
-                  
+
+                  <div className="flex items-center text-gray-600">
+                    <Mail className="h-4 w-4 mr-3 text-gray-400" />
+                    <span>{developer.email}</span>
+                  </div>
+
                   {developer.phone && (
                     <div className="flex items-center text-gray-600">
-                      <Phone className="h-4 w-4 mr-3 flex-shrink-0" />
-                      <span className="text-sm">{developer.phone}</span>
+                      <Phone className="h-4 w-4 mr-3 text-gray-400" />
+                      <span>{developer.phone}</span>
+                    </div>
+                  )}
+
+                  {(developer.portfolio_url || developer.website_url) && (
+                    <div className="flex items-center text-gray-600">
+                      <Globe className="h-4 w-4 mr-3 text-gray-400" />
+                      <a 
+                        href={developer.portfolio_url || developer.website_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-black hover:underline"
+                      >
+                        {t('profile.developer.website')}
+                      </a>
                     </div>
                   )}
 
                   {developer.years_of_experience && (
                     <div className="flex items-center text-gray-600">
-                      <Briefcase className="h-4 w-4 mr-3 flex-shrink-0" />
-                      <span className="text-sm">{developer.years_of_experience} ans d'expérience</span>
+                      <Briefcase className="h-4 w-4 mr-3 text-gray-400" />
+                      <span>
+                        {developer.years_of_experience} {t('profile.developer.experience.years')}
+                      </span>
                     </div>
                   )}
 
-                  {developer.created_at && (
+                  {developer.availability && (
                     <div className="flex items-center text-gray-600">
-                      <Calendar className="h-4 w-4 mr-3 flex-shrink-0" />
-                      <span className="text-sm">
-                        Membre depuis {new Date(developer.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                      <div className={`w-3 h-3 rounded-full mr-3 ${
+                        developer.availability === 'available' ? 'bg-green-500' : 
+                        developer.availability === 'busy' ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}></div>
+                      <span>
+                        {developer.availability === 'available' ? t('profile.developer.availability.available') : 
+                         developer.availability === 'busy' ? t('profile.developer.availability.busy') : 
+                         t('profile.developer.availability.unavailable')}
                       </span>
+                    </div>
+                  )}
+
+                  {developer.timezone && (
+                    <div className="flex items-center text-gray-600">
+                      <Clock className="h-4 w-4 mr-3 text-gray-400" />
+                      <span>{developer.timezone}</span>
                     </div>
                   )}
                 </div>
 
-                {/* Liens externes */}
-                {(developer.website_url || developer.github_url || developer.linkedin_url || developer.portfolio_url) && (
-                  <div className="border-t border-gray-200 pt-6 mt-6">
-                    <h3 className="font-bold text-black mb-4">Liens</h3>
-                    <div className="space-y-2">
-                      {developer.website_url && (
-                        <a 
-                          href={developer.website_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center text-black hover:text-gray-600 transition-colors"
-                        >
-                          <Globe className="h-4 w-4 mr-3" />
-                          <span className="text-sm">Site web</span>
-                        </a>
-                      )}
+                {/* Actions */}
+                <div className="mt-6 space-y-3">
+                  <h3 className="font-black text-lg text-black mb-4">{t('profile.developer.actions')}</h3>
+                  
+                  {!isOwnProfile ? (
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => setShowContactModal(true)}
+                        className="w-full bg-black text-white py-3 px-6 rounded-lg font-bold hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <MessageCircle className="h-5 w-5" />
+                        {t('profile.developer.contact')}
+                      </button>
                       
-                      {developer.github_url && (
-                        <a 
-                          href={developer.github_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center text-black hover:text-gray-600 transition-colors"
+                      {currentUser && (
+                        <button
+                          onClick={() => setShowRatingModal(true)}
+                          className="w-full border-2 border-gray-300 text-gray-700 py-3 px-6 rounded-lg font-bold hover:border-black hover:text-black transition-colors flex items-center justify-center gap-2"
                         >
-                          <Globe className="h-4 w-4 mr-3" />
-                          <span className="text-sm">GitHub</span>
-                        </a>
-                      )}
-                      
-                      {developer.linkedin_url && (
-                        <a 
-                          href={developer.linkedin_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center text-black hover:text-gray-600 transition-colors"
-                        >
-                          <Globe className="h-4 w-4 mr-3" />
-                          <span className="text-sm">LinkedIn</span>
-                        </a>
-                      )}
-                      
-                      {developer.portfolio_url && (
-                        <a 
-                          href={developer.portfolio_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center text-black hover:text-gray-600 transition-colors"
-                        >
-                          <Globe className="h-4 w-4 mr-3" />
-                          <span className="text-sm">Portfolio</span>
-                        </a>
+                          <Star className="h-5 w-5" />
+                          {t('profile.developer.rate')}
+                        </button>
                       )}
                     </div>
-                  </div>
-                )}
-
-                {/* Actions */}
-                {isOwnProfile ? (
-                  <div className="border-t border-gray-200 pt-6 mt-6">
-                    <Link 
+                  ) : (
+                    <Link
                       href="/dashboard/developer/profile"
-                      className="w-full bg-black text-white py-3 px-4 rounded-lg font-bold hover:bg-gray-800 transition-colors flex items-center justify-center"
+                      className="w-full bg-black text-white py-3 px-6 rounded-lg font-bold hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
                     >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Modifier le profil
+                      <Edit className="h-5 w-5" />
+                      {t('profile.developer.edit.profile')}
                     </Link>
-                  </div>
-                ) : currentUser && (
-                  <div className="border-t border-gray-200 pt-6 mt-6 space-y-3">
-                    <button
-                      onClick={() => setShowContactModal(true)}
-                      className="w-full bg-black text-white py-3 px-4 rounded-lg font-bold hover:bg-gray-800 transition-colors flex items-center justify-center"
-                    >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      {projectId ? 'Postuler au projet' : 'Contacter'}
-                    </button>
-                    
-                    {/* Bouton Noter */}
-                    <button
-                      onClick={() => setShowRatingModal(true)}
-                      className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-bold hover:bg-blue-700 transition-colors flex items-center justify-center"
-                    >
-                      <Star className="h-4 w-4 mr-2" />
-                      Noter ce développeur
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
 
@@ -479,21 +456,21 @@ export default function DeveloperProfilePage() {
             <div className="lg:w-2/3 space-y-8">
               {/* À propos */}
               <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
-                <h2 className="text-xl font-black text-black mb-4">À propos</h2>
+                <h2 className="text-xl font-black text-black mb-4">{t('profile.developer.about')}</h2>
                 {developer.bio ? (
                   <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
                     {developer.bio}
                   </p>
                 ) : (
                   <p className="text-gray-500 italic">
-                    Aucune description disponible pour le moment.
+                    {t('profile.developer.no.description')}
                   </p>
                 )}
               </div>
 
               {/* Compétences */}
               <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
-                <h2 className="text-xl font-black text-black mb-6">Compétences</h2>
+                <h2 className="text-xl font-black text-black mb-6">{t('profile.developer.skills')}</h2>
                 {developer.skills && developer.skills.length > 0 ? (
                   <div className="flex flex-wrap gap-3">
                     {developer.skills.map((skill, index) => (
@@ -507,15 +484,15 @@ export default function DeveloperProfilePage() {
                   </div>
                 ) : (
                   <p className="text-gray-500 italic">
-                    Aucune compétence renseignée pour le moment.
+                    {t('profile.developer.no.skills')}
                   </p>
                 )}
               </div>
 
               {/* Langues */}
-              {developer.languages && developer.languages.length > 0 && (
-                <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
-                  <h2 className="text-xl font-black text-black mb-6">Langues</h2>
+              <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
+                <h2 className="text-xl font-black text-black mb-6">{t('profile.developer.languages')}</h2>
+                {developer.languages && developer.languages.length > 0 ? (
                   <div className="flex flex-wrap gap-3">
                     {developer.languages.map((language, index) => (
                       <span 
@@ -526,152 +503,142 @@ export default function DeveloperProfilePage() {
                       </span>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="text-gray-500 italic">
+                    {t('profile.developer.no.languages')}
+                  </p>
+                )}
+              </div>
 
-              {/* Disponibilité */}
-              {(developer.availability || developer.timezone) && (
+              {/* Portfolio & Liens */}
+              {(developer.portfolio_url || developer.github_url || developer.linkedin_url || developer.website_url) && (
                 <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
-                  <h2 className="text-xl font-black text-black mb-6">Disponibilité</h2>
-                  <div className="space-y-3">
-                    {developer.availability && (
-                      <div>
-                        <span className="font-semibold text-gray-700">Statut : </span>
-                        <span className="text-gray-600">{developer.availability}</span>
-                      </div>
+                  <h2 className="text-xl font-black text-black mb-6">{t('profile.developer.portfolio')}</h2>
+                  <div className="space-y-4">
+                    {developer.github_url && (
+                      <a 
+                        href={developer.github_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center text-gray-600 hover:text-black transition-colors"
+                      >
+                        <Globe className="h-5 w-5 mr-3" />
+                        {t('profile.developer.portfolio.github')}
+                      </a>
                     )}
-                    {developer.timezone && (
-                      <div>
-                        <span className="font-semibold text-gray-700">Fuseau horaire : </span>
-                        <span className="text-gray-600">{developer.timezone}</span>
-                      </div>
+                    
+                    {developer.linkedin_url && (
+                      <a 
+                        href={developer.linkedin_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center text-gray-600 hover:text-black transition-colors"
+                      >
+                        <Globe className="h-5 w-5 mr-3" />
+                        {t('profile.developer.portfolio.linkedin')}
+                      </a>
+                    )}
+                    
+                    {(developer.portfolio_url || developer.website_url) && (
+                      <a 
+                        href={developer.portfolio_url || developer.website_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center text-gray-600 hover:text-black transition-colors"
+                      >
+                        <Globe className="h-5 w-5 mr-3" />
+                        {t('profile.developer.portfolio.website')}
+                      </a>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Section des avis clients */}
-              {ratings.length > 0 && (
-                <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
-                  <h2 className="text-xl font-black text-black mb-6">
-                    Avis clients ({ratings.length})
-                  </h2>
-                  
-                  {loadingRatings ? (
-                    <p className="text-gray-500">Chargement des avis...</p>
-                  ) : (
-                    <div className="space-y-6">
+              {/* Avis & Évaluations */}
+              <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
+                <h2 className="text-xl font-black text-black mb-6">{t('profile.developer.ratings.reviews')}</h2>
+                
+                {developer.average_rating && developer.total_ratings && developer.total_ratings > 0 ? (
+                  <div className="mb-6">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <div className="text-3xl font-black text-black">
+                        {developer.average_rating.toFixed(1)}
+                      </div>
+                      <div>
+                        <StarRating rating={developer.average_rating} />
+                        <p className="text-gray-600 text-sm">
+                          {developer.total_ratings} {t('profile.developer.ratings.total')}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Liste des avis */}
+                    <div className="space-y-4">
                       {ratings.map((rating) => (
-                        <div key={rating.id} className="border-b border-gray-200 pb-6 last:border-b-0 last:pb-0">
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <div className="flex items-center space-x-2 mb-1">
-                                <span className="font-semibold text-gray-900">
-                                  {rating.client_name}
-                                </span>
-                                <div className="flex">
-                                  {[1, 2, 3, 4, 5].map((star) => (
-                                    <Star
-                                      key={star}
-                                      className={`h-4 w-4 ${
-                                        star <= rating.rating
-                                          ? 'text-yellow-400 fill-current'
-                                          : 'text-gray-300'
-                                      }`}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                              {rating.project_title && (
-                                <p className="text-sm text-gray-500 mb-2">
-                                  Projet: {rating.project_title}
-                                </p>
-                              )}
+                        <div key={rating.id} className="border-l-4 border-gray-200 pl-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <StarRating rating={rating.rating} />
+                              <span className="text-sm text-gray-600">
+                                {t('profile.developer.ratings.by')} {rating.client_name || t('profile.developer.ratings.anonymous')}
+                              </span>
                             </div>
-                            <span className="text-sm text-gray-400">
-                              {new Date(rating.created_at).toLocaleDateString('fr-FR')}
+                            <span className="text-xs text-gray-400">
+                              {new Date(rating.created_at).toLocaleDateString()}
                             </span>
                           </div>
                           
-                          {rating.comment && (
-                            <p className="text-gray-700 leading-relaxed">
-                              "{rating.comment}"
+                          {rating.project_title && (
+                            <p className="text-sm font-semibold text-gray-700 mb-1">
+                              {t('profile.developer.ratings.project')}: {rating.project_title}
                             </p>
+                          )}
+                          
+                          {rating.comment && (
+                            <p className="text-gray-700">{rating.comment}</p>
                           )}
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* Call to action */}
-              {!isOwnProfile && currentUser && (
-                <div className="bg-black text-white p-8 rounded-2xl hover:bg-gray-800 transition-all duration-300">
-                  <h3 className="text-lg font-black mb-3">
-                    {projectId ? 'Prêt à postuler ?' : 'Prêt à collaborer ?'}
-                  </h3>
-                  <p className="text-gray-300 mb-6">
-                    {projectId 
-                      ? `Postulez maintenant pour travailler avec ${developer.full_name} sur ce projet.`
-                      : `Contactez ${developer.full_name} pour discuter de votre projet et démarrer votre collaboration.`
-                    }
-                  </p>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => setShowContactModal(true)}
-                      className="bg-white text-black px-6 py-3 rounded-lg font-bold hover:bg-gray-100 transition-colors flex-1"
-                    >
-                      {projectId ? 'Postuler maintenant' : 'Envoyer un message'}
-                    </button>
-                    <div className="text-center">
-                      {developer.hourly_rate ? (
-                        <div>
-                          <div className="text-3xl font-black text-white mb-2">
-                            {developer.hourly_rate}€
-                          </div>
-                          <div className="text-gray-300 text-sm">
-                            par heure
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-gray-300 text-sm">
-                          Tarif sur demande
-                        </div>
-                      )}
-                    </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-8">
+                    <Star className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                    <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                      {t('profile.developer.ratings.no.reviews')}
+                    </h3>
+                    <p className="text-gray-500">
+                      {t('profile.developer.ratings.first.review')}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Modal de contact/candidature */}
-      {showContactModal && (
+      {/* Modal de contact */}
+      {showContactModal && developer && (
         <ContactDeveloperModal
           developer={developer}
-          projectId={projectId || undefined}
           onClose={() => setShowContactModal(false)}
-          onSuccess={() => {
-            console.log('✅ Candidature réussie!');
-            // Optionnel: rediriger vers les messages
-            // router.push('/messages');
-          }}
+          projectId={projectId}
         />
       )}
 
       {/* Modal de notation */}
-      {showRatingModal && (
+      {showRatingModal && developer && currentUser && (
         <RatingModal
           isOpen={showRatingModal}
           onClose={() => setShowRatingModal(false)}
           developerId={developer.id}
           developerName={developer.full_name}
+          projectTitle={projectId ? "Projet" : undefined}
           currentUser={currentUser}
           onRatingSubmitted={() => {
-            loadDeveloperProfile();
+            setShowRatingModal(false);
+            // Recharger les ratings
             loadDeveloperRatings();
           }}
         />

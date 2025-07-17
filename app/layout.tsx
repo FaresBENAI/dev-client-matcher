@@ -2,7 +2,8 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import UnifiedNavbar from '@/components/layout/unified-navbar'  // ← Changez ici
+import UnifiedNavbar from '@/components/layout/unified-navbar'
+import { LanguageProvider } from '@/contexts/LanguageContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,8 +20,10 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
-        <UnifiedNavbar />  {/* ← Et ici */}
-        {children}
+        <LanguageProvider>
+          <UnifiedNavbar />
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   )

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Button } from '../components/ui/button'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 // 🔧 AJOUT: Langues disponibles avec leurs drapeaux
 const LANGUAGES = {
@@ -65,26 +66,27 @@ export default function HomePage() {
   const [realDevelopers, setRealDevelopers] = useState<any[]>([])
   const router = useRouter()
   const pathname = usePathname()
+  const { t } = useLanguage()
 
   const testimonials = [
     {
       name: "Marie Dubois",
       role: "CEO, TechStartup", 
-      content: "Grâce à LinkerAI, j'ai trouvé le développeur parfait. ROI de 300% en 3 mois !",
+      content: t('home.testimonial.1.content') || "Grâce à LinkerAI, j'ai trouvé le développeur parfait. ROI de 300% en 3 mois !",
       avatar: "M",
       rating: 5
     },
     {
       name: "Jean Martin",
       role: "Développeur IA",
-      content: "Une plateforme qui comprend vraiment les besoins en IA. Des clients qualifiés !",
+      content: t('home.testimonial.2.content') || "Une plateforme qui comprend vraiment les besoins en IA. Des clients qualifiés !",
       avatar: "J",
       rating: 5
     },
     {
       name: "Lucas Chen",
       role: "Directeur Innovation",
-      content: "Interface intuitive, développeurs de qualité. Notre chatbot IA dépasse nos attentes !",
+      content: t('home.testimonial.3.content') || "Interface intuitive, développeurs de qualité. Notre chatbot IA dépasse nos attentes !",
       avatar: "L",
       rating: 5
     }
@@ -108,12 +110,12 @@ export default function HomePage() {
     const diffInMs = now.getTime() - date.getTime();
     const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
     
-    if (diffInDays === 0) return "aujourd'hui";
-    if (diffInDays === 1) return "1j";
-    if (diffInDays < 7) return `${diffInDays}j`;
+    if (diffInDays === 0) return t('time.today');
+    if (diffInDays === 1) return `1${t('time.day')}`;
+    if (diffInDays < 7) return `${diffInDays}${t('time.day')}`;
     const diffInWeeks = Math.floor(diffInDays / 7);
-    if (diffInWeeks === 1) return "1s";
-    return `${diffInWeeks}s`;
+    if (diffInWeeks === 1) return `1${t('time.week')}`;
+    return `${diffInWeeks}${t('time.week')}`;
   };
 
   // 🔧 AJOUT: Fonction pour vérifier l'état de connexion
@@ -341,7 +343,7 @@ export default function HomePage() {
         <Link href={dashboardPath}>
           <Button className="group relative bg-white text-black hover:bg-gray-100 border-4 border-white px-6 py-3 text-sm font-black rounded-lg transition-all duration-500 hover:scale-105 shadow-2xl">
             <span className="relative z-10 flex items-center text-black font-black">
-              Mon Dashboard
+              {t('nav.dashboard')}
               <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1 text-black">→</span>
             </span>
           </Button>
@@ -353,7 +355,7 @@ export default function HomePage() {
         <Link href="/auth/signup">
           <Button className="group relative bg-white text-black hover:bg-gray-100 border-4 border-white px-6 py-3 text-sm font-black rounded-lg transition-all duration-500 hover:scale-105 shadow-2xl">
             <span className="relative z-10 flex items-center text-black font-black">
-              Commencer gratuitement
+              {t('home.cta.start.free')}
               <span className="ml-2 transition-transform duration-300 group-hover:translate-x-1 text-black">→</span>
             </span>
           </Button>
@@ -367,14 +369,14 @@ export default function HomePage() {
       // Utilisateur connecté
       const dashboardPath = userProfile.user_type === 'client' ? '/dashboard/client' : '/dashboard/developer'
       const exploreLink = userProfile.user_type === 'client' ? '/developers' : '/projects'
-      const exploreText = userProfile.user_type === 'client' ? 'Explorer les talents' : 'Voir les projets'
+      const exploreText = userProfile.user_type === 'client' ? t('home.cta.explore.talents') : t('home.cta.see.projects')
       
       return (
         <div className="flex flex-col sm:flex-row gap-6 justify-center">
           <Link href={dashboardPath}>
             <Button className="group relative bg-white text-black hover:bg-gray-100 font-black px-10 py-4 text-lg rounded-2xl border-4 border-white overflow-hidden transition-all duration-500 hover:scale-110 shadow-2xl">
               <span className="relative z-10 flex items-center justify-center text-black">
-                Mon Dashboard
+                {t('nav.dashboard')}
                 <span className="ml-3 transition-transform duration-300 group-hover:translate-x-2 text-black">→</span>
               </span>
             </Button>
@@ -397,7 +399,7 @@ export default function HomePage() {
           <Link href="/auth/signup">
             <Button className="group relative bg-white text-black hover:bg-gray-100 font-black px-10 py-4 text-lg rounded-2xl border-4 border-white overflow-hidden transition-all duration-500 hover:scale-110 shadow-2xl">
               <span className="relative z-10 flex items-center justify-center text-black">
-                Créer mon compte gratuitement
+                {t('home.cta.create.account.free')}
                 <span className="ml-3 transition-transform duration-300 group-hover:translate-x-2 text-black">→</span>
               </span>
             </Button>
@@ -406,7 +408,7 @@ export default function HomePage() {
           <Link href="/developers">
             <Button className="group relative border-4 border-white text-white hover:bg-white hover:text-black px-10 py-4 text-lg rounded-2xl bg-transparent font-black overflow-hidden transition-all duration-500 hover:scale-110 shadow-2xl">
               <span className="relative z-10 flex items-center justify-center">
-                Explorer les talents
+                {t('home.cta.explore.talents')}
                 <span className="ml-3 transition-transform duration-300 group-hover:translate-x-2">→</span>
               </span>
             </Button>
@@ -424,7 +426,7 @@ export default function HomePage() {
         return (
           <Link href="/developers">
             <Button className="bg-white text-black hover:bg-gray-100 font-black px-8 py-4 text-lg rounded-2xl border-2 border-white transform hover:scale-105 transition-all duration-300 shadow-2xl">
-              <span className="text-black font-black">Explorer les développeurs</span>
+              <span className="text-black font-black">{t('home.cta.explore.developers')}</span>
             </Button>
           </Link>
         )
@@ -432,7 +434,7 @@ export default function HomePage() {
         return (
           <Link href="/projects">
             <Button className="bg-white text-black hover:bg-gray-100 font-black px-8 py-4 text-lg rounded-2xl border-2 border-white transform hover:scale-105 transition-all duration-300 shadow-2xl">
-              <span className="text-black font-black">Voir les projets</span>
+              <span className="text-black font-black">{t('home.cta.see.projects')}</span>
             </Button>
           </Link>
         )
@@ -442,7 +444,7 @@ export default function HomePage() {
       return (
         <Link href="/auth/signup">
           <Button className="bg-white text-black hover:bg-gray-100 font-black px-8 py-4 text-lg rounded-2xl border-2 border-white transform hover:scale-105 transition-all duration-300 shadow-2xl">
-            <span className="text-black font-black">Commencer maintenant</span>
+            <span className="text-black font-black">{t('home.cta.start.now')}</span>
           </Button>
         </Link>
       )
@@ -490,24 +492,24 @@ export default function HomePage() {
           <div className="mb-4">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-black mb-2 text-white leading-tight tracking-tight">
               <span className="block text-white">
-                L'AUTOMATISATION
+                {t('home.title.1')}
               </span>
               <span className="block text-gray-300">
-                COMMENCE ICI
+                {t('home.title.2')}
               </span>
             </h1>
             
             <p className="text-xs sm:text-sm text-gray-300 max-w-lg mx-auto font-light leading-relaxed">
-              Connectez-vous avec les meilleurs développeurs spécialisés en IA et automatisation
+              {t('home.subtitle')}
             </p>
           </div>
           
           {/* Stats mini */}
           <div className="grid grid-cols-3 gap-2 max-w-sm mx-auto mb-4">
             {[
-              { value: animatedStats.totalDevelopers, label: 'Devs' },
-              { value: animatedStats.totalProjects, label: 'Projets' },
-              { value: animatedStats.completedProjects, label: 'Clients' }
+              { value: animatedStats.totalDevelopers, label: t('home.stats.devs') },
+              { value: animatedStats.totalProjects, label: t('home.stats.projects') },
+              { value: animatedStats.completedProjects, label: t('home.stats.clients') }
             ].map((stat, index) => (
               <div key={index} className="group relative">
                 <div className="bg-white bg-opacity-10 backdrop-blur rounded p-3 border border-white border-opacity-20 hover:border-opacity-40 transition-all duration-500 hover:scale-105">
@@ -551,11 +553,11 @@ export default function HomePage() {
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-2xl sm:text-3xl font-black text-black mb-3 relative">
-                  Projets en vedette
+                  {t('home.featured.projects')}
                   <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-16 h-0.5 bg-black"></div>
                 </h2>
                 <p className="text-gray-600 font-medium">
-                  Découvrez les projets innovants disponibles
+                  {t('home.featured.projects.desc')}
                 </p>
               </div>
 
@@ -568,7 +570,7 @@ export default function HomePage() {
                           {getTypeIcon(project.project_type)} {project.project_type || 'Projet'}
                         </span>
                         <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
-                          ● {project.status || 'Ouvert'}
+                          ● {project.status || t('status.open')}
                         </span>
                       </div>
                       
@@ -584,19 +586,19 @@ export default function HomePage() {
                         <div className="text-black font-bold">
                           {project.budget_min && project.budget_max ? 
                             `${project.budget_min}€ - ${project.budget_max}€` : 
-                            'Budget à négocier'
+                            t('home.budget.negotiate')
                           }
                         </div>
-                        <div className="text-gray-400">il y a {getTimeAgo(project.created_at)}</div>
+                        <div className="text-gray-400">{t('time.ago')} {getTimeAgo(project.created_at)}</div>
                       </div>
                     </div>
                   </Link>
                 )) : (
                   // Fallback si pas de projets
                   [
-                    { title: "Assistant IA pour e-commerce", desc: "Développer un chatbot intelligent", budget: "3 000€ - 5 000€", tag: "Chatbot IA", time: "2j" },
-                    { title: "Automatisation workflow RH", desc: "Automatiser les processus", budget: "2 500€ - 4 000€", tag: "Automatisation", time: "1s" },
-                    { title: "Analyse prédictive marketing", desc: "Créer des modèles d'analyse", budget: "5 000€ - 8 000€", tag: "Data Science", time: "5j" }
+                    { title: t('home.example.project.1.title'), desc: t('home.example.project.1.desc'), budget: "3 000€ - 5 000€", tag: "Chatbot IA", time: "2j" },
+                    { title: t('home.example.project.2.title'), desc: t('home.example.project.2.desc'), budget: "2 500€ - 4 000€", tag: "Automatisation", time: "1s" },
+                    { title: t('home.example.project.3.title'), desc: t('home.example.project.3.desc'), budget: "5 000€ - 8 000€", tag: "Data Science", time: "5j" }
                   ].map((project, index) => (
                     <Link key={index} href="/projects" className="block">
                       <div className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer">
@@ -605,7 +607,7 @@ export default function HomePage() {
                             {project.tag}
                           </span>
                           <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
-                            ● Ouvert
+                            ● {t('status.open')}
                           </span>
                         </div>
                         
@@ -619,7 +621,7 @@ export default function HomePage() {
                         
                         <div className="flex justify-between items-center text-xs">
                           <div className="text-black font-bold">{project.budget}</div>
-                          <div className="text-gray-400">il y a {project.time}</div>
+                          <div className="text-gray-400">{t('time.ago')} {project.time}</div>
                         </div>
                       </div>
                     </Link>
@@ -630,7 +632,7 @@ export default function HomePage() {
               <div className="text-center pt-4">
                 <Link href="/projects">
                   <Button className="bg-black text-white hover:bg-gray-800 font-black px-6 py-3 rounded-xl border-2 border-black transform hover:scale-105 transition-all duration-300">
-                    Voir tous les projets
+                    {t('home.see.all.projects')}
                   </Button>
                 </Link>
               </div>
@@ -640,11 +642,11 @@ export default function HomePage() {
             <div className="space-y-6">
               <div className="text-center">
                 <h2 className="text-2xl sm:text-3xl font-black text-black mb-3 relative">
-                  Nos développeurs experts
+                  {t('home.expert.developers')}
                   <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-16 h-0.5 bg-black"></div>
                 </h2>
                 <p className="text-gray-600 font-medium">
-                  Rencontrez les talents qui transforment les idées
+                  {t('home.expert.developers.desc')}
                 </p>
               </div>
 
@@ -671,7 +673,7 @@ export default function HomePage() {
                         <div className="flex-1 min-w-0">
                           {/* Nom avec drapeaux des langues */}
                           <div className="flex items-center gap-2 mb-0.5">
-                            <h3 className="text-lg font-black text-black">{dev.full_name || 'Développeur'}</h3>
+                            <h3 className="text-lg font-black text-black">{dev.full_name || t('home.developer')}</h3>
                             {/* Drapeaux des langues parlées */}
                             {dev.languages && dev.languages.length > 0 && (
                               <div className="flex gap-1">
@@ -681,7 +683,7 @@ export default function HomePage() {
                                   </span>
                                 ))}
                                 {dev.languages.length > 2 && (
-                                  <span className="text-xs text-gray-500" title={`+${dev.languages.length - 2} autres langues`}>
+                                  <span className="text-xs text-gray-500" title={`+${dev.languages.length - 2} ${t('home.other.languages')}`}>
                                     +{dev.languages.length - 2}
                                   </span>
                                 )}
@@ -692,13 +694,13 @@ export default function HomePage() {
                           {/* Affichage de la note */}
                           <div className="flex items-center justify-between mb-2">
                             <p className="text-gray-600 text-xs font-medium">
-                              {dev.experience_years ? `${dev.experience_years}+ ans` : 'Expert'} d'expérience
+                              {dev.experience_years ? `${dev.experience_years}+ ${t('home.years.experience')}` : t('developers.expert')}
                             </p>
                             <StarRating rating={dev.average_rating} totalRatings={dev.total_ratings} />
                           </div>
                           
                           <div className="mb-3">
-                            <p className="text-gray-600 text-sm flex-1 truncate">{dev.bio || 'Développeur spécialisé'}</p>
+                            <p className="text-gray-600 text-sm flex-1 truncate">{dev.bio || t('home.developer.specialized')}</p>
                           </div>
                           
                           <div className="flex gap-1 flex-wrap">
@@ -724,9 +726,9 @@ export default function HomePage() {
                 )) : (
                   // Fallback si pas de développeurs
                   [
-                    { name: "Alexandre Dubois", exp: "5+ ans", desc: "Spécialiste IA conversationnelle", avatar: "A", skills: ["Python", "IA"], rating: 4.8, reviews: 12 },
-                    { name: "Sophie Martin", exp: "7+ ans", desc: "Experte Machine Learning", avatar: "S", skills: ["TensorFlow", "ML"], rating: 4.9, reviews: 18 },
-                    { name: "Lisa Chen", exp: "6+ ans", desc: "Experte Computer Vision", avatar: "L", skills: ["PyTorch", "Vision"], rating: 4.7, reviews: 9 }
+                    { name: "Alexandre Dubois", exp: "5+ ans", desc: t('home.example.dev.1.desc'), avatar: "A", skills: ["Python", "IA"], rating: 4.8, reviews: 12 },
+                    { name: "Sophie Martin", exp: "7+ ans", desc: t('home.example.dev.2.desc'), avatar: "S", skills: ["TensorFlow", "ML"], rating: 4.9, reviews: 18 },
+                    { name: "Lisa Chen", exp: "6+ ans", desc: t('home.example.dev.3.desc'), avatar: "L", skills: ["PyTorch", "Vision"], rating: 4.7, reviews: 9 }
                   ].map((dev, index) => (
                     <Link key={index} href="/developers" className="block">
                       <div className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer">
@@ -738,7 +740,7 @@ export default function HomePage() {
                             <h3 className="text-lg font-black text-black mb-0.5">{dev.name}</h3>
                             
                             <div className="flex items-center justify-between mb-2">
-                              <p className="text-gray-600 text-xs font-medium">{dev.exp} d'expérience</p>
+                              <p className="text-gray-600 text-xs font-medium">{dev.exp} {t('home.experience')}</p>
                               <StarRating rating={dev.rating} totalRatings={dev.reviews} />
                             </div>
                             
@@ -764,7 +766,7 @@ export default function HomePage() {
               <div className="text-center pt-4">
                 <Link href="/developers">
                   <Button className="bg-black text-white hover:bg-gray-800 font-black px-6 py-3 rounded-xl border-2 border-black transform hover:scale-105 transition-all duration-300">
-                    Voir tous les développeurs
+                    {t('home.see.all.developers')}
                   </Button>
                 </Link>
               </div>
@@ -781,11 +783,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-black text-white mb-4 relative">
-              Comment ça marche ?
+              {t('home.how.it.works')}
               <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-white rounded-full"></div>
             </h2>
             <p className="text-lg text-gray-300 max-w-2xl mx-auto font-medium">
-              Connectez-vous avec les meilleurs talents en 3 étapes simples
+              {t('home.how.it.works.desc')}
             </p>
           </div>
 
@@ -793,18 +795,18 @@ export default function HomePage() {
             {[
               {
                 number: "1",
-                title: "Créez votre profil",
-                description: "Inscrivez-vous en tant que client ou développeur et complétez votre profil"
+                title: t('home.step.1.title'),
+                description: t('home.step.1.desc')
               },
               {
                 number: "2", 
-                title: "Trouvez votre match",
-                description: "Parcourez les projets ou développeurs qui correspondent à vos besoins"
+                title: t('home.step.2.title'),
+                description: t('home.step.2.desc')
               },
               {
                 number: "3",
-                title: "Collaborez",
-                description: "Communiquez directement et réalisez vos projets en toute sécurité"
+                title: t('home.step.3.title'),
+                description: t('home.step.3.desc')
               }
             ].map((step, index) => (
               <div key={index} className="text-center group">
@@ -829,11 +831,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-black text-black mb-4 relative">
-              CE QUE DISENT NOS UTILISATEURS
+              {t('home.testimonials.title')}
               <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-black rounded-full"></div>
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto font-medium">
-              Découvrez les témoignages de nos utilisateurs
+              {t('home.testimonials.desc')}
             </p>
           </div>
           
@@ -890,11 +892,11 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black mb-8 text-white leading-tight relative">
-              PRÊT À TRANSFORMER VOTRE BUSINESS ?
+              {t('home.final.cta.title')}
             </h2>
             
             <p className="text-lg text-gray-300 mb-10 max-w-3xl mx-auto font-light leading-relaxed">
-              Rejoignez la communauté des entreprises qui ont choisi l'excellence en IA
+              {t('home.final.cta.desc')}
             </p>
             
             {getFinalCTAButtons()}

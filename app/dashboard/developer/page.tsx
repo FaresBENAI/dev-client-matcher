@@ -5,11 +5,12 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, MessageCircle, Clock, Play, CheckCircle, Users, Calendar, DollarSign, XCircle, Star, User, Plus, Briefcase, TrendingUp } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // Composant d'affichage des étoiles
-const StarRating = ({ rating, totalRatings }: { rating: number; totalRatings?: number }) => {
+const StarRating = ({ rating, totalRatings, t }: { rating: number; totalRatings?: number; t: any }) => {
   if (!rating) return (
-    <span className="text-xs text-gray-400">Pas encore noté</span>
+    <span className="text-xs text-gray-400">{t('dashboard.not.rated.yet')}</span>
   );
   
   return (
@@ -41,6 +42,7 @@ export default function DeveloperDashboard() {
   const [developerProfile, setDeveloperProfile] = useState(null);
   const [error, setError] = useState(null);
   const router = useRouter();
+  const { t } = useLanguage();
 
   // Debug console
   const log = (message: string, data?: any) => {
@@ -259,17 +261,17 @@ export default function DeveloperDashboard() {
   const getApplicationStatusConfig = (status: string) => {
     const configs = {
       pending: {
-        label: 'En attente',
+        label: t('status.pending'),
         color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
         icon: Clock
       },
       accepted: {
-        label: 'Acceptée',
+        label: t('status.accepted'),
         color: 'bg-green-100 text-green-800 border-green-200',
         icon: CheckCircle
       },
       rejected: {
-        label: 'Refusée',
+        label: t('status.rejected'),
         color: 'bg-red-100 text-red-800 border-red-200',
         icon: XCircle
       }
@@ -278,20 +280,16 @@ export default function DeveloperDashboard() {
   };
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'Date inconnue';
+    if (!dateString) return t('dashboard.unknown.date');
     try {
-      return new Date(dateString).toLocaleDateString('fr-FR', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-      });
+      return new Date(dateString).toLocaleDateString();
     } catch {
-      return 'Date invalide';
+      return t('dashboard.invalid.date');
     }
   };
 
   const formatBudget = (min?: number, max?: number) => {
-    if (!min && !max) return 'Budget à négocier';
+    if (!min && !max) return t('dashboard.budget.negotiate');
     if (!max) return `${min}€+`;
     return `${min}€ - ${max}€`;
   };
@@ -305,8 +303,8 @@ export default function DeveloperDashboard() {
             <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
             <div className="absolute top-2 left-2 w-12 h-12 border-4 border-transparent border-t-white rounded-full animate-spin"></div>
           </div>
-          <h2 className="text-xl font-black text-black mb-2">Chargement du dashboard...</h2>
-          <p className="text-gray-600">Préparation de vos données</p>
+          <h2 className="text-xl font-black text-black mb-2">{t('dashboard.loading')}</h2>
+          <p className="text-gray-600">{t('dashboard.preparing.data')}</p>
         </div>
       </div>
     );
@@ -318,13 +316,13 @@ export default function DeveloperDashboard() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8">
           <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-xl font-black text-black mb-2">Erreur de chargement</h2>
+          <h2 className="text-xl font-black text-black mb-2">{t('dashboard.loading.error')}</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => window.location.reload()}
             className="bg-black text-white px-8 py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300"
           >
-            Réessayer
+            {t('dashboard.retry')}
           </button>
         </div>
       </div>
@@ -337,13 +335,13 @@ export default function DeveloperDashboard() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">🔒</div>
-          <h2 className="text-xl font-black text-black mb-2">Accès non autorisé</h2>
-          <p className="text-gray-600 mb-6">Redirection en cours...</p>
+          <h2 className="text-xl font-black text-black mb-2">{t('dashboard.access.denied')}</h2>
+          <p className="text-gray-600 mb-6">{t('dashboard.redirecting')}</p>
           <Link
             href="/auth/login"
             className="bg-black text-white px-8 py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300"
           >
-            Se connecter
+            {t('nav.login')}
           </Link>
         </div>
       </div>
@@ -359,10 +357,10 @@ export default function DeveloperDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-black mb-2">
-                Dashboard Développeur
+                {t('dashboard.developer.title')}
               </h1>
               <p className="text-gray-300">
-                Bienvenue {userProfile?.full_name || user?.email} - Gérez vos projets et candidatures
+                {t('dashboard.developer.welcome')} {userProfile?.full_name || user?.email} - {t('dashboard.developer.subtitle')}
               </p>
             </div>
             <div className="flex gap-4">
@@ -371,14 +369,14 @@ export default function DeveloperDashboard() {
                 className="bg-white text-black px-6 py-3 font-black rounded-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-2"
               >
                 <Briefcase className="h-5 w-5" />
-                Explorer Projets
+                {t('dashboard.explore.projects')}
               </Link>
               <Link
                 href={`/developer/${user?.id}`}
                 className="border-2 border-white text-white px-6 py-3 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300 flex items-center gap-2"
               >
                 <User className="h-5 w-5" />
-                Mon Profil Public
+                {t('dashboard.my.public.profile')}
               </Link>
             </div>
           </div>
@@ -392,7 +390,7 @@ export default function DeveloperDashboard() {
           <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Projets Actifs</p>
+                <p className="text-sm text-gray-600 font-medium">{t('dashboard.active.projects')}</p>
                 <p className="text-3xl font-black text-black">{assignedProjects.length}</p>
               </div>
               <div className="bg-black p-3 rounded-xl">
@@ -404,11 +402,11 @@ export default function DeveloperDashboard() {
           <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Candidatures</p>
+                <p className="text-sm text-gray-600 font-medium">{t('dashboard.applications')}</p>
                 <p className="text-3xl font-black text-black">{applications.length}</p>
               </div>
               <div className="bg-blue-500 p-3 rounded-xl">
-                <TrendingUp className="w-6 h-6 text-white" />
+                <Users className="w-6 h-6 text-white" />
               </div>
             </div>
           </div>
@@ -416,7 +414,7 @@ export default function DeveloperDashboard() {
           <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Conversations</p>
+                <p className="text-sm text-gray-600 font-medium">{t('dashboard.conversations')}</p>
                 <p className="text-3xl font-black text-black">{conversations.length}</p>
               </div>
               <div className="bg-green-500 p-3 rounded-xl">
@@ -428,9 +426,9 @@ export default function DeveloperDashboard() {
           <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Note Moyenne</p>
+                <p className="text-sm text-gray-600 font-medium">{t('dashboard.rating')}</p>
                 <p className="text-3xl font-black text-black">
-                  {developerProfile?.average_rating ? developerProfile.average_rating.toFixed(1) : '—'}
+                  {developerProfile?.average_rating ? developerProfile.average_rating.toFixed(1) : '0.0'}
                 </p>
               </div>
               <div className="bg-yellow-500 p-3 rounded-xl">
@@ -440,28 +438,28 @@ export default function DeveloperDashboard() {
           </div>
         </div>
 
-        {/* Mes Projets Actifs */}
+        {/* Projets Assignés */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-black">Mes Projets Actifs</h2>
+            <h2 className="text-2xl font-black text-black">{t('dashboard.assigned.projects')}</h2>
             <Link
               href="/projects"
               className="text-black hover:text-gray-600 font-medium"
             >
-              Explorer plus →
+              {t('dashboard.view.all')} →
             </Link>
           </div>
 
           {assignedProjects.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 text-center border-2 border-gray-200">
               <div className="text-6xl mb-4">💼</div>
-              <h3 className="text-xl font-black text-black mb-2">Aucun projet actif</h3>
-              <p className="text-gray-600 mb-6">Candidatez à des projets pour commencer à collaborer avec des clients</p>
+              <h3 className="text-xl font-black text-black mb-2">{t('dashboard.no.assigned.projects')}</h3>
+              <p className="text-gray-600 mb-6">{t('dashboard.no.assigned.projects.desc')}</p>
               <Link
                 href="/projects"
                 className="bg-black text-white px-8 py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300"
               >
-                Explorer les projets
+                {t('dashboard.find.projects')}
               </Link>
             </div>
           ) : (
@@ -475,7 +473,7 @@ export default function DeveloperDashboard() {
                       </h3>
                       <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full border text-sm bg-green-100 text-green-800 border-green-200">
                         <CheckCircle className="w-4 h-4" />
-                        <span className="font-medium">Assigné</span>
+                        <span className="font-medium">{t('dashboard.assigned')}</span>
                       </div>
                     </div>
                   </div>
@@ -491,7 +489,7 @@ export default function DeveloperDashboard() {
                     </div>
                     <div className="flex items-center text-sm text-gray-500">
                       <Calendar className="w-4 h-4 mr-2" />
-                      Assigné le {formatDate(project.created_at)}
+                      {t('dashboard.created')} {formatDate(project.created_at)}
                     </div>
                   </div>
 
@@ -515,13 +513,13 @@ export default function DeveloperDashboard() {
                       href={`/projects/${project.id}`}
                       className="flex-1 bg-black text-white py-2 px-4 rounded-lg font-bold text-sm hover:bg-gray-800 transition-all duration-300 text-center"
                     >
-                      Voir le projet
+                      {t('dashboard.view.project')}
                     </Link>
                     <Link
                       href="/messages"
                       className="border-2 border-gray-300 text-gray-700 py-2 px-4 rounded-lg font-bold text-sm hover:border-black hover:text-black transition-all duration-300 text-center"
                     >
-                      Contacter
+                      {t('dashboard.contact')}
                     </Link>
                   </div>
                 </div>
@@ -533,25 +531,25 @@ export default function DeveloperDashboard() {
         {/* Mes Candidatures */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-black">Mes Candidatures</h2>
+            <h2 className="text-2xl font-black text-black">{t('dashboard.my.applications')}</h2>
             <Link
               href="/applications"
               className="text-black hover:text-gray-600 font-medium"
             >
-              Voir toutes →
+              {t('dashboard.view.all')} →
             </Link>
           </div>
 
           {applications.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 text-center border-2 border-gray-200">
               <div className="text-6xl mb-4">📝</div>
-              <h3 className="text-xl font-black text-black mb-2">Aucune candidature</h3>
-              <p className="text-gray-600 mb-6">Commencez à candidater aux projets qui vous intéressent</p>
+              <h3 className="text-xl font-black text-black mb-2">{t('dashboard.no.applications')}</h3>
+              <p className="text-gray-600 mb-6">{t('dashboard.no.applications.desc')}</p>
               <Link
                 href="/projects"
                 className="bg-black text-white px-8 py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300"
               >
-                Voir les projets disponibles
+                {t('dashboard.view.available.projects')}
               </Link>
             </div>
           ) : (
@@ -565,7 +563,7 @@ export default function DeveloperDashboard() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <h3 className="text-lg font-black text-black mb-2 line-clamp-1">
-                          {application.projects?.title || 'Projet sans titre'}
+                          {application.projects?.title || t('dashboard.untitled.project')}
                         </h3>
                         <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full border text-sm ${statusConfig.color}`}>
                           <StatusIcon className="w-4 h-4" />
@@ -575,7 +573,7 @@ export default function DeveloperDashboard() {
                     </div>
                     
                     <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {application.projects?.description || 'Pas de description'}
+                      {application.projects?.description || t('dashboard.no.description')}
                     </p>
                     
                     <div className="space-y-2 mb-4">
@@ -585,7 +583,7 @@ export default function DeveloperDashboard() {
                       </div>
                       <div className="flex items-center text-sm text-gray-500">
                         <Calendar className="w-4 h-4 mr-2" />
-                        Candidature le {formatDate(application.created_at)}
+                        {t('dashboard.applied.on')} {formatDate(application.created_at)}
                       </div>
                     </div>
 
@@ -595,7 +593,7 @@ export default function DeveloperDashboard() {
                         href={`/projects/${application.projects?.id || '#'}`}
                         className="flex-1 bg-black text-white py-2 px-4 rounded-lg font-bold text-sm hover:bg-gray-800 transition-all duration-300 text-center"
                       >
-                        Voir le projet
+                        {t('dashboard.view.project')}
                       </Link>
                     </div>
                   </div>
@@ -607,34 +605,34 @@ export default function DeveloperDashboard() {
 
         {/* Actions rapides */}
         <div className="bg-black text-white rounded-2xl p-8 text-center">
-          <h2 className="text-2xl font-black mb-4">Développez votre carrière !</h2>
+          <h2 className="text-2xl font-black mb-4">{t('dashboard.develop.career')}</h2>
           <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
-            Explorez de nouveaux projets, développez vos compétences et construisez votre réputation
+            {t('dashboard.develop.career.desc')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/projects"
               className="bg-white text-black px-8 py-4 font-black rounded-lg hover:bg-gray-100 transition-all duration-300"
             >
-              Explorer les projets
+              {t('dashboard.explore.projects')}
             </Link>
             <Link
               href="/messages"
               className="border-2 border-white text-white px-8 py-4 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300"
             >
-              Mes conversations
+              {t('dashboard.my.conversations')}
             </Link>
             <Link
               href="/dashboard/developer/profile"
               className="border-2 border-white text-white px-8 py-4 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300"
             >
-              Modifier mon profil
+              {t('dashboard.edit.profile')}
             </Link>
             <Link
               href={`/developer/${user?.id}`}
               className="border-2 border-white text-white px-8 py-4 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300"
             >
-              Mon profil public
+              {t('dashboard.my.public.profile')}
             </Link>
           </div>
         </div>

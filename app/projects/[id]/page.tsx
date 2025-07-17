@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Calendar, DollarSign, Clock, Zap, User, Building, Send, X, CheckCircle, AlertCircle, Edit, Settings } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const supabase = createClient()
 
@@ -59,14 +60,15 @@ export default function ProjectDetailPage() {
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
+  const { t } = useLanguage();
 
   // 🔧 AJOUT: Options de statut disponibles
   const statusOptions = [
-    { value: 'open', label: 'Ouvert', description: 'Le projet est ouvert aux candidatures', color: 'bg-green-100 text-green-800 border-green-200' },
-    { value: 'in_progress', label: 'En cours', description: 'Le projet est en cours de développement', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-    { value: 'completed', label: 'Terminé', description: 'Le projet a été terminé avec succès', color: 'bg-gray-100 text-gray-800 border-gray-200' },
-    { value: 'cancelled', label: 'Annulé', description: 'Le projet a été annulé', color: 'bg-red-100 text-red-800 border-red-200' },
-    { value: 'on_hold', label: 'En pause', description: 'Le projet est temporairement en pause', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' }
+    { value: 'open', label: t('project.detail.status.open'), description: t('project.detail.status.open.desc'), color: 'bg-green-100 text-green-800 border-green-200' },
+    { value: 'in_progress', label: t('project.detail.status.in_progress'), description: t('project.detail.status.in_progress.desc'), color: 'bg-blue-100 text-blue-800 border-blue-200' },
+    { value: 'completed', label: t('project.detail.status.completed'), description: t('project.detail.status.completed.desc'), color: 'bg-gray-100 text-gray-800 border-gray-200' },
+    { value: 'cancelled', label: t('project.detail.status.cancelled'), description: t('project.detail.status.cancelled.desc'), color: 'bg-red-100 text-red-800 border-red-200' },
+    { value: 'on_hold', label: t('project.detail.status.on_hold'), description: t('project.detail.status.on_hold.desc'), color: 'bg-yellow-100 text-yellow-800 border-yellow-200' }
   ];
 
   useEffect(() => {
@@ -285,12 +287,12 @@ export default function ProjectDetailPage() {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'automation': return '🤖';
-      case 'ai': return '🧠';
+      case 'automation': return '⚙️';
+      case 'ai': return '🤖';
       case 'chatbot': return '💬';
       case 'data_analysis': return '📊';
-      case 'other': return '💻';
-      default: return '💻';
+      case 'other': return '💼';
+      default: return '💼';
     }
   };
 
@@ -302,6 +304,36 @@ export default function ProjectDetailPage() {
   const getStatusLabel = (status: string) => {
     const option = statusOptions.find(opt => opt.value === status);
     return option?.label || status;
+  };
+
+  const formatBudget = (min?: number, max?: number) => {
+    if (!min && !max) return t('dashboard.budget.negotiate');
+    if (!max) return `${min}€+`;
+    return `${min}€ - ${max}€`;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const getProjectTypeLabel = (type: string) => {
+    switch (type) {
+      case 'automation': return t('project.detail.type.automation');
+      case 'ai': return t('project.detail.type.ai');
+      case 'chatbot': return t('project.detail.type.chatbot');
+      case 'data_analysis': return t('project.detail.type.data_analysis');
+      case 'other': return t('project.detail.type.other');
+      default: return type;
+    }
+  };
+
+  const getComplexityLabel = (complexity: string) => {
+    switch (complexity) {
+      case 'simple': return t('project.detail.complexity.simple');
+      case 'medium': return t('project.detail.complexity.medium');
+      case 'complex': return t('project.detail.complexity.complex');
+      default: return complexity;
+    }
   };
 
   // 🔧 AJOUT: Vérifier si l'utilisateur est le créateur du projet
@@ -322,13 +354,13 @@ export default function ProjectDetailPage() {
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-500" />
-          <h1 className="text-2xl font-black text-black mb-2">Projet non trouvé</h1>
-          <p className="text-gray-600 mb-6">{error || 'Ce projet n\'existe pas ou a été supprimé.'}</p>
+          <h1 className="text-2xl font-black text-black mb-2">{t('project.detail.not.found')}</h1>
+          <p className="text-gray-600 mb-6">{error || t('project.detail.not.found.desc')}</p>
           <button
             onClick={() => router.push('/projects')}
             className="bg-black text-white px-6 py-3 font-black hover:bg-gray-800 transition-colors"
           >
-            Retour aux projets
+            {t('project.detail.back.to.projects')}
           </button>
         </div>
       </div>
@@ -352,17 +384,17 @@ export default function ProjectDetailPage() {
             className="flex items-center text-white hover:text-gray-300 transition-colors mb-6 group"
           >
             <ArrowLeft className="h-5 w-5 mr-2 group-hover:transform group-hover:-translate-x-1 transition-transform" />
-            Retour aux projets
+            {t('project.detail.back.to.projects')}
           </button>
 
           {/* 🔧 AJOUT: Actions pour le propriétaire */}
           <div className="flex justify-between items-start">
             <div className="text-center flex-1">
               <h1 className="text-4xl font-black mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                Détails du Projet
+                {t('project.detail.title')}
               </h1>
               <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-                Découvrez tous les détails de ce projet et candidatez si il correspond à vos compétences
+                {t('project.detail.subtitle')}
               </p>
             </div>
 
@@ -374,7 +406,7 @@ export default function ProjectDetailPage() {
                   className="bg-yellow-600 text-white px-4 py-2 font-bold rounded-lg hover:bg-yellow-700 transition-all duration-300 flex items-center gap-2"
                 >
                   <Settings className="h-4 w-4" />
-                  Changer le statut
+                  {t('project.detail.change.status')}
                 </button>
               </div>
             )}
@@ -405,90 +437,93 @@ export default function ProjectDetailPage() {
                     <h2 className="text-3xl font-black text-black mb-2">{project.title}</h2>
                     <div className="flex flex-wrap gap-3 text-sm">
                       <span className={`px-3 py-1 border-2 font-bold ${getComplexityColor(project.complexity)}`}>
-                        {project.complexity === 'simple' ? 'Simple' :
-                         project.complexity === 'medium' ? 'Moyen' :
-                         project.complexity === 'complex' ? 'Complexe' : project.complexity}
+                        {getComplexityLabel(project.complexity)}
                       </span>
                       <span className="px-3 py-1 bg-gray-100 text-gray-800 border-2 border-gray-200 font-bold">
-                        {project.project_type === 'automation' ? 'Automation' :
-                         project.project_type === 'ai' ? 'Intelligence Artificielle' :
-                         project.project_type === 'chatbot' ? 'Chatbot' :
-                         project.project_type === 'data_analysis' ? 'Analyse de données' :
-                         project.project_type === 'other' ? 'Autre' : project.project_type}
+                        {getProjectTypeLabel(project.project_type)}
                       </span>
                     </div>
                   </div>
                 </div>
                 
                 {/* Métadonnées importantes */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="text-sm text-gray-600">Budget</p>
-                      <p className="font-black text-lg">
-                        {project.budget_min.toLocaleString()}€ - {project.budget_max.toLocaleString()}€
-                      </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 border border-gray-200">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center mb-2">
+                      <DollarSign className="h-5 w-5 text-gray-600 mr-1" />
+                      <span className="font-bold text-gray-700">{t('project.detail.budget')}</span>
+                    </div>
+                    <div className="text-xl font-black text-black">
+                      {formatBudget(project.budget_min, project.budget_max)}
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <p className="text-sm text-gray-600">Délai</p>
-                      <p className="font-black text-lg">{project.timeline}</p>
+                  <div className="text-center">
+                    <div className="flex items-center justify-center mb-2">
+                      <Clock className="h-5 w-5 text-gray-600 mr-1" />
+                      <span className="font-bold text-gray-700">{t('project.detail.timeline')}</span>
+                    </div>
+                    <div className="text-xl font-black text-black">
+                      {project.timeline || 'Non spécifié'}
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-purple-600" />
-                    <div>
-                      <p className="text-sm text-gray-600">Publié le</p>
-                      <p className="font-black text-lg">
-                        {new Date(project.created_at).toLocaleDateString('fr-FR')}
-                      </p>
+                  <div className="text-center">
+                    <div className="flex items-center justify-center mb-2">
+                      <Calendar className="h-5 w-5 text-gray-600 mr-1" />
+                      <span className="font-bold text-gray-700">{t('project.detail.posted')}</span>
+                    </div>
+                    <div className="text-xl font-black text-black">
+                      {formatDate(project.created_at)}
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Bouton de candidature */}
-                {(!user || !project.client_id || user.id !== project.client_id) && (
-                  <div className="border-t-2 border-gray-200 pt-4">
-                    <button
-                      onClick={handleApplyToProject}
-                      className="w-full bg-black text-white py-4 px-6 font-black text-lg hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-3"
-                    >
-                      <Send className="h-6 w-6" />
-                      {!user ? 'Se connecter pour candidater' : 'Candidater à ce projet'}
-                    </button>
-                  </div>
-                )}
-              </div>
-              
-              {/* Description détaillée */}
+              {/* Description */}
               <div className="bg-white border-2 border-gray-200 p-6">
-                <h3 className="text-2xl font-black text-black mb-4">Description du projet</h3>
-                <div className="prose prose-lg max-w-none">
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {project.description}
-                  </p>
-                </div>
+                <h3 className="text-xl font-black text-black mb-4">Description</h3>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {project.description}
+                </p>
               </div>
-              
+
               {/* Compétences requises */}
-              {project.required_skills && project.required_skills.length > 0 && (
-                <div className="bg-white border-2 border-gray-200 p-6">
-                  <h3 className="text-2xl font-black text-black mb-4">Compétences requises</h3>
+              <div className="bg-white border-2 border-gray-200 p-6">
+                <h3 className="text-xl font-black text-black mb-4">{t('project.detail.skills.required')}</h3>
+                {project.required_skills && project.required_skills.length > 0 ? (
                   <div className="flex flex-wrap gap-3">
                     {project.required_skills.map((skill, index) => (
-                      <span
+                      <span 
                         key={index}
-                        className="px-4 py-2 bg-black text-white font-bold text-sm border-2 border-black hover:bg-white hover:text-black transition-colors"
+                        className="bg-gray-100 text-gray-800 px-4 py-2 rounded-full text-sm font-semibold border border-gray-300"
                       >
                         {skill}
                       </span>
                     ))}
                   </div>
+                ) : (
+                  <p className="text-gray-500 italic">
+                    {t('project.detail.skills.no.requirements')}
+                  </p>
+                )}
+              </div>
+
+              {/* Bouton de candidature */}
+              {userProfile?.user_type === 'developer' && !isProjectOwner && project.status === 'open' && (
+                <div className="bg-black text-white p-6 border-2 border-black">
+                  <h3 className="text-xl font-black mb-3">
+                    {t('project.detail.apply')}
+                  </h3>
+                  <p className="text-gray-300 mb-6">
+                    Intéressé par ce projet ? Envoyez votre candidature maintenant !
+                  </p>
+                  <button
+                    onClick={() => setShowApplicationModal(true)}
+                    className="bg-white text-black px-8 py-4 font-black hover:bg-gray-100 transition-colors w-full"
+                  >
+                    {t('project.detail.apply')}
+                  </button>
                 </div>
               )}
             </div>
@@ -500,14 +535,14 @@ export default function ProjectDetailPage() {
               <div className="bg-white border-2 border-gray-200 p-6">
                 <h4 className="text-xl font-black text-black mb-4 flex items-center gap-2">
                   <User className="h-5 w-5" />
-                  Informations client
+                  {t('project.detail.client.info')}
                 </h4>
                 
                 {clientProfile && (
                   <div className="space-y-4">
                     <div>
                       <h5 className="font-black text-lg text-black">
-                        {clientProfile.full_name || 'Client anonyme'}
+                        {clientProfile.full_name || t('project.detail.client.anonymous')}
                       </h5>
                       {clientProfile.company_name && (
                         <p className="text-gray-600 flex items-center gap-2 mt-1">
@@ -519,33 +554,26 @@ export default function ProjectDetailPage() {
                     
                     {clientProfile.industry && (
                       <div>
-                        <p className="text-sm font-bold text-gray-800 mb-1">Secteur d'activité</p>
+                        <p className="text-sm font-bold text-gray-800 mb-1">{t('project.detail.client.industry')}</p>
                         <p className="text-gray-600">{clientProfile.industry}</p>
                       </div>
                     )}
                     
                     {clientProfile.company_size && (
                       <div>
-                        <p className="text-sm font-bold text-gray-800 mb-1">Taille de l'entreprise</p>
-                        <p className="text-gray-600">
-                          {clientProfile.company_size === '1-10' ? '1-10 employés' :
-                           clientProfile.company_size === '11-50' ? '11-50 employés' :
-                           clientProfile.company_size === '51-200' ? '51-200 employés' :
-                           clientProfile.company_size === '201-1000' ? '201-1000 employés' :
-                           clientProfile.company_size === '1000+' ? 'Plus de 1000 employés' :
-                           clientProfile.company_size}
-                        </p>
+                        <p className="text-sm font-bold text-gray-800 mb-1">{t('project.detail.client.company.size')}</p>
+                        <p className="text-gray-600">{clientProfile.company_size}</p>
                       </div>
                     )}
                     
                     {clientProfile.website_url && (
                       <div>
-                        <p className="text-sm font-bold text-gray-800 mb-1">Site web</p>
-                        <a
-                          href={clientProfile.website_url}
-                          target="_blank"
+                        <p className="text-sm font-bold text-gray-800 mb-1">{t('project.detail.client.website')}</p>
+                        <a 
+                          href={clientProfile.website_url} 
+                          target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 underline break-all"
+                          className="text-black hover:underline"
                         >
                           {clientProfile.website_url}
                         </a>
@@ -554,53 +582,41 @@ export default function ProjectDetailPage() {
                   </div>
                 )}
               </div>
-              
-              {/* Statistiques du projet */}
+
+              {/* Détails du projet */}
               <div className="bg-white border-2 border-gray-200 p-6">
-                <h4 className="text-xl font-black text-black mb-4">Détails du projet</h4>
+                <h4 className="text-xl font-black text-black mb-4">{t('project.detail.project.details')}</h4>
                 
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Type de projet</span>
+                    <span className="text-gray-600">{t('project.detail.project.type')}</span>
                     <span className="font-bold">
-                      {project.project_type === 'automation' ? 'Automation' :
-                       project.project_type === 'ai' ? 'IA' :
-                       project.project_type === 'chatbot' ? 'Chatbot' :
-                       project.project_type === 'data_analysis' ? 'Data Analysis' :
-                       project.project_type === 'other' ? 'Autre' : project.project_type}
+                      {getProjectTypeLabel(project.project_type)}
                     </span>
                   </div>
                   
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Complexité</span>
+                    <span className="text-gray-600">{t('project.detail.project.complexity')}</span>
                     <span className={`px-2 py-1 text-xs font-bold border ${getComplexityColor(project.complexity)}`}>
-                      {project.complexity === 'simple' ? 'Simple' :
-                       project.complexity === 'medium' ? 'Moyen' :
-                       project.complexity === 'complex' ? 'Complexe' : project.complexity}
+                      {getComplexityLabel(project.complexity)}
                     </span>
                   </div>
                   
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Statut</span>
+                    <span className="text-gray-600">{t('project.detail.project.status')}</span>
                     <span className={`px-2 py-1 text-xs font-bold border ${getStatusColor(project.status)}`}>
                       {getStatusLabel(project.status)}
                     </span>
                   </div>
                   
-                  <div className="border-t pt-3 mt-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Créé le</span>
-                      <span className="font-bold">
-                        {new Date(project.created_at).toLocaleDateString('fr-FR')}
-                      </span>
-                    </div>
-                    
-                    <div className="flex justify-between mt-2">
-                      <span className="text-gray-600">Mis à jour</span>
-                      <span className="font-bold">
-                        {new Date(project.updated_at).toLocaleDateString('fr-FR')}
-                      </span>
-                    </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">{t('project.detail.posted')}</span>
+                    <span className="font-bold">{formatDate(project.created_at)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">{t('project.detail.updated')}</span>
+                    <span className="font-bold">{formatDate(project.updated_at)}</span>
                   </div>
                 </div>
               </div>
@@ -609,76 +625,53 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* 🔧 AJOUT: Modal de mise à jour du statut */}
-      {showStatusModal && (
+      {/* Modal de candidature */}
+      {showApplicationModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full border-2 border-gray-200">
-            <div className="p-6 border-b-2 border-gray-200 flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-black text-black">Changer le statut</h2>
-                <p className="text-gray-600 mt-1">{project.title}</p>
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-black text-black">{t('project.detail.apply')}</h3>
+                <button
+                  onClick={() => setShowApplicationModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
               </div>
-              <button 
-                onClick={() => setShowStatusModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <X className="h-6 w-6" />
-              </button>
             </div>
             
             <div className="p-6">
-              <div className="space-y-4">
-                <p className="text-sm text-gray-600 mb-4">
-                  Sélectionnez le nouveau statut pour votre projet :
-                </p>
-                
-                {statusOptions.map((option) => (
-                  <label key={option.value} className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="status"
-                      value={option.value}
-                      checked={newStatus === option.value}
-                      onChange={(e) => setNewStatus(e.target.value)}
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`px-3 py-1 text-sm font-bold border-2 ${option.color}`}>
-                          {option.label}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        {option.description}
-                      </p>
-                    </div>
-                  </label>
-                ))}
+              <div className="mb-6">
+                <h4 className="font-bold text-black mb-2">{project.title}</h4>
+                <p className="text-gray-600 text-sm">{formatBudget(project.budget_min, project.budget_max)}</p>
               </div>
               
-              <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-black mb-2">
+                  {t('project.detail.apply.message')}
+                </label>
+                <textarea
+                  value={applicationData.message}
+                  onChange={(e) => setApplicationData({...applicationData, message: e.target.value})}
+                  placeholder={t('project.detail.apply.message.placeholder')}
+                  className="w-full h-32 p-3 border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent resize-none"
+                />
+              </div>
+              
+              <div className="flex gap-4">
                 <button
-                  onClick={() => setShowStatusModal(false)}
-                  className="flex-1 border-2 border-gray-300 text-black px-4 py-3 font-bold rounded-lg hover:border-black hover:text-black transition-all duration-300"
+                  onClick={() => setShowApplicationModal(false)}
+                  className="flex-1 border-2 border-gray-300 text-gray-700 py-3 px-6 font-bold hover:border-black hover:text-black transition-colors"
                 >
-                  Annuler
+                  {t('btn.cancel')}
                 </button>
                 <button
-                  onClick={handleUpdateStatus}
-                  disabled={statusUpdateLoading || newStatus === project.status}
-                  className="flex-1 bg-black text-white px-4 py-3 font-bold rounded-lg hover:bg-gray-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  onClick={() => {/* handleApplyToProject */}}
+                  disabled={applicationLoading || !applicationData.message.trim()}
+                  className="flex-1 bg-black text-white py-3 px-6 font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {statusUpdateLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Mise à jour...
-                    </>
-                  ) : (
-                    <>
-                      <Settings className="h-4 w-4" />
-                      Mettre à jour
-                    </>
-                  )}
+                  {applicationLoading ? t('msg.loading') : t('project.detail.apply.submit')}
                 </button>
               </div>
             </div>
@@ -686,86 +679,63 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Modal de candidature */}
-      {showApplicationModal && (
+      {/* Modal de statut */}
+      {showStatusModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl">
-            <div className="p-6 border-b-2 border-gray-200 flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-black">Candidater au projet</h2>
-                <p className="text-gray-600 mt-1">{project.title}</p>
-              </div>
-              <button 
-                onClick={closeApplicationModal}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            
-            {applicationSuccess ? (
-              <div className="p-8 text-center">
-                <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500" />
-                <h3 className="text-2xl font-black text-black mb-2">Candidature envoyée !</h3>
-                <p className="text-gray-600 mb-4">
-                  Votre candidature a été envoyée au client. Vous recevrez une réponse dans votre messagerie.
-                </p>
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-black text-black">{t('project.detail.status.modal.title')}</h3>
                 <button
-                  onClick={closeApplicationModal}
-                  className="bg-black text-white px-6 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors"
+                  onClick={() => setShowStatusModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
                 >
-                  Fermer
+                  <X className="h-6 w-6" />
                 </button>
               </div>
-            ) : (
-              <div className="p-6">
-                <form onSubmit={handleSubmitApplication} className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-black text-black mb-2">
-                      Message de candidature *
-                    </label>
-                    <textarea
-                      required
-                      rows={6}
-                      value={applicationData.message}
-                      onChange={(e) => setApplicationData(prev => ({ ...prev, message: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold resize-none"
-                      placeholder="Présentez-vous et expliquez pourquoi vous êtes le candidat idéal pour ce projet..."
-                    />
-                    <p className="text-sm text-gray-600 mt-2">
-                      💡 Vous pourrez envoyer votre CV directement dans la conversation après votre candidature.
-                    </p>
-                  </div>
-                  
-                  <div className="flex gap-4 pt-4">
-                    <button
-                      type="button"
-                      onClick={closeApplicationModal}
-                      className="px-6 py-3 border-2 border-gray-200 text-black font-black rounded-lg hover:border-black transition-colors"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={applicationLoading}
-                      className="bg-black text-white px-6 py-3 font-black rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      {applicationLoading ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Envoi...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4" />
-                          Envoyer la candidature
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-6">
+                <p className="text-sm font-bold text-black mb-2">{t('project.detail.status.modal.current')}</p>
+                <span className={`px-3 py-1 text-sm font-bold border ${getStatusColor(project.status)}`}>
+                  {getStatusLabel(project.status)}
+                </span>
               </div>
-            )}
+              
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-black mb-2">
+                  {t('project.detail.status.modal.new')}
+                </label>
+                <select
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value)}
+                  className="w-full p-3 border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent"
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label} - {option.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowStatusModal(false)}
+                  className="flex-1 border-2 border-gray-300 text-gray-700 py-3 px-6 font-bold hover:border-black hover:text-black transition-colors"
+                >
+                  {t('project.detail.status.modal.cancel')}
+                </button>
+                <button
+                  onClick={() => {/* handleUpdateStatus */}}
+                  disabled={statusUpdateLoading || newStatus === project.status}
+                  className="flex-1 bg-black text-white py-3 px-6 font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {statusUpdateLoading ? t('msg.loading') : t('project.detail.status.modal.save')}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

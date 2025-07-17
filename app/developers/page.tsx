@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase'
 import DeveloperRateDisplay from '../../components/DeveloperRateDisplay' // 🆕 NOUVEAU
 import { X } from 'lucide-react' // Added for the new filter clear buttons
 import { Search } from 'lucide-react' // Added for the new search icon
+import { useLanguage } from '@/contexts/LanguageContext'
 
 const supabase = createClient()
 
@@ -26,37 +27,31 @@ const LANGUAGES = {
   'hi': { name: 'हिन्दी', flag: '🇮🇳' }
 };
 
-// Composant d'affichage des étoiles
-const StarRating = ({ rating, totalRatings }: { rating: number; totalRatings?: number }) => {
-  if (!rating) return (
-    <div className="flex items-center space-x-1">
-      <div className="flex">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <span key={star} className="text-sm text-gray-300">⭐</span>
-        ))}
-      </div>
-      <span className="text-xs text-gray-500">Pas encore noté</span>
-    </div>
-  );
-  
+// Composant étoiles pour les notes
+function StarRating({ rating, totalRatings }: { rating: number, totalRatings: number }) {
+  const stars = [];
+  const fullStars = Math.floor(rating);
+  const hasHalfStar = rating % 1 !== 0;
+
+  for (let i = 0; i < 5; i++) {
+    if (i < fullStars) {
+      stars.push(<span key={i} className="text-yellow-400">★</span>);
+    } else if (i === fullStars && hasHalfStar) {
+      stars.push(<span key={i} className="text-yellow-400">☆</span>);
+    } else {
+      stars.push(<span key={i} className="text-gray-300">☆</span>);
+    }
+  }
+
   return (
     <div className="flex items-center space-x-1">
-      <div className="flex">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <span
-            key={star}
-            className={`text-sm ${star <= Math.round(rating) ? 'text-yellow-400' : 'text-gray-300'}`}
-          >
-            ⭐
-          </span>
-        ))}
-      </div>
-      <span className="text-xs text-gray-600 font-medium">
-        {rating.toFixed(1)} {totalRatings ? `(${totalRatings})` : ''}
+      <div className="flex">{stars}</div>
+      <span className="text-xs text-gray-600">
+        {rating ? `${rating.toFixed(1)} (${totalRatings || 0})` : 'Nouveau'}
       </span>
     </div>
   );
-};
+}
 
 export default function DevelopersPage() {
   const [developers, setDevelopers] = useState<any[]>([])
@@ -67,6 +62,7 @@ export default function DevelopersPage() {
   const [sortBy, setSortBy] = useState('rating')
   const [allSkills, setAllSkills] = useState<string[]>([])
   const [allLanguages, setAllLanguages] = useState<string[]>([])
+  const { t } = useLanguage()
 
   useEffect(() => {
     loadDevelopers()
@@ -232,14 +228,14 @@ export default function DevelopersPage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-black mb-6 text-white leading-tight">
-            <span className="block">NOS DÉVELOPPEURS</span>
-            <span className="block text-gray-300">EXPERTS EN IA</span>
+            <span className="block">{t('developers.title.1')}</span>
+            <span className="block text-gray-300">{t('developers.title.2')}</span>
           </h1>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8 font-medium">
-            Découvrez les meilleurs talents spécialisés en intelligence artificielle et automatisation
+            {t('developers.subtitle')}
           </p>
           <div className="text-lg text-gray-400">
-            ⭐ {filteredAndSortedDevelopers.length} développeur{filteredAndSortedDevelopers.length > 1 ? 's' : ''} disponible{filteredAndSortedDevelopers.length > 1 ? 's' : ''}
+            ⭐ {filteredAndSortedDevelopers.length} {t('home.developers.count')}{filteredAndSortedDevelopers.length > 1 ? 's' : ''} {t('home.developers.available')}{filteredAndSortedDevelopers.length > 1 ? 's' : ''}
           </div>
         </div>
       </div>
@@ -256,7 +252,7 @@ export default function DevelopersPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Rechercher des développeurs..."
+                placeholder={t('developers.search')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
@@ -268,18 +264,18 @@ export default function DevelopersPage() {
           <div className="flex flex-wrap gap-8 mb-6">
             {/* Filtre Tri */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Trier par</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('developers.sort')}</label>
               <div className="relative">
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                   className="appearance-none w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent bg-white pr-10 cursor-pointer hover:border-gray-400 transition-colors"
                 >
-                  <option value="rating">Mieux notés</option>
-                  <option value="experience">Plus d'expérience</option>
-                  <option value="tjm">TJM croissant</option>
-                  <option value="recent">Plus récents</option>
-                  <option value="name">Ordre alphabétique</option>
+                  <option value="rating">Note</option>
+                  <option value="experience">Expérience</option>
+                  <option value="name">Nom</option>
+                  <option value="recent">Plus récent</option>
+                  <option value="tjm">TJM</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                   <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -289,9 +285,8 @@ export default function DevelopersPage() {
               </div>
             </div>
 
-            {/* Filtre Compétences */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Compétences</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('developers.skills')}</label>
               <div className="flex flex-wrap gap-2 max-w-xs">
                 {allSkills.slice(0, 6).map(skill => (
                   <button
@@ -311,7 +306,7 @@ export default function DevelopersPage() {
 
             {/* Filtre Langues */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Langues</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('developers.languages')}</label>
               <div className="flex flex-wrap gap-2 max-w-xs">
                 {allLanguages.slice(0, 6).map(lang => (
                   <button
@@ -389,7 +384,7 @@ export default function DevelopersPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-6">
             <p className="text-sm text-gray-600">
-              {filteredAndSortedDevelopers.length} développeur{filteredAndSortedDevelopers.length > 1 ? 's' : ''} trouvé{filteredAndSortedDevelopers.length > 1 ? 's' : ''}
+              {filteredAndSortedDevelopers.length} {t('home.developers.count')}{filteredAndSortedDevelopers.length > 1 ? 's' : ''} trouvé{filteredAndSortedDevelopers.length > 1 ? 's' : ''}
             </p>
           </div>
 
@@ -460,7 +455,7 @@ export default function DevelopersPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center text-sm text-gray-600">
                         <span className="font-medium">
-                          {developer.experience_years ? `${developer.experience_years}+ ans` : 'Expert'} d'expérience
+                          {developer.experience_years ? `${developer.experience_years}+ ${t('developers.experience')}` : t('developers.expert')}
                         </span>
                       </div>
                       {/* 🆕 NOUVEAU: Remplacement du TJMDisplay par DeveloperRateDisplay */}
@@ -514,8 +509,8 @@ export default function DevelopersPage() {
                         developer.availability === 'busy' ? 'bg-yellow-500' : 'bg-red-500'
                       }`}></div>
                       <span className="text-xs text-gray-600">
-                        {developer.availability === 'available' ? 'Disponible' : 
-                         developer.availability === 'busy' ? 'Occupé' : 'Non disponible'}
+                        {developer.availability === 'available' ? t('developers.available') : 
+                         developer.availability === 'busy' ? t('developers.busy') : t('developers.unavailable')}
                       </span>
                     </div>
                   </div>
@@ -524,7 +519,7 @@ export default function DevelopersPage() {
                   <div className="flex space-x-2">
                     <Link href={`/developer/${developer.id}`} className="flex-1">
                       <Button className="w-full bg-black text-white hover:bg-gray-800 font-bold py-2 rounded-lg text-sm transition-all duration-300 hover:scale-105">
-                        Voir le profil →
+                        {t('developers.see.profile')} →
                       </Button>
                     </Link>
                     <Button className="border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium px-4 py-2 rounded-lg text-sm">

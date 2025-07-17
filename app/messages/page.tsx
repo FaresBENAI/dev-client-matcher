@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { ArrowLeft, MessageCircle, Send, User, Star, CheckCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import RatingModal from '@/components/rating/RatingModal'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface UserProfile {
   id: string
@@ -28,6 +29,7 @@ export default function MessagesPage() {
   const [developerRating, setDeveloperRating] = useState<any>(null) // 🆕 NOUVEAU: Données de notation
   
   const router = useRouter()
+  const { t } = useLanguage()
 
   useEffect(() => {
     checkUser()
@@ -111,41 +113,53 @@ export default function MessagesPage() {
 
   const loadConversations = async (userId: string) => {
     try {
-      console.log('🔄 Chargement des conversations pour:', userId)
-      
-      // 🔧 ORIGINAL: Requête avec messages intégrés
       const { data: conversations, error } = await supabase
         .from('conversations')
         .select(`
           *,
+          projects (
+            id,
+            title,
+            client_id
+          ),
           messages (
+            id,
             content,
             created_at,
-            sender_id
+            sender_id,
+            is_read
           )
         `)
         .or(`client_id.eq.${userId},developer_id.eq.${userId}`)
-        .order('last_message_at', { ascending: false })
+        .order('updated_at', { ascending: false })
 
-      if (error) {
-        console.error('Erreur conversations:', error)
-        throw error
-      }
-      
-      console.log('✅ Conversations trouvées:', conversations?.length || 0)
-      
-      // Charger les profils pour chaque conversation
-      if (conversations && conversations.length > 0) {
-        for (const conv of conversations) {
-          await loadProfile(conv.client_id)
-          await loadProfile(conv.developer_id)
-        }
-      }
-      
-      setConversations(conversations || [])
+      if (error) throw error
+
+      // Trier les conversations par dernière activité
+      const sortedConversations = (conversations || [])
+        .filter(conv => conv.messages && conv.messages.length > 0)
+        .sort((a, b) => {
+          const lastMessageA = a.messages[a.messages.length - 1]
+          const lastMessageB = b.messages[b.messages.length - 1]
+          return new Date(lastMessageB.created_at).getTime() - new Date(lastMessageA.created_at).getTime()
+        })
+
+      setConversations(sortedConversations)
+
+      // Charger les profils de tous les participants
+      const userIds = new Set<string>()
+      sortedConversations.forEach(conv => {
+        userIds.add(conv.client_id)
+        userIds.add(conv.developer_id)
+        conv.messages?.forEach((msg: any) => userIds.add(msg.sender_id))
+      })
+
+      // Charger tous les profils en parallèle
+      await Promise.all(
+        Array.from(userIds).map(id => loadProfile(id))
+      )
     } catch (error) {
       console.error('Erreur lors du chargement des conversations:', error)
-      setConversations([])
     }
   }
 
@@ -189,7 +203,7 @@ export default function MessagesPage() {
     if (!conversation || !user) {
       return {
         id: '',
-        name: 'Utilisateur',
+        name: t('messages.anonymous.user'),
         avatar: null,
         email: 'utilisateur@exemple.com',
         type: 'client'
@@ -203,7 +217,7 @@ export default function MessagesPage() {
     if (!otherUserProfile) {
       return {
         id: otherUserId,
-        name: isClient ? 'Développeur' : 'Client',
+        name: isClient ? t('messages.anonymous.developer') : t('messages.anonymous.client'),
         avatar: null,
         email: 'utilisateur@exemple.com',
         type: isClient ? 'developer' : 'client'
@@ -212,7 +226,7 @@ export default function MessagesPage() {
     
     return {
       id: otherUserId,
-      name: otherUserProfile.full_name || otherUserProfile.email?.split('@')[0] || 'Utilisateur',
+      name: otherUserProfile.full_name || otherUserProfile.email?.split('@')[0] || t('messages.anonymous.user'),
       avatar: otherUserProfile.avatar_url,
       email: otherUserProfile.email,
       type: otherUserProfile.user_type
@@ -397,14 +411,14 @@ export default function MessagesPage() {
 
       if (error) {
         console.error('Erreur mise à jour statut:', error)
-        alert('Erreur lors de la mise à jour du statut')
+        alert(t('msg.error'))
         return
       }
 
       // Envoyer un message automatique de notification
       const statusMessage = status === 'accepted' 
-        ? '✅ **Candidature acceptée !** Félicitations, votre candidature a été acceptée par le client.'
-        : '❌ **Candidature refusée.** Votre candidature n\'a pas été retenue pour ce projet.'
+        ? `✅ **${t('messages.application.accepted')}** ${t('messages.application.accepted.desc')}`
+        : `❌ **${t('messages.application.rejected')}** ${t('messages.application.rejected.desc')}`
 
       await supabase
         .from('messages')
@@ -415,7 +429,7 @@ export default function MessagesPage() {
           created_at: new Date().toISOString()
         })
 
-      alert(`Candidature ${status === 'accepted' ? 'acceptée' : 'refusée'} avec succès !`)
+      alert(status === 'accepted' ? t('messages.application.accepted.success') : t('messages.application.rejected.success'))
       
       // Recharger les messages et conversations
       loadMessages(selectedConversation.id)
@@ -435,7 +449,7 @@ export default function MessagesPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des messages...</p>
+          <p className="text-gray-600">{t('messages.loading')}</p>
         </div>
       </div>
     )
@@ -445,7 +459,7 @@ export default function MessagesPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Vous devez être connecté</p>
+          <p className="text-red-600 mb-4">{t('messages.login.required')}</p>
         </div>
       </div>
     )
@@ -462,9 +476,9 @@ export default function MessagesPage() {
               className="flex items-center text-gray-600 hover:text-black transition-colors mr-4"
             >
               <ArrowLeft className="h-5 w-5 mr-2" />
-              Retour
+              {t('messages.back')}
             </button>
-            <h1 className="text-2xl font-black text-black">Messages</h1>
+            <h1 className="text-2xl font-black text-black">{t('nav.messages')}</h1>
           </div>
         </div>
 
@@ -474,7 +488,7 @@ export default function MessagesPage() {
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-lg font-bold text-black flex items-center">
                 <MessageCircle className="h-5 w-5 mr-2" />
-                Conversations ({conversations.length})
+                {t('messages.conversations')} ({conversations.length})
               </h2>
             </div>
             
@@ -482,7 +496,7 @@ export default function MessagesPage() {
               {conversations.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
                   <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>Aucune conversation</p>
+                  <p>{t('messages.no.conversations')}</p>
                 </div>
               ) : (
                 conversations.map((conversation) => {
@@ -499,59 +513,35 @@ export default function MessagesPage() {
                       }`}
                     >
                       <div className="flex items-start space-x-3">
-                        {/* Avatar - Style original */}
                         <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                          {otherParticipant.avatar ? (
+                          {otherParticipant?.avatar ? (
                             <img
                               src={otherParticipant.avatar}
                               alt={otherParticipant.name}
                               className="w-full h-full object-cover"
-                              onError={(e) => {
-                                // Fallback si l'image ne charge pas
-                                e.currentTarget.style.display = 'none'
-                                e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                              }}
                             />
-                          ) : null}
-                          <div className={`w-full h-full bg-black flex items-center justify-center text-white font-bold text-sm ${otherParticipant.avatar ? 'hidden' : ''}`}>
-                            {otherParticipant.name.charAt(0).toUpperCase()}
-                          </div>
+                          ) : (
+                            <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold">
+                              {(otherParticipant?.name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                          )}
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <h3 className="font-semibold text-gray-900 truncate">
-                              {otherParticipant.name}
-                            </h3>
-                            {lastMessage && (
-                              <span className="text-xs text-gray-500">
-                                {new Date(lastMessage.created_at).toLocaleDateString('fr-FR', {
-                                  day: '2-digit',
-                                  month: '2-digit'
-                                })}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            {otherParticipant.type === 'developer' ? '⚡ Développeur' : '👤 Client'}
+                          <h3 className="font-bold text-sm text-black truncate">
+                            {otherParticipant?.name || t('messages.anonymous.user')}
+                          </h3>
+                          <p className="text-xs text-gray-500 mb-1">
+                            {conversation.projects?.title || t('messages.general.conversation')}
                           </p>
-                          
-                          {/* Titre du projet */}
-                          {conversation.project_title && (
-                            <p className="text-sm text-blue-600 truncate mt-1">
-                              Projet: {conversation.project_title}
-                            </p>
-                          )}
-                          {conversation.subject && (
-                            <p className="text-sm text-gray-600 truncate mt-1">
-                              {conversation.subject}
-                            </p>
-                          )}
-                          
-                          {/* Dernier message */}
                           {lastMessage && (
-                            <p className="text-xs text-gray-500 truncate mt-1">
+                            <p className="text-sm text-gray-600 truncate">
                               {lastMessage.content}
+                            </p>
+                          )}
+                          {lastMessage && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(lastMessage.created_at).toLocaleString()}
                             </p>
                           )}
                         </div>
@@ -563,7 +553,7 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* Zone de messages */}
+          {/* Zone des messages */}
           <div className="lg:col-span-2 bg-white rounded-2xl border-2 border-gray-200 overflow-hidden flex flex-col">
             {selectedConversation ? (
               <>
@@ -571,84 +561,74 @@ export default function MessagesPage() {
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      {/* Avatar dans le header */}
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
                         {otherParticipant?.avatar ? (
                           <img
                             src={otherParticipant.avatar}
                             alt={otherParticipant.name}
                             className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none'
-                              e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                            }}
                           />
-                        ) : null}
-                        <div className={`w-full h-full bg-black flex items-center justify-center text-white font-bold text-sm ${otherParticipant?.avatar ? 'hidden' : ''}`}>
-                          {otherParticipant?.name.charAt(0).toUpperCase() || 'U'}
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <h3 className="font-bold text-gray-900">
-                            {otherParticipant?.name || 'Utilisateur'}
-                          </h3>
-                          
-                          {/* 🆕 Étoiles du profil */}
-                          {otherParticipant?.type === 'developer' && developerRating && (
-                            <div className="flex items-center space-x-1">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <span
-                                  key={star}
-                                  className={`text-sm ${star <= Math.round(developerRating.average_rating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
-                                >
-                                  ⭐
-                                </span>
-                              ))}
-                              <span className="text-xs text-gray-500 ml-1">
-                                ({developerRating.average_rating ? developerRating.average_rating.toFixed(1) : '0.0'})
-                                {developerRating.total_ratings > 0 && ` (${developerRating.total_ratings})`}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {selectedConversation.project_title && (
-                          <p className="text-sm text-blue-600">
-                            Projet: {selectedConversation.project_title}
-                          </p>
+                        ) : (
+                          <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold">
+                            {(otherParticipant?.name || 'U').charAt(0).toUpperCase()}
+                          </div>
                         )}
                       </div>
+                      <div>
+                        <h3 className="font-bold text-black">
+                          {otherParticipant?.name || t('messages.anonymous.user')}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {selectedConversation.project_title || t('messages.general.conversation')}
+                        </p>
+                      </div>
                     </div>
-                    
-                    {/* 🆕 Éléments de progression, statut et noter à droite */}
-                    {applicationData && (
-                      <div className="flex items-center space-x-3">
-                        {/* Barre de progression */}
-                        <div className="flex items-center space-x-2">
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="h-2 rounded-full transition-all duration-300 bg-green-500"
-                              style={{ width: '75%' }}
-                            ></div>
+
+                    {/* Actions pour les clients */}
+                    {userProfile?.user_type === 'client' && applicationData && applicationData.status === 'pending' && (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => updateApplicationStatus('accepted')}
+                          className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors text-sm flex items-center"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          {t('messages.accept')}
+                        </button>
+                        <button
+                          onClick={() => updateApplicationStatus('rejected')}
+                          className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors text-sm"
+                        >
+                          {t('messages.reject')}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Bouton de notation pour les clients */}
+                    {userProfile?.user_type === 'client' && otherParticipant?.user_type === 'developer' && (
+                      <div>
+                        {/* Affichage de la note existante */}
+                        {developerRating && developerRating.average_rating > 0 && (
+                          <div className="text-right mb-2">
+                            <div className="flex items-center justify-end space-x-1">
+                              <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                              <span className="text-sm font-bold">
+                                {developerRating.average_rating.toFixed(1)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                ({developerRating.total_ratings} {t('messages.ratings')})
+                              </span>
+                            </div>
                           </div>
-                          <span className="text-xs text-gray-500 font-medium">75%</span>
-                        </div>
+                        )}
                         
-                        {/* Statut */}
-                        <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full border bg-green-100 text-green-800 border-green-200">
-                          <CheckCircle className="w-4 h-4" />
-                          <span className="font-medium text-sm">Acceptée</span>
-                        </div>
-                        
-                        {/* Bouton Noter - uniquement pour clients qui parlent à des développeurs */}
-                        {userProfile?.user_type === 'client' && otherParticipant?.type === 'developer' && (
-                          <button 
+                        {/* Bouton pour noter */}
+                        {applicationData && applicationData.status === 'accepted' && (
+                          <button
                             onClick={() => setShowRatingModal(true)}
-                            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-yellow-600 transition-colors text-sm flex items-center"
                           >
                             <Star className="h-4 w-4 mr-2" />
-                            Noter
+                            {t('messages.rate')}
                           </button>
                         )}
                       </div>
@@ -661,8 +641,8 @@ export default function MessagesPage() {
                   {messages.length === 0 ? (
                     <div className="text-center text-gray-500 py-8">
                       <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p>Aucun message dans cette conversation</p>
-                      <p className="text-sm mt-2">Commencez la discussion !</p>
+                      <p>{t('messages.no.messages')}</p>
+                      <p className="text-sm mt-2">{t('messages.start.conversation')}</p>
                     </div>
                   ) : (
                     messages.map((message) => {
@@ -683,7 +663,7 @@ export default function MessagesPage() {
                                 {senderProfile?.avatar_url ? (
                                   <img
                                     src={senderProfile.avatar_url}
-                                    alt={senderProfile.full_name || 'Utilisateur'}
+                                    alt={senderProfile.full_name || t('messages.user')}
                                     className="w-full h-full object-cover"
                                     onError={(e) => {
                                       e.currentTarget.style.display = 'none'
@@ -710,12 +690,7 @@ export default function MessagesPage() {
                                   isOwnMessage ? 'text-gray-300' : 'text-gray-500'
                                 }`}
                               >
-                                {new Date(message.created_at).toLocaleString('fr-FR', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
+                                {new Date(message.created_at).toLocaleString()}
                               </p>
                             </div>
                           </div>
@@ -732,7 +707,7 @@ export default function MessagesPage() {
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
-                      placeholder="Tapez votre message..."
+                      placeholder={t('messages.type.message')}
                       className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent resize-none"
                       rows={2}
                     />
@@ -754,8 +729,8 @@ export default function MessagesPage() {
               <div className="flex-1 flex items-center justify-center text-gray-500">
                 <div className="text-center">
                   <MessageCircle className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <p className="text-lg font-semibold mb-2">Sélectionnez une conversation</p>
-                  <p>Choisissez une conversation pour commencer à échanger</p>
+                  <p className="text-lg font-semibold mb-2">{t('messages.select.conversation')}</p>
+                  <p>{t('messages.select.conversation.desc')}</p>
                 </div>
               </div>
             )}

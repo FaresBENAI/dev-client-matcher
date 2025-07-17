@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
 import { Eye, MessageCircle, Clock, Play, CheckCircle, Users, Calendar, DollarSign, XCircle, Star, User, Plus, RefreshCw } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const supabase = createClient()
 
 // Composant d'affichage des étoiles
-const StarRating = ({ rating, totalRatings }: { rating: number; totalRatings?: number }) => {
+const StarRating = ({ rating, totalRatings, t }: { rating: number; totalRatings?: number; t: any }) => {
   if (!rating) return (
-    <span className="text-xs text-gray-400">Pas encore noté</span>
+    <span className="text-xs text-gray-400">{t('dashboard.not.rated.yet')}</span>
   );
   
   return (
@@ -39,6 +40,7 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const getUser = async () => {
@@ -286,22 +288,22 @@ export default function ClientDashboard() {
   const getProjectStatusConfig = (status) => {
     const configs = {
       open: {
-        label: 'Ouvert',
+        label: t('status.open'),
         color: 'bg-green-100 text-green-800 border-green-200',
         icon: Play
       },
       in_progress: {
-        label: 'En cours',
+        label: t('status.in_progress'),
         color: 'bg-blue-100 text-blue-800 border-blue-200',
         icon: Clock
       },
       completed: {
-        label: 'Terminé',
+        label: t('status.completed'),
         color: 'bg-gray-100 text-gray-800 border-gray-200',
         icon: CheckCircle
       },
       cancelled: {
-        label: 'Annulé',
+        label: t('status.cancelled'),
         color: 'bg-red-100 text-red-800 border-red-200',
         icon: XCircle
       }
@@ -310,15 +312,11 @@ export default function ClientDashboard() {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
+    return new Date(dateString).toLocaleDateString();
   };
 
   const formatBudget = (min, max) => {
-    if (!min && !max) return 'Budget à négocier';
+    if (!min && !max) return t('dashboard.budget.negotiate');
     if (!max) return `${min}€+`;
     return `${min}€ - ${max}€`;
   };
@@ -343,10 +341,10 @@ export default function ClientDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-black mb-2">
-                Dashboard Client
+                {t('dashboard.client.title')}
               </h1>
               <p className="text-gray-300">
-                Bienvenue {userProfile?.full_name || user?.email} - Gérez vos projets et développeurs
+                {t('dashboard.client.welcome')} {userProfile?.full_name || user?.email} - {t('dashboard.client.subtitle')}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -356,14 +354,14 @@ export default function ClientDashboard() {
                 className="bg-gray-800 text-white px-4 py-3 font-bold rounded-lg hover:bg-gray-700 transition-all duration-300 flex items-center gap-2 disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Rafraîchir
+                {t('dashboard.refresh')}
               </button>
               <Link
                 href="/projects/create"
                 className="bg-white text-black px-6 py-3 font-black rounded-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-2"
               >
                 <Plus className="h-5 w-5" />
-                Nouveau Projet
+                {t('dashboard.new.project')}
               </Link>
             </div>
           </div>
@@ -377,7 +375,7 @@ export default function ClientDashboard() {
           <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Mes Projets</p>
+                <p className="text-sm text-gray-600 font-medium">{t('dashboard.my.projects')}</p>
                 <p className="text-3xl font-black text-black">{projects.length}</p>
               </div>
               <div className="bg-black p-3 rounded-xl">
@@ -389,7 +387,7 @@ export default function ClientDashboard() {
           <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Développeurs</p>
+                <p className="text-sm text-gray-600 font-medium">{t('dashboard.developers')}</p>
                 <p className="text-3xl font-black text-black">{developers.length}</p>
               </div>
               <div className="bg-blue-500 p-3 rounded-xl">
@@ -401,7 +399,7 @@ export default function ClientDashboard() {
           <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Conversations</p>
+                <p className="text-sm text-gray-600 font-medium">{t('dashboard.conversations')}</p>
                 <p className="text-3xl font-black text-black">{conversations.length}</p>
               </div>
               <div className="bg-green-500 p-3 rounded-xl">
@@ -413,12 +411,12 @@ export default function ClientDashboard() {
           <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Messages non lus</p>
+                <p className="text-sm text-gray-600 font-medium">{t('dashboard.active.projects')}</p>
                 <p className="text-3xl font-black text-black">
-                  {developers.reduce((total, dev) => total + dev.unread_count, 0)}
+                  {projects.filter(p => p.status === 'in_progress').length}
                 </p>
               </div>
-              <div className="bg-yellow-500 p-3 rounded-xl">
+              <div className="bg-orange-500 p-3 rounded-xl">
                 <Clock className="w-6 h-6 text-white" />
               </div>
             </div>
@@ -428,73 +426,84 @@ export default function ClientDashboard() {
         {/* Mes Projets */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-black">Mes Projets</h2>
+            <h2 className="text-2xl font-black text-black">{t('dashboard.my.projects')}</h2>
             <Link
               href="/projects"
               className="text-black hover:text-gray-600 font-medium"
             >
-              Voir tous →
+              {t('dashboard.view.all')} →
             </Link>
           </div>
 
           {projects.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 text-center border-2 border-gray-200">
               <div className="text-6xl mb-4">📋</div>
-              <h3 className="text-xl font-black text-black mb-2">Aucun projet créé</h3>
-              <p className="text-gray-600 mb-6">Créez votre premier projet pour commencer à collaborer avec des développeurs</p>
+              <h3 className="text-xl font-black text-black mb-2">{t('dashboard.no.projects')}</h3>
+              <p className="text-gray-600 mb-6">{t('dashboard.no.projects.desc')}</p>
               <Link
                 href="/projects/create"
                 className="bg-black text-white px-8 py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300"
               >
-                Créer mon premier projet
+                {t('dashboard.create.first.project')}
               </Link>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.slice(0, 6).map((project) => {
+              {projects.map((project) => {
                 const statusConfig = getProjectStatusConfig(project.status);
                 const StatusIcon = statusConfig.icon;
                 
                 return (
                   <div key={project.id} className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-black text-black mb-2 line-clamp-1">
-                          {project.title}
-                        </h3>
-                        <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full border text-sm ${statusConfig.color}`}>
-                          <StatusIcon className="w-4 h-4" />
-                          <span className="font-medium">{statusConfig.label}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {project.description}
-                    </p>
-                    
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <DollarSign className="w-4 h-4 mr-2" />
-                        {formatBudget(project.budget_min, project.budget_max)}
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Créé le {formatDate(project.created_at)}
-                      </div>
+                    {/* Status badge */}
+                    <div className="flex items-center justify-between mb-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${statusConfig.color} flex items-center gap-1`}>
+                        <StatusIcon className="w-3 h-3" />
+                        {statusConfig.label}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {formatDate(project.created_at)}
+                      </span>
                     </div>
 
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">
-                        {project.project_type}
-                      </span>
-                      {project.complexity && (
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
-                          {project.complexity}
-                        </span>
+                    <h3 className="text-lg font-black text-black mb-2 truncate">
+                      {project.title}
+                    </h3>
+                    
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                      {project.description}
+                    </p>
+
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center text-sm text-gray-500">
+                        <DollarSign className="w-4 h-4 mr-1" />
+                        {formatBudget(project.budget_min, project.budget_max)}
+                      </div>
+                      {project.timeline && (
+                        <div className="flex items-center text-sm text-gray-500">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          {project.timeline}
+                        </div>
                       )}
                     </div>
+
+                    {/* Compétences */}
+                    {project.required_skills && project.required_skills.length > 0 && (
+                      <div className="mb-4">
+                        <div className="flex flex-wrap gap-1">
+                          {project.required_skills.slice(0, 3).map((skill, index) => (
+                            <span key={index} className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">
+                              {skill}
+                            </span>
+                          ))}
+                          {project.required_skills.length > 3 && (
+                            <span className="bg-gray-200 text-gray-600 px-2 py-1 rounded text-xs font-medium">
+                              +{project.required_skills.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Actions */}
                     <div className="flex gap-2">
@@ -502,13 +511,13 @@ export default function ClientDashboard() {
                         href={`/projects/${project.id}`}
                         className="flex-1 bg-black text-white py-2 px-4 rounded-lg font-bold text-sm hover:bg-gray-800 transition-all duration-300 text-center"
                       >
-                        Voir le projet
+                        {t('dashboard.view.project')}
                       </Link>
                       <Link
                         href={`/projects/${project.id}/edit`}
                         className="border-2 border-gray-300 text-gray-700 py-2 px-4 rounded-lg font-bold text-sm hover:border-black hover:text-black transition-all duration-300 text-center"
                       >
-                        Modifier
+                        {t('dashboard.edit')}
                       </Link>
                     </div>
                   </div>
@@ -521,25 +530,25 @@ export default function ClientDashboard() {
         {/* Développeurs Assignés */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-black">Développeurs Collaborateurs</h2>
+            <h2 className="text-2xl font-black text-black">{t('dashboard.collaborating.developers')}</h2>
             <Link
               href="/developers"
               className="text-black hover:text-gray-600 font-medium"
             >
-              Voir tous →
+              {t('dashboard.view.all')} →
             </Link>
           </div>
 
           {developers.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 text-center border-2 border-gray-200">
               <div className="text-6xl mb-4">👥</div>
-              <h3 className="text-xl font-black text-black mb-2">Aucun développeur assigné</h3>
-              <p className="text-gray-600 mb-6">Commencez à collaborer avec des développeurs en créant un projet</p>
+              <h3 className="text-xl font-black text-black mb-2">{t('dashboard.no.developers')}</h3>
+              <p className="text-gray-600 mb-6">{t('dashboard.no.developers.desc')}</p>
               <Link
                 href="/developers"
                 className="bg-black text-white px-8 py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300"
               >
-                Explorer les développeurs
+                {t('dashboard.explore.developers')}
               </Link>
             </div>
           ) : (
@@ -552,7 +561,7 @@ export default function ClientDashboard() {
                       {developer.avatar_url ? (
                         <img 
                           src={developer.avatar_url} 
-                          alt={developer.full_name || 'Développeur'} 
+                          alt={developer.full_name || t('dashboard.developer')} 
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -565,14 +574,14 @@ export default function ClientDashboard() {
                     {/* Infos développeur */}
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-black text-black mb-1 truncate">
-                        {developer.full_name || 'Développeur'}
+                        {developer.full_name || t('dashboard.developer')}
                       </h3>
                       <p className="text-sm text-gray-600 mb-2">
-                        {developer.title || (developer.experience_years ? `${developer.experience_years}+ ans d'expérience` : 'Expert')}
+                        {developer.title || (developer.experience_years ? `${developer.experience_years}+ ${t('dashboard.years.experience')}` : t('developers.expert'))}
                       </p>
                       
                       {/* Note */}
-                      <StarRating rating={developer.average_rating} totalRatings={developer.total_ratings} />
+                      <StarRating rating={developer.average_rating} totalRatings={developer.total_ratings} t={t} />
                     </div>
                   </div>
 
@@ -586,14 +595,14 @@ export default function ClientDashboard() {
                     {(developer.daily_rate || developer.hourly_rate) && (
                       <div className="flex items-center text-sm text-gray-500">
                         <DollarSign className="w-4 h-4 mr-1" />
-                        {developer.daily_rate ? `${developer.daily_rate}€/jour` : `${developer.hourly_rate}€/heure`}
+                        {developer.daily_rate ? `${developer.daily_rate}€/${t('dashboard.day')}` : `${developer.hourly_rate}€/${t('dashboard.hour')}`}
                       </div>
                     )}
                     {developer.unread_count > 0 && (
                       <div className="flex items-center justify-between">
                         <div className="flex items-center text-sm text-red-600 font-medium">
                           <MessageCircle className="w-4 h-4 mr-1" />
-                          {developer.unread_count} message{developer.unread_count > 1 ? 's' : ''} non lu{developer.unread_count > 1 ? 's' : ''}
+                          {developer.unread_count} {t('dashboard.unread.messages')}
                         </div>
                         <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-1">
                           {developer.unread_count}
@@ -627,14 +636,14 @@ export default function ClientDashboard() {
                       className="flex-1 border-2 border-gray-300 text-gray-700 py-2 px-4 rounded-lg font-bold text-sm hover:border-black hover:text-black transition-all duration-300 text-center flex items-center justify-center gap-2"
                     >
                       <Eye className="w-4 h-4" />
-                      Profil
+                      {t('dashboard.profile')}
                     </Link>
                     <Link
                       href="/messages"
                       className="flex-1 bg-black text-white py-2 px-4 rounded-lg font-bold text-sm hover:bg-gray-800 transition-all duration-300 text-center flex items-center justify-center gap-2"
                     >
                       <MessageCircle className="w-4 h-4" />
-                      Contacter
+                      {t('dashboard.contact')}
                     </Link>
                   </div>
                 </div>
@@ -645,28 +654,28 @@ export default function ClientDashboard() {
 
         {/* Actions rapides */}
         <div className="bg-black text-white rounded-2xl p-8 text-center">
-          <h2 className="text-2xl font-black mb-4">Besoin d'aide ?</h2>
+          <h2 className="text-2xl font-black mb-4">{t('dashboard.need.help')}</h2>
           <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
-            Explorez notre plateforme pour trouver les meilleurs développeurs ou gérez vos projets existants
+            {t('dashboard.need.help.desc')}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/developers"
               className="bg-white text-black px-8 py-4 font-black rounded-lg hover:bg-gray-100 transition-all duration-300"
             >
-              Explorer les développeurs
+              {t('dashboard.explore.developers')}
             </Link>
             <Link
               href="/projects"
               className="border-2 border-white text-white px-8 py-4 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300"
             >
-              Gérer mes projets
+              {t('dashboard.manage.projects')}
             </Link>
             <Link
               href="/messages"
               className="border-2 border-white text-white px-8 py-4 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300"
             >
-              Mes conversations
+              {t('dashboard.my.conversations')}
             </Link>
           </div>
         </div>
