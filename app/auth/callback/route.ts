@@ -71,7 +71,16 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Fallback - redirection vers la page de connexion
-  console.log('⚠️ Callback sans code valide, redirection vers login')
-  return NextResponse.redirect(`${origin}/auth/login?info=please_check_email`)
+  // Si pas de code, vérifier si l'utilisateur est déjà connecté
+  const supabase = createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  
+  if (session?.user) {
+    console.log('✅ Utilisateur déjà connecté, redirection vers page d\'accueil')
+    return NextResponse.redirect(`${origin}/?login=success`)
+  }
+
+  // Fallback - redirection vers la page d'accueil avec info
+  console.log('⚠️ Callback sans code valide, redirection vers accueil')
+  return NextResponse.redirect(`${origin}/?info=please_check_email`)
 } 

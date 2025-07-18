@@ -20,6 +20,29 @@ function LoginPageContent() {
   // S'assurer qu'on est côté client
   useEffect(() => {
     setMounted(true);
+    
+    // Vérifier si l'utilisateur est déjà connecté
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        console.log('✅ Utilisateur déjà connecté, redirection...');
+        
+        // Récupérer le profil pour redirection appropriée
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_type')
+          .eq('id', session.user.id)
+          .single();
+        
+        const dashboardRoute = profile?.user_type === 'client' 
+          ? '/dashboard/client'
+          : '/dashboard/developer';
+        
+        router.push(dashboardRoute);
+      }
+    };
+    
+    checkUser();
   }, []);
 
   // Récupérer le redirectTo seulement côté client
@@ -47,11 +70,26 @@ function LoginPageContent() {
 
       console.log('✅ Connexion réussie:', data.user.email);
       
-      // Redirection avec le callback pour traiter l'authentification
-      const callbackUrl = `/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`;
-      console.log('🔄 Redirection vers callback:', callbackUrl);
-      
-      router.push(callbackUrl);
+      // Récupérer le profil utilisateur pour redirection appropriée
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', data.user.id)
+        .single();
+
+      // Redirection directe vers le dashboard approprié
+      if (profile) {
+        const dashboardRoute = profile.user_type === 'client' 
+          ? '/dashboard/client'
+          : '/dashboard/developer';
+        
+        console.log('🎯 Redirection directe vers:', dashboardRoute);
+        router.push(dashboardRoute);
+      } else {
+        // Si pas de profil, rediriger vers page d'accueil
+        console.log('🎯 Redirection vers page d\'accueil');
+        router.push('/?login=success');
+      }
 
     } catch (error) {
       console.error('❌ Erreur inattendue:', error);
