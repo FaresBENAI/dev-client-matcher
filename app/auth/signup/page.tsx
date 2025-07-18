@@ -206,7 +206,8 @@ export default function SignupPage() {
         email: basicData.email,
         password: basicData.password,
         options: {
-          data: userMetadata
+          data: userMetadata,
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?type=signup`
         }
       })
 
