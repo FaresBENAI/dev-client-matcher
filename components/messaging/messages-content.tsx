@@ -287,24 +287,8 @@ export default function MessagesContent() {
   return (
     <div className="min-h-screen bg-slate-900">
       <div className="max-w-7xl mx-auto h-screen flex">
-        {/* DEBUG PANEL */}
-        <div className="w-1/4 bg-yellow-500/10 border-r border-yellow-500/30 p-4 overflow-y-auto">
-          <h3 className="text-yellow-400 font-bold mb-2">🔍 DEBUG</h3>
-          <div className="space-y-1 text-yellow-300 text-xs">
-            {debugInfo.map((info, index) => (
-              <div key={index}>{info}</div>
-            ))}
-          </div>
-          <button 
-            onClick={() => setDebugInfo([])}
-            className="mt-2 text-xs bg-yellow-500 text-white px-2 py-1 rounded"
-          >
-            Clear
-          </button>
-        </div>
-
         {/* Sidebar - Liste des conversations */}
-        <div className="w-1/3 bg-slate-800/50 border-r border-slate-700">
+        <div className="w-1/3 bg-slate-800 border-r border-slate-700">
           <div className="p-6 border-b border-slate-700">
             <h1 className="text-2xl font-bold text-white mb-2">💬 Messages</h1>
             <p className="text-slate-400 text-sm">

@@ -278,17 +278,6 @@ export default function DeveloperApplicationsPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-black mb-4"></div>
           <p className="text-gray-600">Chargement des candidatures...</p>
-          
-          {debugInfo.length > 0 && (
-            <details className="mt-4 text-left">
-              <summary className="cursor-pointer text-gray-600">Debug en cours...</summary>
-              <div className="mt-2 bg-gray-100 p-3 rounded text-xs max-h-32 overflow-auto">
-                {debugInfo.map((info, index) => (
-                  <div key={index}>{info}</div>
-                ))}
-              </div>
-            </details>
-          )}
         </div>
       </div>
     );

@@ -125,17 +125,6 @@ function LoginPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      {/* Debug info en haut */}
-      <div className="bg-green-100 border-l-4 border-green-500 p-4 mb-4 mx-4">
-        <div className="flex">
-          <div className="ml-3">
-            <p className="text-sm text-green-700">
-              <strong>✅ CLIENT LOGIN:</strong> RedirectTo = {redirectTo} | Mounted = ✅
-            </p>
-          </div>
-        </div>
-      </div>
-
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
           <div className="bg-black text-white w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -261,18 +250,6 @@ function LoginPageContent() {
               </p>
             </div>
           </form>
-
-          {/* Debug panel */}
-          <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-bold text-gray-900 mb-2">🔍 Debug Auth:</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p>Email: {email || 'Non saisi'}</p>
-              <p>Loading: {loading ? 'Oui' : 'Non'}</p>
-              <p>RedirectTo: {redirectTo}</p>
-              <p>Mounted: {mounted ? 'Oui' : 'Non'}</p>
-              <p>URL: {typeof window !== 'undefined' ? window.location.href : 'SSR'}</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
