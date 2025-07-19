@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
-import { Eye, MessageCircle, Clock, Play, CheckCircle, Users, Calendar, DollarSign, XCircle, Star, User, Plus, RefreshCw } from 'lucide-react';
+import { Eye, MessageCircle, Clock, Play, CheckCircle, Users, Calendar, DollarSign, XCircle, Star, User, Plus, RefreshCw, X } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const supabase = createClient()
@@ -38,9 +38,25 @@ export default function ClientDashboard() {
   const [developers, setDevelopers] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingRatings, setLoadingRatings] = useState(false);
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const { t } = useLanguage();
+
+  // États pour la modal de création de projet
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    project_type: 'automation',
+    budget_min: '',
+    budget_max: '',
+    timeline: '',
+    required_skills: [] as string[],
+    complexity: 'medium'
+  });
+  const [skillInput, setSkillInput] = useState('');
+  const [createLoading, setCreateLoading] = useState(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -321,6 +337,91 @@ export default function ClientDashboard() {
     return `${min}€ - ${max}€`;
   };
 
+  // Fonctions pour la modal de création de projet
+  const handleCreateProject = () => {
+    setShowCreateModal(true);
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    setFormData({
+      title: '',
+      description: '',
+      project_type: 'automation',
+      budget_min: '',
+      budget_max: '',
+      timeline: '',
+      required_skills: [],
+      complexity: 'medium'
+    });
+    setSkillInput('');
+  };
+
+  const handleSubmitProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    setCreateLoading(true);
+    try {
+      console.log('=== CREATION PROJET ===');
+      console.log('User ID:', user.id);
+      console.log('Form data:', formData);
+      
+      const projectData = {
+        title: formData.title,
+        description: formData.description,
+        project_type: formData.project_type,
+        budget_min: parseInt(formData.budget_min),
+        budget_max: parseInt(formData.budget_max),
+        timeline: formData.timeline,
+        required_skills: formData.required_skills,
+        complexity: formData.complexity,
+        status: 'open',
+        client_id: user.id
+      };
+      
+      console.log('Project data to insert:', projectData);
+      
+      const { data, error } = await supabase
+        .from('projects')
+        .insert([projectData]);
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('Project created successfully:', data);
+
+      // Fermer la modal et recharger les données
+      closeCreateModal();
+      await loadDashboardData(user.id); // Recharger les données du dashboard
+      
+    } catch (error: any) {
+      console.error('Erreur lors de la création:', error);
+      alert(`Erreur lors de la création du projet: ${error.message}`);
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const addSkill = () => {
+    if (skillInput.trim() && !formData.required_skills.includes(skillInput.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        required_skills: [...prev.required_skills, skillInput.trim()]
+      }));
+      setSkillInput('');
+    }
+  };
+
+  const removeSkill = (skillToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      required_skills: prev.required_skills.filter(skill => skill !== skillToRemove)
+    }));
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -356,13 +457,13 @@ export default function ClientDashboard() {
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 {t('dashboard.refresh')}
               </button>
-              <Link
-                href="/projects/create"
+              <button
+                onClick={handleCreateProject}
                 className="bg-white text-black px-6 py-3 font-black rounded-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-2"
               >
                 <Plus className="h-5 w-5" />
                 {t('dashboard.new.project')}
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -440,12 +541,12 @@ export default function ClientDashboard() {
               <div className="text-6xl mb-4">📋</div>
               <h3 className="text-xl font-black text-black mb-2">{t('dashboard.no.projects')}</h3>
               <p className="text-gray-600 mb-6">{t('dashboard.no.projects.desc')}</p>
-              <Link
-                href="/projects/create"
+              <button
+                onClick={handleCreateProject}
                 className="bg-black text-white px-8 py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300"
               >
                 {t('dashboard.create.first.project')}
-              </Link>
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -680,6 +781,196 @@ export default function ClientDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Modal de création de projet */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white max-w-3xl w-full max-h-[90vh] overflow-y-auto rounded-xl">
+            <div className="p-4 sm:p-6 border-b-2 border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl sm:text-2xl font-black">Créer un nouveau projet</h2>
+              <button 
+                onClick={closeCreateModal}
+                className="p-2 hover:bg-gray-100 rounded"
+              >
+                <X className="h-5 w-5 sm:h-6 sm:w-6" />
+              </button>
+            </div>
+            
+            <div className="p-4 sm:p-6">
+              <form onSubmit={handleSubmitProject} className="space-y-4 sm:space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                  <div>
+                    <label className="block text-sm font-black text-black mb-2">
+                      Titre du projet *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.title}
+                      onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
+                      placeholder="Ex: Application e-commerce"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-black text-black mb-2">
+                      Type de projet *
+                    </label>
+                    <select
+                      required
+                      value={formData.project_type}
+                      onChange={(e) => setFormData(prev => ({ ...prev, project_type: e.target.value }))}
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
+                    >
+                      <option value="automation">Automatisation</option>
+                      <option value="web">Développement Web</option>
+                      <option value="mobile">Application Mobile</option>
+                      <option value="ai">Intelligence Artificielle</option>
+                      <option value="data">Analyse de Données</option>
+                      <option value="other">Autre</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black text-black mb-2">
+                    Description *
+                  </label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
+                    placeholder="Décrivez votre projet en détail..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                  <div>
+                    <label className="block text-sm font-black text-black mb-2">
+                      Budget minimum (€)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.budget_min}
+                      onChange={(e) => setFormData(prev => ({ ...prev, budget_min: e.target.value }))}
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
+                      placeholder="1000"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-black text-black mb-2">
+                      Budget maximum (€)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.budget_max}
+                      onChange={(e) => setFormData(prev => ({ ...prev, budget_max: e.target.value }))}
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
+                      placeholder="5000"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                  <div>
+                    <label className="block text-sm font-black text-black mb-2">
+                      Délai souhaité
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.timeline}
+                      onChange={(e) => setFormData(prev => ({ ...prev, timeline: e.target.value }))}
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
+                      placeholder="Ex: 2 mois"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-black text-black mb-2">
+                      Complexité
+                    </label>
+                    <select
+                      value={formData.complexity}
+                      onChange={(e) => setFormData(prev => ({ ...prev, complexity: e.target.value }))}
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
+                    >
+                      <option value="low">Faible</option>
+                      <option value="medium">Moyenne</option>
+                      <option value="high">Élevée</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black text-black mb-2">
+                    Compétences requises
+                  </label>
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      type="text"
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
+                      className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none font-bold text-sm sm:text-base"
+                      placeholder="Ex: React, Node.js, Python..."
+                    />
+                    <button
+                      type="button"
+                      onClick={addSkill}
+                      className="bg-black text-white px-4 py-2 sm:py-3 rounded-lg font-bold hover:bg-gray-800 transition-colors text-sm sm:text-base"
+                    >
+                      Ajouter
+                    </button>
+                  </div>
+                  
+                  {formData.required_skills.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {formData.required_skills.map((skill, index) => (
+                        <span
+                          key={index}
+                          className="bg-black text-white px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold flex items-center gap-2"
+                        >
+                          {skill}
+                          <button
+                            type="button"
+                            onClick={() => removeSkill(skill)}
+                            className="hover:text-gray-300"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={closeCreateModal}
+                    className="px-4 sm:px-6 py-2 sm:py-3 border-2 border-gray-200 text-black font-black rounded-lg hover:border-black transition-colors text-sm sm:text-base"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={createLoading}
+                    className="bg-black text-white px-4 sm:px-6 py-2 sm:py-3 font-black rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+                  >
+                    {createLoading ? 'Création...' : 'Créer le projet'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
