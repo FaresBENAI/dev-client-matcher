@@ -444,6 +444,82 @@ export default function MessagesPage() {
     }
   }
 
+  // 🆕 NOUVEAU: Fonction pour accepter une candidature
+  const acceptApplication = async (applicationId: string) => {
+    if (!user || !selectedConversation) return;
+
+    try {
+      const { error } = await supabase
+        .from('project_applications')
+        .update({ status: 'accepted', updated_at: new Date().toISOString() })
+        .eq('id', applicationId);
+
+      if (error) {
+        console.error('Erreur mise à jour statut application:', error);
+        alert(t('msg.error'));
+        return;
+      }
+
+      // Envoyer un message de notification
+      const statusMessage = `✅ **${t('messages.application.accepted')}** ${t('messages.application.accepted.desc')}`;
+      await supabase
+        .from('messages')
+        .insert({
+          conversation_id: selectedConversation.id,
+          sender_id: user.id,
+          content: statusMessage,
+          created_at: new Date().toISOString()
+        });
+
+      alert(t('messages.application.accepted.success'));
+      loadMessages(selectedConversation.id);
+      loadConversations(user.id);
+      if (selectedConversation.project_id) {
+        await loadApplicationData(selectedConversation.project_id, selectedConversation.developer_id);
+      }
+    } catch (error) {
+      console.error('Erreur générale:', error);
+    }
+  };
+
+  // 🆕 NOUVEAU: Fonction pour rejeter une candidature
+  const rejectApplication = async (applicationId: string) => {
+    if (!user || !selectedConversation) return;
+
+    try {
+      const { error } = await supabase
+        .from('project_applications')
+        .update({ status: 'rejected', updated_at: new Date().toISOString() })
+        .eq('id', applicationId);
+
+      if (error) {
+        console.error('Erreur mise à jour statut application:', error);
+        alert(t('msg.error'));
+        return;
+      }
+
+      // Envoyer un message de notification
+      const statusMessage = `❌ **${t('messages.application.rejected')}** ${t('messages.application.rejected.desc')}`;
+      await supabase
+        .from('messages')
+        .insert({
+          conversation_id: selectedConversation.id,
+          sender_id: user.id,
+          content: statusMessage,
+          created_at: new Date().toISOString()
+        });
+
+      alert(t('messages.application.rejected.success'));
+      loadMessages(selectedConversation.id);
+      loadConversations(user.id);
+      if (selectedConversation.project_id) {
+        await loadApplicationData(selectedConversation.project_id, selectedConversation.developer_id);
+      }
+    } catch (error) {
+      console.error('Erreur générale:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -467,101 +543,72 @@ export default function MessagesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center">
-            <button 
-              onClick={() => router.back()}
-              className="flex items-center text-gray-600 hover:text-black transition-colors mr-4"
-            >
-              <ArrowLeft className="h-5 w-5 mr-2" />
-              {t('messages.back')}
-            </button>
-            <h1 className="text-2xl font-black text-black">{t('nav.messages')}</h1>
+      <div className="max-w-7xl mx-auto h-screen flex">
+        {/* Header mobile uniquement */}
+        <div className="md:hidden absolute top-0 left-0 right-0 bg-white border-b border-gray-200 z-10 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <button 
+                onClick={() => router.back()}
+                className="flex items-center text-gray-600 hover:text-black transition-colors mr-4"
+              >
+                <ArrowLeft className="h-5 w-5 mr-2" />
+                {t('messages.back')}
+              </button>
+              <h1 className="text-xl font-black text-black">{t('nav.messages')}</h1>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
-          {/* Liste des conversations */}
-          <div className="lg:col-span-1 bg-white rounded-2xl border-2 border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-lg font-bold text-black flex items-center">
-                <MessageCircle className="h-5 w-5 mr-2" />
-                {t('messages.conversations')} ({conversations.length})
-              </h2>
-            </div>
-            
-            <div className="overflow-y-auto h-full">
-              {conversations.length === 0 ? (
-                <div className="p-6 text-center text-gray-500">
-                  <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>{t('messages.no.conversations')}</p>
-                </div>
-              ) : (
-                conversations.map((conversation) => {
-                  const lastMessage = conversation.messages?.[conversation.messages.length - 1]
-                  const otherParticipant = getOtherParticipant(conversation)
-                  const isSelected = selectedConversation?.id === conversation.id
-                  
-                  return (
-                    <div
-                      key={conversation.id}
-                      onClick={() => selectConversation(conversation)}
-                      className={`p-4 border-b border-gray-100 cursor-pointer transition-colors ${
-                        isSelected ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                          {otherParticipant?.avatar ? (
-                            <img
-                              src={otherParticipant.avatar}
-                              alt={otherParticipant.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold">
-                              {(otherParticipant?.name || 'U').charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-sm text-black truncate">
-                            {otherParticipant?.name || t('messages.anonymous.user')}
-                          </h3>
-                          <p className="text-xs text-gray-500 mb-1">
-                            {conversation.projects?.title || t('messages.general.conversation')}
-                          </p>
-                          {lastMessage && (
-                            <p className="text-sm text-gray-600 truncate">
-                              {lastMessage.content}
-                            </p>
-                          )}
-                          {lastMessage && (
-                            <p className="text-xs text-gray-400 mt-1">
-                              {new Date(lastMessage.created_at).toLocaleString()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
+        {/* Header desktop uniquement */}
+        <div className="hidden md:block w-full absolute top-0 left-0 right-0 bg-gray-50 z-10 p-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <button 
+                  onClick={() => router.back()}
+                  className="flex items-center text-gray-600 hover:text-black transition-colors mr-4"
+                >
+                  <ArrowLeft className="h-5 w-5 mr-2" />
+                  {t('messages.back')}
+                </button>
+                <h1 className="text-2xl font-black text-black">{t('nav.messages')}</h1>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Zone des messages */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border-2 border-gray-200 overflow-hidden flex flex-col">
-            {selectedConversation ? (
-              <>
-                {/* Header de la conversation */}
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+        {/* Sidebar - Liste des conversations */}
+        <div className="w-full md:w-1/3 bg-white border-r border-gray-200 flex flex-col mt-16 md:mt-24">
+          <div className="p-4 md:p-6 border-b border-gray-200">
+            <h2 className="text-lg md:text-xl font-bold text-black flex items-center">
+              <MessageCircle className="h-5 w-5 mr-2" />
+              {t('messages.conversations')} ({conversations.length})
+            </h2>
+          </div>
+          
+          <div className="overflow-y-auto h-full">
+            {conversations.length === 0 ? (
+              <div className="p-4 md:p-6 text-center text-gray-500">
+                <MessageCircle className="h-8 md:h-12 w-8 md:w-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-sm md:text-base">{t('messages.no.conversations')}</p>
+              </div>
+            ) : (
+              conversations.map((conversation) => {
+                const lastMessage = conversation.messages?.[conversation.messages.length - 1]
+                const otherParticipant = getOtherParticipant(conversation)
+                const isSelected = selectedConversation?.id === conversation.id
+                
+                return (
+                  <div
+                    key={conversation.id}
+                    onClick={() => selectConversation(conversation)}
+                    className={`p-3 md:p-4 border-b border-gray-100 cursor-pointer transition-colors ${
+                      isSelected ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                         {otherParticipant?.avatar ? (
                           <img
                             src={otherParticipant.avatar}
@@ -569,34 +616,90 @@ export default function MessagesPage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold">
+                          <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs md:text-sm">
                             {(otherParticipant?.name || 'U').charAt(0).toUpperCase()}
                           </div>
                         )}
                       </div>
-                      <div>
-                        <h3 className="font-bold text-black">
+                      
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-sm md:text-base text-black truncate">
                           {otherParticipant?.name || t('messages.anonymous.user')}
                         </h3>
-                        <p className="text-sm text-gray-500">
-                          {selectedConversation.project_title || t('messages.general.conversation')}
+                        <p className="text-xs text-gray-500 mb-1">
+                          {conversation.projects?.title || t('messages.general.conversation')}
                         </p>
+                        {lastMessage && (
+                          <p className="text-xs md:text-sm text-gray-600 truncate">
+                            {lastMessage.content}
+                          </p>
+                        )}
+                        {lastMessage && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            {new Date(lastMessage.created_at).toLocaleString()}
+                          </p>
+                        )}
                       </div>
                     </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
 
+        {/* Zone des messages - cachée sur mobile si aucune conversation sélectionnée */}
+        <div className={`flex-1 flex-col mt-16 md:mt-24 ${selectedConversation ? 'flex' : 'hidden md:flex'}`}>
+          {selectedConversation ? (
+            <>
+              {/* Header de la conversation avec bouton retour mobile */}
+              <div className="p-4 md:p-6 border-b border-gray-200 bg-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    {/* Bouton retour mobile */}
+                    <button
+                      onClick={() => setSelectedConversation(null)}
+                      className="md:hidden text-gray-400 hover:text-black p-1 rounded"
+                    >
+                      ←
+                    </button>
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-gray-200">
+                      {otherParticipant?.avatar ? (
+                        <img
+                          src={otherParticipant.avatar}
+                          alt={otherParticipant.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs md:text-sm">
+                          {(otherParticipant?.name || 'U').charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm md:text-base text-black">
+                        {otherParticipant?.name || t('messages.anonymous.user')}
+                      </h3>
+                      <p className="text-xs md:text-sm text-gray-500">
+                        {selectedConversation.project_title || t('messages.general.conversation')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end space-y-2">
                     {/* Actions pour les clients */}
                     {userProfile?.user_type === 'client' && applicationData && applicationData.status === 'pending' && (
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => updateApplicationStatus('accepted')}
-                          className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition-colors text-sm flex items-center"
+                          onClick={() => acceptApplication(applicationData.id)}
+                          className="bg-green-600 text-white px-3 py-1 rounded-lg font-bold hover:bg-green-700 transition-colors text-sm flex items-center"
                         >
-                          <CheckCircle className="h-4 w-4 mr-2" />
+                          <CheckCircle className="h-4 w-4 mr-1" />
                           {t('messages.accept')}
                         </button>
                         <button
-                          onClick={() => updateApplicationStatus('rejected')}
-                          className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors text-sm"
+                          onClick={() => rejectApplication(applicationData.id)}
+                          className="bg-red-600 text-white px-3 py-1 rounded-lg font-bold hover:bg-red-700 transition-colors text-sm"
                         >
                           {t('messages.reject')}
                         </button>
@@ -637,12 +740,12 @@ export default function MessagesPage() {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 md:space-y-4">
                   {messages.length === 0 ? (
                     <div className="text-center text-gray-500 py-8">
-                      <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p>{t('messages.no.messages')}</p>
-                      <p className="text-sm mt-2">{t('messages.start.conversation')}</p>
+                      <MessageCircle className="h-8 md:h-12 w-8 md:w-12 mx-auto mb-4 text-gray-300" />
+                      <p className="text-sm md:text-base">{t('messages.no.messages')}</p>
+                      <p className="text-xs md:text-sm mt-2">{t('messages.start.conversation')}</p>
                     </div>
                   ) : (
                     messages.map((message) => {
@@ -654,7 +757,7 @@ export default function MessagesPage() {
                           key={message.id}
                           className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                         >
-                          <div className={`flex items-end space-x-2 max-w-xs lg:max-w-md ${
+                          <div className={`flex items-end space-x-2 max-w-[85%] md:max-w-xs lg:max-w-md ${
                             isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''
                           }`}>
                             {/* Avatar dans les messages */}
@@ -678,7 +781,7 @@ export default function MessagesPage() {
                             )}
                             
                             <div
-                              className={`px-4 py-3 rounded-2xl ${
+                              className={`px-3 md:px-4 py-2 md:py-3 rounded-2xl ${
                                 isOwnMessage
                                   ? 'bg-black text-white'
                                   : 'bg-gray-100 text-gray-900'
@@ -686,7 +789,7 @@ export default function MessagesPage() {
                             >
                               <p className="text-sm leading-relaxed">{message.content}</p>
                               <p
-                                className={`text-xs mt-2 ${
+                                className={`text-xs mt-1 md:mt-2 ${
                                   isOwnMessage ? 'text-gray-300' : 'text-gray-500'
                                 }`}
                               >
@@ -701,20 +804,20 @@ export default function MessagesPage() {
                 </div>
 
                 {/* Zone d'envoi de message */}
-                <div className="p-6 border-t border-gray-200">
-                  <div className="flex space-x-4">
+                <div className="p-3 md:p-6 border-t border-gray-200 bg-white">
+                  <div className="flex space-x-2 md:space-x-4">
                     <textarea
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
                       placeholder={t('messages.type.message')}
-                      className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent resize-none"
+                      className="flex-1 p-2 md:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent resize-none text-sm md:text-base"
                       rows={2}
                     />
                     <button
                       onClick={sendMessage}
                       disabled={sendingMessage || !newMessage.trim()}
-                      className="bg-black text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                      className="bg-black text-white px-3 md:px-6 py-2 rounded-lg font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                     >
                       {sendingMessage ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -726,36 +829,36 @@ export default function MessagesPage() {
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
+              <div className="flex-1 flex items-center justify-center text-gray-500 bg-white">
                 <div className="text-center">
-                  <MessageCircle className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <p className="text-lg font-semibold mb-2">{t('messages.select.conversation')}</p>
-                  <p>{t('messages.select.conversation.desc')}</p>
+                  <MessageCircle className="h-12 md:h-16 w-12 md:w-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-base md:text-lg font-semibold mb-2">{t('messages.select.conversation')}</p>
+                  <p className="text-sm md:text-base">{t('messages.select.conversation.desc')}</p>
                 </div>
               </div>
             )}
           </div>
         </div>
-      </div>
 
-      {/* Modal de notation - 🔧 PROPS CORRIGÉES */}
-      {showRatingModal && selectedConversation && otherParticipant && userProfile && (
-        <RatingModal
-          isOpen={showRatingModal}
-          onClose={() => setShowRatingModal(false)}
-          developerId={otherParticipant.id}
-          developerName={otherParticipant.name}
-          projectTitle={selectedConversation.project_title}
-          currentUser={userProfile}
-          onRatingSubmitted={() => {
-            console.log('Note soumise avec succès')
-            // Recharger les conversations pour mettre à jour
-            if (user) {
-              loadConversations(user.id)
-            }
-          }}
-        />
-      )}
+        {/* Modal de notation */}
+        {showRatingModal && selectedConversation && otherParticipant && userProfile && (
+          <RatingModal
+            isOpen={showRatingModal}
+            onClose={() => setShowRatingModal(false)}
+            developerId={otherParticipant.id}
+            developerName={otherParticipant.name}
+            projectTitle={selectedConversation.project_title}
+            currentUser={userProfile}
+            onRatingSubmitted={() => {
+              console.log('Note soumise avec succès')
+              // Recharger les conversations pour mettre à jour
+              if (user) {
+                loadConversations(user.id)
+              }
+            }}
+          />
+        )}
+      </div>
     </div>
   )
 }
