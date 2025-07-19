@@ -352,30 +352,30 @@ export default function DeveloperDashboard() {
     <div className="min-h-screen bg-gray-50">
       
       {/* Header avec fond noir */}
-      <div className="bg-black text-white py-8">
+      <div className="bg-black text-white py-6 md:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-black mb-2">
+              <h1 className="text-2xl md:text-3xl font-black mb-2">
                 {t('dashboard.developer.title')}
               </h1>
-              <p className="text-gray-300">
+              <p className="text-gray-300 text-sm md:text-base">
                 {t('dashboard.developer.welcome')} {userProfile?.full_name || user?.email} - {t('dashboard.developer.subtitle')}
               </p>
             </div>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Link
                 href="/projects"
-                className="bg-white text-black px-6 py-3 font-black rounded-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-2"
+                className="bg-white text-black px-4 md:px-6 py-2 md:py-3 font-black rounded-lg hover:bg-gray-100 transition-all duration-300 flex items-center justify-center gap-2 text-sm md:text-base"
               >
-                <Briefcase className="h-5 w-5" />
+                <Briefcase className="h-4 w-4 md:h-5 md:w-5" />
                 {t('dashboard.explore.projects')}
               </Link>
               <Link
                 href={`/developer/${user?.id}`}
-                className="border-2 border-white text-white px-6 py-3 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300 flex items-center gap-2"
+                className="border-2 border-white text-white px-4 md:px-6 py-2 md:py-3 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300 flex items-center justify-center gap-2 text-sm md:text-base"
               >
-                <User className="h-5 w-5" />
+                <User className="h-4 w-4 md:h-5 md:w-5" />
                 {t('dashboard.my.public.profile')}
               </Link>
             </div>
@@ -383,219 +383,191 @@ export default function DeveloperDashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         
         {/* Statistiques rapides */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">{t('dashboard.active.projects')}</p>
-                <p className="text-3xl font-black text-black">{assignedProjects.length}</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
+          <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+              <div className="mb-2 md:mb-0">
+                <p className="text-xs md:text-sm text-gray-600 font-medium">{t('dashboard.active.projects')}</p>
+                <p className="text-xl md:text-3xl font-black text-black">{assignedProjects.length}</p>
               </div>
-              <div className="bg-black p-3 rounded-xl">
-                <Briefcase className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">{t('dashboard.applications')}</p>
-                <p className="text-3xl font-black text-black">{applications.length}</p>
-              </div>
-              <div className="bg-blue-500 p-3 rounded-xl">
-                <Users className="w-6 h-6 text-white" />
+              <div className="bg-black p-2 md:p-3 rounded-lg md:rounded-xl self-end md:self-auto">
+                <Briefcase className="w-4 h-4 md:w-6 md:h-6 text-white" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">{t('dashboard.conversations')}</p>
-                <p className="text-3xl font-black text-black">{conversations.length}</p>
+          <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+              <div className="mb-2 md:mb-0">
+                <p className="text-xs md:text-sm text-gray-600 font-medium">{t('dashboard.applications')}</p>
+                <p className="text-xl md:text-3xl font-black text-black">{applications.length}</p>
               </div>
-              <div className="bg-green-500 p-3 rounded-xl">
-                <MessageCircle className="w-6 h-6 text-white" />
+              <div className="bg-blue-500 p-2 md:p-3 rounded-lg md:rounded-xl self-end md:self-auto">
+                <Users className="w-4 h-4 md:w-6 md:h-6 text-white" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">{t('dashboard.rating')}</p>
-                <p className="text-3xl font-black text-black">
+          <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+              <div className="mb-2 md:mb-0">
+                <p className="text-xs md:text-sm text-gray-600 font-medium">{t('dashboard.conversations')}</p>
+                <p className="text-xl md:text-3xl font-black text-black">{conversations.length}</p>
+              </div>
+              <div className="bg-green-500 p-2 md:p-3 rounded-lg md:rounded-xl self-end md:self-auto">
+                <MessageCircle className="w-4 h-4 md:w-6 md:h-6 text-white" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 border-2 border-gray-200 hover:border-black transition-all duration-300">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+              <div className="mb-2 md:mb-0">
+                <p className="text-xs md:text-sm text-gray-600 font-medium">{t('dashboard.rating')}</p>
+                <p className="text-xl md:text-3xl font-black text-black">
                   {developerProfile?.average_rating ? developerProfile.average_rating.toFixed(1) : '0.0'}
                 </p>
               </div>
-              <div className="bg-yellow-500 p-3 rounded-xl">
-                <Star className="w-6 h-6 text-white" />
+              <div className="bg-yellow-500 p-2 md:p-3 rounded-lg md:rounded-xl self-end md:self-auto">
+                <Star className="w-4 h-4 md:w-6 md:h-6 text-white" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Projets Assignés */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-black">{t('dashboard.assigned.projects')}</h2>
+        <div className="mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 md:mb-6 gap-2">
+            <h2 className="text-xl md:text-2xl font-black text-black">{t('dashboard.assigned.projects')}</h2>
             <Link
               href="/projects"
-              className="text-black hover:text-gray-600 font-medium"
+              className="text-black hover:text-gray-600 font-medium text-sm md:text-base"
             >
               {t('dashboard.view.all')} →
             </Link>
           </div>
 
           {assignedProjects.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center border-2 border-gray-200">
-              <div className="text-6xl mb-4">💼</div>
-              <h3 className="text-xl font-black text-black mb-2">{t('dashboard.no.assigned.projects')}</h3>
-              <p className="text-gray-600 mb-6">{t('dashboard.no.assigned.projects.desc')}</p>
+            <div className="bg-white rounded-xl md:rounded-2xl p-8 md:p-12 text-center border-2 border-gray-200">
+              <div className="text-4xl md:text-6xl mb-4">💼</div>
+              <h3 className="text-lg md:text-xl font-black text-black mb-2">{t('dashboard.no.assigned.projects')}</h3>
+              <p className="text-gray-600 mb-4 md:mb-6 text-sm md:text-base">{t('dashboard.no.assigned.projects.desc')}</p>
               <Link
                 href="/projects"
-                className="bg-black text-white px-8 py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300"
+                className="bg-black text-white px-6 md:px-8 py-3 md:py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300 text-sm md:text-base"
               >
                 {t('dashboard.find.projects')}
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {assignedProjects.slice(0, 6).map((project) => (
-                <div key={project.id} className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-                  <div className="flex items-start justify-between mb-4">
+                <div key={project.id} className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                  <div className="flex items-start justify-between mb-3 md:mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-black text-black mb-2 line-clamp-1">
+                      <h3 className="text-base md:text-lg font-black text-black mb-2 line-clamp-1">
                         {project.title}
                       </h3>
-                      <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full border text-sm bg-green-100 text-green-800 border-green-200">
-                        <CheckCircle className="w-4 h-4" />
+                      <div className="inline-flex items-center space-x-2 px-2 md:px-3 py-1 rounded-full border text-xs md:text-sm bg-green-100 text-green-800 border-green-200">
+                        <CheckCircle className="w-3 h-3 md:w-4 md:h-4" />
                         <span className="font-medium">{t('dashboard.assigned')}</span>
                       </div>
                     </div>
                   </div>
                   
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                  <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4 line-clamp-2">
                     {project.description}
                   </p>
                   
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center text-sm text-gray-500">
-                      <DollarSign className="w-4 h-4 mr-2" />
+                  <div className="space-y-1 md:space-y-2 mb-3 md:mb-4">
+                    <div className="flex items-center text-xs md:text-sm text-gray-500">
+                      <DollarSign className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                       {formatBudget(project.budget_min, project.budget_max)}
                     </div>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Calendar className="w-4 h-4 mr-2" />
+                    <div className="flex items-center text-xs md:text-sm text-gray-500">
+                      <Calendar className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                       {t('dashboard.created')} {formatDate(project.created_at)}
                     </div>
                   </div>
 
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {project.project_type && (
-                      <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">
-                        {project.project_type}
-                      </span>
-                    )}
-                    {project.complexity && (
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
-                        {project.complexity}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    <Link
-                      href={`/projects/${project.id}`}
-                      className="flex-1 bg-black text-white py-2 px-4 rounded-lg font-bold text-sm hover:bg-gray-800 transition-all duration-300 text-center"
-                    >
-                      {t('dashboard.view.project')}
-                    </Link>
-                    <Link
-                      href="/messages"
-                      className="border-2 border-gray-300 text-gray-700 py-2 px-4 rounded-lg font-bold text-sm hover:border-black hover:text-black transition-all duration-300 text-center"
-                    >
-                      {t('dashboard.contact')}
-                    </Link>
-                  </div>
+                  <Link
+                    href={`/projects/${project.id}`}
+                    className="w-full bg-black text-white py-2 md:py-3 px-4 rounded-lg font-bold hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 text-xs md:text-sm"
+                  >
+                    <Eye className="w-3 h-3 md:w-4 md:h-4" />
+                    {t('dashboard.view.project')}
+                  </Link>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Mes Candidatures */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-black">{t('dashboard.my.applications')}</h2>
+        {/* Candidatures récentes */}
+        <div className="mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 md:mb-6 gap-2">
+            <h2 className="text-xl md:text-2xl font-black text-black">{t('dashboard.recent.applications')}</h2>
             <Link
-              href="/applications"
-              className="text-black hover:text-gray-600 font-medium"
+              href="/dashboard/developer/applications"
+              className="text-black hover:text-gray-600 font-medium text-sm md:text-base"
             >
               {t('dashboard.view.all')} →
             </Link>
           </div>
 
           {applications.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center border-2 border-gray-200">
-              <div className="text-6xl mb-4">📝</div>
-              <h3 className="text-xl font-black text-black mb-2">{t('dashboard.no.applications')}</h3>
-              <p className="text-gray-600 mb-6">{t('dashboard.no.applications.desc')}</p>
+            <div className="bg-white rounded-xl md:rounded-2xl p-8 md:p-12 text-center border-2 border-gray-200">
+              <div className="text-4xl md:text-6xl mb-4">📋</div>
+              <h3 className="text-lg md:text-xl font-black text-black mb-2">{t('dashboard.no.recent.applications')}</h3>
+              <p className="text-gray-600 mb-4 md:mb-6 text-sm md:text-base">{t('dashboard.no.recent.applications.desc')}</p>
               <Link
                 href="/projects"
-                className="bg-black text-white px-8 py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300"
+                className="bg-black text-white px-6 md:px-8 py-3 md:py-4 font-black rounded-lg hover:bg-gray-800 transition-all duration-300 text-sm md:text-base"
               >
-                {t('dashboard.view.available.projects')}
+                {t('dashboard.browse.projects')}
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {applications.slice(0, 6).map((application) => {
                 const statusConfig = getApplicationStatusConfig(application.status);
                 const StatusIcon = statusConfig.icon;
                 
                 return (
-                  <div key={application.id} className="bg-white rounded-2xl p-6 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-                    <div className="flex items-start justify-between mb-4">
+                  <div key={application.id} className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                    <div className="flex items-start justify-between mb-3 md:mb-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-black text-black mb-2 line-clamp-1">
+                        <h3 className="text-base md:text-lg font-black text-black mb-2 line-clamp-1">
                           {application.projects?.title || t('dashboard.untitled.project')}
                         </h3>
-                        <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full border text-sm ${statusConfig.color}`}>
-                          <StatusIcon className="w-4 h-4" />
+                        <div className={`inline-flex items-center space-x-2 px-2 md:px-3 py-1 rounded-full border text-xs md:text-sm ${statusConfig.color}`}>
+                          <StatusIcon className="w-3 h-3 md:w-4 md:h-4" />
                           <span className="font-medium">{statusConfig.label}</span>
                         </div>
                       </div>
                     </div>
                     
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                    <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4 line-clamp-2">
                       {application.projects?.description || t('dashboard.no.description')}
                     </p>
                     
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <DollarSign className="w-4 h-4 mr-2" />
-                        {formatBudget(application.projects?.budget_min, application.projects?.budget_max)}
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        {t('dashboard.applied.on')} {formatDate(application.created_at)}
+                    <div className="space-y-1 md:space-y-2 mb-3 md:mb-4">
+                      <div className="flex items-center text-xs md:text-sm text-gray-500">
+                        <Calendar className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                        {t('dashboard.applied')} {formatDate(application.created_at)}
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      <Link
-                        href={`/projects/${application.projects?.id || '#'}`}
-                        className="flex-1 bg-black text-white py-2 px-4 rounded-lg font-bold text-sm hover:bg-gray-800 transition-all duration-300 text-center"
-                      >
-                        {t('dashboard.view.project')}
-                      </Link>
-                    </div>
+                    <Link
+                      href={`/projects/${application.projects?.id}`}
+                      className="w-full bg-gray-100 text-gray-700 py-2 md:py-3 px-4 rounded-lg font-bold hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 text-xs md:text-sm"
+                    >
+                      <Eye className="w-3 h-3 md:w-4 md:h-4" />
+                      {t('dashboard.view.project')}
+                    </Link>
                   </div>
                 );
               })}
@@ -603,36 +575,30 @@ export default function DeveloperDashboard() {
           )}
         </div>
 
-        {/* Actions rapides */}
-        <div className="bg-black text-white rounded-2xl p-8 text-center">
-          <h2 className="text-2xl font-black mb-4">{t('dashboard.develop.career')}</h2>
-          <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
+        {/* Call to action */}
+        <div className="bg-black text-white rounded-xl md:rounded-2xl p-6 md:p-8 text-center">
+          <h2 className="text-xl md:text-2xl font-black mb-3 md:mb-4">{t('dashboard.develop.career')}</h2>
+          <p className="text-gray-300 mb-4 md:mb-6 max-w-2xl mx-auto text-sm md:text-base">
             {t('dashboard.develop.career.desc')}
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center">
             <Link
               href="/projects"
-              className="bg-white text-black px-8 py-4 font-black rounded-lg hover:bg-gray-100 transition-all duration-300"
+              className="bg-white text-black px-6 md:px-8 py-3 md:py-4 font-black rounded-lg hover:bg-gray-100 transition-all duration-300 text-sm md:text-base"
             >
               {t('dashboard.explore.projects')}
             </Link>
             <Link
               href="/messages"
-              className="border-2 border-white text-white px-8 py-4 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300"
+              className="border-2 border-white text-white px-6 md:px-8 py-3 md:py-4 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300 text-sm md:text-base"
             >
               {t('dashboard.my.conversations')}
             </Link>
             <Link
               href="/dashboard/developer/profile"
-              className="border-2 border-white text-white px-8 py-4 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300"
+              className="border-2 border-white text-white px-6 md:px-8 py-3 md:py-4 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300 text-sm md:text-base"
             >
               {t('dashboard.edit.profile')}
-            </Link>
-            <Link
-              href={`/developer/${user?.id}`}
-              className="border-2 border-white text-white px-8 py-4 font-black rounded-lg hover:bg-white hover:text-black transition-all duration-300"
-            >
-              {t('dashboard.my.public.profile')}
             </Link>
           </div>
         </div>
