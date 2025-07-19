@@ -8,6 +8,7 @@ import DeveloperRateDisplay from '../../components/DeveloperRateDisplay' // 🆕
 import { X } from 'lucide-react' // Added for the new filter clear buttons
 import { Search } from 'lucide-react' // Added for the new search icon
 import { useLanguage } from '@/contexts/LanguageContext'
+import { ensureDeveloperProfile } from '@/utils/developer-profile-helper'
 
 const supabase = createClient()
 
@@ -88,6 +89,30 @@ export default function DevelopersPage() {
               .select('*')
               .eq('id', profile.id)
               .single()
+
+            // Si le profil développeur n'existe pas, essayer de le créer
+            if (!devProfile) {
+              console.log(`⚠️ Profil développeur manquant pour ${profile.full_name}, création...`)
+              await ensureDeveloperProfile(profile.id)
+              
+              // Recharger après création
+              const { data: newDevProfile } = await supabase
+                .from('developer_profiles')
+                .select('*')
+                .eq('id', profile.id)
+                .single()
+              
+              return {
+                ...profile,
+                ...newDevProfile,
+                // S'assurer que les données de base ne sont pas écrasées
+                id: profile.id,
+                full_name: profile.full_name,
+                email: profile.email,
+                avatar_url: profile.avatar_url,
+                user_type: profile.user_type
+              }
+            }
 
             return {
               ...profile,

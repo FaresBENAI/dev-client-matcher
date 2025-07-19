@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, MessageCircle, Clock, Play, CheckCircle, Users, Calendar, DollarSign, XCircle, Star, User, Plus, Briefcase, TrendingUp } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ensureDeveloperProfile } from '@/utils/developer-profile-helper'
 
 // Composant d'affichage des étoiles
 const StarRating = ({ rating, totalRatings, t }: { rating: number; totalRatings?: number; t: any }) => {
@@ -123,11 +124,42 @@ export default function DeveloperDashboard() {
             .eq('id', user.id)
             .single();
           
-          setDeveloperProfile(devProfile);
-          log('✅ Profil développeur chargé:', devProfile);
+          if (devProfile) {
+            setDeveloperProfile(devProfile);
+            log('✅ Profil développeur chargé:', devProfile);
+          } else {
+            log('⚠️ Profil développeur manquant, création automatique...');
+            // Essayer de créer le profil développeur automatiquement
+            const created = await ensureDeveloperProfile(user.id);
+            if (created) {
+              // Recharger le profil après création
+              const { data: newDevProfile } = await supabase
+                .from('developer_profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+              
+              setDeveloperProfile(newDevProfile);
+              log('✅ Profil développeur créé et chargé:', newDevProfile);
+            } else {
+              log('⚠️ Impossible de créer le profil développeur automatiquement');
+              setDeveloperProfile(null);
+            }
+          }
         } catch (devError) {
-          log('⚠️ Pas de profil développeur détaillé (optionnel)');
-          setDeveloperProfile(null);
+          log('⚠️ Erreur profil développeur, tentative de création...');
+          // En cas d'erreur, essayer de créer le profil
+          const created = await ensureDeveloperProfile(user.id);
+          if (created) {
+            const { data: newDevProfile } = await supabase
+              .from('developer_profiles')
+              .select('*')
+              .eq('id', user.id)
+              .single();
+            setDeveloperProfile(newDevProfile);
+          } else {
+            setDeveloperProfile(null);
+          }
         }
         
         // Charger les données du dashboard
