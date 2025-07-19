@@ -1,5 +1,6 @@
 'use client'
 
+// Force deploy: Mobile responsive improvements - Version 2
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { Button } from '../ui/button'
