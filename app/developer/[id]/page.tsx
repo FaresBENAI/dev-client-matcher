@@ -341,7 +341,7 @@ export default function DeveloperProfilePage() {
                   {developer.hourly_rate && (
                     <div className="text-center mb-4">
                       <div className="text-2xl font-black text-black">
-                        {developer.hourly_rate}€{t('profile.developer.hourly.rate')}
+                        {developer.hourly_rate}€{t('profile.developer.daily.rate')}
                       </div>
                     </div>
                   )}
