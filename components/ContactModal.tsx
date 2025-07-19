@@ -1,10 +1,9 @@
 // components/ContactModal.tsx - Version thème LinkerAI
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Send, MessageCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import { useAuth } from '@/components/layout/auth-context'
 
 const supabase = createClient()
 
@@ -18,7 +17,28 @@ interface ContactModalProps {
 export default function ContactModal({ isOpen, onClose, developerId, developerName }: ContactModalProps) {
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const { user } = useAuth()
+  const [user, setUser] = useState<any>(null)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+
+  // Vérifier l'état d'authentification au montage du composant
+  useEffect(() => {
+    const checkUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        setUser(user)
+        console.log('🔍 ContactModal - User check:', user ? user.email : 'No user')
+      } catch (error) {
+        console.error('🔍 ContactModal - Error checking user:', error)
+        setUser(null)
+      } finally {
+        setCheckingAuth(false)
+      }
+    }
+
+    if (isOpen) {
+      checkUser()
+    }
+  }, [isOpen])
 
   const handleSendMessage = async () => {
     // Validation initiale
@@ -35,6 +55,8 @@ export default function ContactModal({ isOpen, onClose, developerId, developerNa
     setIsLoading(true)
 
     try {
+      console.log('🔍 ContactModal - Sending message from:', user.email, 'to developer:', developerId)
+
       // 1. Vérifier si une conversation existe déjà
       const { data: existingConversation, error: searchError } = await supabase
         .from('conversations')
@@ -50,8 +72,10 @@ export default function ContactModal({ isOpen, onClose, developerId, developerNa
 
       if (existingConversation) {
         conversationId = existingConversation.id
+        console.log('✅ ContactModal - Using existing conversation:', conversationId)
       } else {
         // 2. Créer nouvelle conversation
+        console.log('🔍 ContactModal - Creating new conversation')
         const { data: newConversation, error: conversationError } = await supabase
           .from('conversations')
           .insert({
@@ -69,9 +93,11 @@ export default function ContactModal({ isOpen, onClose, developerId, developerNa
         }
 
         conversationId = newConversation.id
+        console.log('✅ ContactModal - Created new conversation:', conversationId)
       }
 
       // 3. Insérer le message
+      console.log('🔍 ContactModal - Inserting message')
       const { data: messageData, error: messageError } = await supabase
         .from('messages')
         .insert({
@@ -94,12 +120,13 @@ export default function ContactModal({ isOpen, onClose, developerId, developerNa
         .eq('id', conversationId)
 
       // 5. Succès
+      console.log('✅ ContactModal - Message sent successfully')
       alert('Message envoyé avec succès !')
       setMessage('')
       onClose()
 
     } catch (error: any) {
-      console.error('Erreur lors de l\'envoi:', error)
+      console.error('❌ ContactModal - Error sending message:', error)
       alert(`Erreur lors de l'envoi: ${error.message}`)
     } finally {
       setIsLoading(false)
@@ -130,7 +157,7 @@ export default function ContactModal({ isOpen, onClose, developerId, developerNa
                   Contacter {developerName}
                 </h3>
                 <p className="text-sm text-gray-600">
-                  {user ? `Connecté: ${user.email}` : 'Non connecté'}
+                  {checkingAuth ? 'Vérification...' : (user ? `Connecté: ${user.email}` : 'Non connecté')}
                 </p>
               </div>
             </div>
@@ -161,6 +188,7 @@ export default function ContactModal({ isOpen, onClose, developerId, developerNa
                 placeholder="Décrivez votre projet, vos besoins, votre budget..."
                 rows={4}
                 className="w-full p-3 border-2 border-gray-200 focus:border-black focus:outline-none resize-none font-medium"
+                disabled={checkingAuth || !user}
               />
               <div className="flex justify-between items-center mt-2">
                 <p className="text-xs text-gray-500">
@@ -182,7 +210,7 @@ export default function ContactModal({ isOpen, onClose, developerId, developerNa
               </button>
               <button
                 onClick={handleSendMessage}
-                disabled={isLoading || !message.trim() || !user}
+                disabled={isLoading || !message.trim() || !user || checkingAuth}
                 className="flex-1 bg-black text-white px-4 py-3 font-black hover:bg-gray-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
               >
                 {isLoading ? (
@@ -200,10 +228,13 @@ export default function ContactModal({ isOpen, onClose, developerId, developerNa
             </div>
 
             {/* Status pour utilisateur non connecté */}
-            {!user && (
+            {!checkingAuth && !user && (
               <div className="bg-red-50 border-2 border-red-200 p-3 text-center">
                 <p className="text-red-700 text-sm font-bold">
                   ⚠️ Vous devez être connecté pour envoyer un message
+                </p>
+                <p className="text-red-600 text-xs mt-1">
+                  La navbar indique que vous êtes connecté mais cette modal ne vous détecte pas.
                 </p>
               </div>
             )}
