@@ -6,6 +6,7 @@ import { Input } from '../../../components/ui/input'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 const supabase = createClient()
 
@@ -17,6 +18,7 @@ export default function SignupPage() {
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const router = useRouter()
+  const { t } = useLanguage()
 
   // Données de base
   const [basicData, setBasicData] = useState({
@@ -307,17 +309,17 @@ export default function SignupPage() {
         <div className="max-w-2xl mx-auto px-4">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-white mb-2">
-              Rejoignez LinkerAI
+              {t('signup.title')}
             </h2>
             <p className="text-gray-300">
-              {step === 1 ? 'Créez votre compte' : 'Complétez votre profil développeur'}
+              {step === 1 ? t('signup.create.account') : t('signup.complete.profile')}
             </p>
             
             {userType === 'developer' && (
               <div className="mt-6 flex items-center justify-center space-x-2">
                 <div className={`w-3 h-3 rounded-full ${step >= 1 ? 'bg-white' : 'bg-gray-600'}`}></div>
                 <div className={`w-3 h-3 rounded-full ${step >= 2 ? 'bg-white' : 'bg-gray-600'}`}></div>
-                <span className="text-gray-300 text-sm ml-2">Étape {step}/2</span>
+                <span className="text-gray-300 text-sm ml-2">{t('signup.step')} {step}/2</span>
               </div>
             )}
           </div>
@@ -333,7 +335,7 @@ export default function SignupPage() {
                 {/* Type d'utilisateur */}
                 <div>
                   <label className="block text-sm font-medium text-black mb-3">
-                    Je suis un :
+                    {t('signup.user.type')}
                   </label>
                   <div className="grid grid-cols-2 gap-4">
                     <label className={`cursor-pointer rounded-lg border-2 p-6 text-center transition-all hover:border-black ${
@@ -349,8 +351,8 @@ export default function SignupPage() {
                         className="sr-only"
                       />
                       <div className="text-3xl mb-3">👔</div>
-                      <div className="font-bold text-black text-lg">Client</div>
-                      <div className="text-sm text-gray-600 mt-1">J'ai des projets à réaliser</div>
+                      <div className="font-bold text-black text-lg">{t('signup.client.title')}</div>
+                      <div className="text-sm text-gray-600 mt-1">{t('signup.client.description')}</div>
                     </label>
                     
                     <label className={`cursor-pointer rounded-lg border-2 p-6 text-center transition-all hover:border-black ${
@@ -366,8 +368,8 @@ export default function SignupPage() {
                         className="sr-only"
                       />
                       <div className="text-3xl mb-3">💻</div>
-                      <div className="font-bold text-black text-lg">Développeur</div>
-                      <div className="text-sm text-gray-600 mt-1">Je propose mes services</div>
+                      <div className="font-bold text-black text-lg">{t('signup.developer.title')}</div>
+                      <div className="text-sm text-gray-600 mt-1">{t('signup.developer.description')}</div>
                     </label>
                   </div>
                 </div>
@@ -376,56 +378,56 @@ export default function SignupPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-black mb-2">
-                      Nom complet <span className="text-red-500">*</span>
+                      {t('signup.full.name')} <span className="text-red-500">*</span>
                     </label>
                     <Input
                       type="text"
                       value={basicData.fullName}
                       onChange={(e) => setBasicData(prev => ({...prev, fullName: e.target.value}))}
                       required
-                      placeholder="John Doe"
+                      placeholder={t('signup.full.name.placeholder')}
                       className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-black mb-2">
-                      Email <span className="text-red-500">*</span>
+                      {t('signup.email')} <span className="text-red-500">*</span>
                     </label>
                     <Input
                       type="email"
                       value={basicData.email}
                       onChange={(e) => setBasicData(prev => ({...prev, email: e.target.value}))}
                       required
-                      placeholder="john@example.com"
+                      placeholder={t('signup.email.placeholder')}
                       className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-black mb-2">
-                      Numéro de téléphone <span className="text-red-500">*</span>
+                      {t('signup.phone')} <span className="text-red-500">*</span>
                     </label>
                     <Input
                       type="tel"
                       value={basicData.phone}
                       onChange={(e) => setBasicData(prev => ({...prev, phone: e.target.value}))}
                       required
-                      placeholder="+33 6 12 34 56 78"
+                      placeholder={t('signup.phone.placeholder')}
                       className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
                     />
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-black mb-2">
-                      Mot de passe <span className="text-red-500">*</span>
+                      {t('signup.password')} <span className="text-red-500">*</span>
                     </label>
                     <Input
                       type="password"
                       value={basicData.password}
                       onChange={(e) => setBasicData(prev => ({...prev, password: e.target.value}))}
                       required
-                      placeholder="••••••••"
+                      placeholder={t('signup.password.placeholder')}
                       className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
                     />
                     <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
@@ -443,7 +445,7 @@ export default function SignupPage() {
                   disabled={loading}
                   className="w-full bg-black text-white hover:bg-gray-800 border-2 border-black py-3 text-lg font-bold"
                 >
-                  {userType === 'developer' ? 'Continuer →' : (loading ? 'Création...' : 'Créer mon compte')}
+                  {userType === 'developer' ? t('signup.continue') : (loading ? t('signup.creating') : t('signup.create.account.button'))}
                 </Button>
               </form>
             )}
@@ -451,16 +453,16 @@ export default function SignupPage() {
             {step === 2 && userType === 'developer' && (
               <div className="space-y-6">
                 <div className="bg-black rounded-lg p-4 border-2 border-black">
-                  <h3 className="font-bold text-white mb-2">Profil développeur</h3>
+                  <h3 className="font-bold text-white mb-2">{t('signup.developer.profile')}</h3>
                   <p className="text-gray-300 text-sm">
                     Ces informations aideront les clients à vous trouver et à évaluer vos compétences.
                   </p>
                 </div>
 
-                {/* Photo de profil OBLIGATOIRE */}
+                {/* Photo de profil */}
                 <div>
                   <label className="block text-sm font-medium text-black mb-2">
-                    Photo de profil <span className="text-red-500">*</span>
+                    {t('signup.profile.photo')} <span className="text-red-500">*</span>
                   </label>
                   <div className="flex items-center space-x-4">
                     {photoPreview ? (
@@ -501,7 +503,7 @@ export default function SignupPage() {
                   </div>
                   {!profilePhoto && (
                     <p className="text-red-500 text-sm mt-2">
-                      ⚠️ Une photo de profil est obligatoire pour créer un compte développeur
+                      {t('signup.photo.required')}
                     </p>
                   )}
                 </div>
@@ -509,13 +511,13 @@ export default function SignupPage() {
                 {/* Titre professionnel */}
                 <div>
                   <label className="block text-sm font-medium text-black mb-2">
-                    Titre professionnel
+                    {t('signup.professional.title')}
                   </label>
                   <Input
                     type="text"
                     value={devData.title}
                     onChange={(e) => setDevData(prev => ({...prev, title: e.target.value}))}
-                    placeholder="Ex: Développeur Full-Stack spécialisé IA"
+                    placeholder={t('signup.professional.title.placeholder')}
                     className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
                   />
                 </div>
@@ -523,37 +525,37 @@ export default function SignupPage() {
                 {/* Bio */}
                 <div>
                   <label className="block text-sm font-medium text-black mb-2">
-                    Description professionnelle
+                    {t('signup.bio')}
                   </label>
                   <textarea
                     value={devData.bio}
                     onChange={(e) => setDevData(prev => ({...prev, bio: e.target.value}))}
-                    placeholder="Présentez votre expérience, vos spécialités et ce qui vous différencie..."
+                    placeholder={t('signup.bio.placeholder')}
                     rows={3}
                     className="w-full bg-white border-2 border-gray-300 rounded-lg px-3 py-2 text-black placeholder-gray-400 focus:outline-none focus:border-black"
                   />
                 </div>
 
-                {/* Expérience et tarif - MODIFIÉ */}
+                {/* Expérience et tarif */}
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-black mb-2">
-                      Années d'expérience
+                      {t('signup.years.experience')}
                     </label>
                     <Input
                       type="number"
                       value={devData.experience_years}
                       onChange={(e) => setDevData(prev => ({...prev, experience_years: e.target.value}))}
-                      placeholder="5"
+                      placeholder={t('signup.years.experience.placeholder')}
                       className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-black mb-2">
-                      Tarif journalier moyen (€)
+                      {t('signup.daily.rate')}
                     </label>
                     
-                    {/* 🆕 NOUVEAU: Checkbox TJM à définir */}
+                    {/* Checkbox TJM à définir */}
                     <div className="mb-3">
                       <label className="flex items-center space-x-2 cursor-pointer">
                         <input
@@ -562,34 +564,28 @@ export default function SignupPage() {
                           onChange={(e) => handleDailyRateDefinedChange(!e.target.checked)}
                           className="w-4 h-4 border-2 border-gray-300 rounded bg-white checked:bg-black checked:border-black focus:ring-black"
                         />
-                        <span className="text-sm font-medium text-black">TJM à définir lors du projet</span>
+                        <span className="text-sm font-medium text-black">{t('signup.rate.to.define')}</span>
                       </label>
                     </div>
                     
-                    {/* Champ tarif - désactivé si checkbox cochée */}
+                    {/* Champ tarif */}
                     <Input
                       type="number"
                       value={devData.daily_rate}
                       onChange={(e) => setDevData(prev => ({...prev, daily_rate: e.target.value}))}
-                      placeholder="400"
+                      placeholder={t('signup.daily.rate.placeholder')}
                       disabled={!devData.daily_rate_defined}
                       className={`bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black ${
                         !devData.daily_rate_defined ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                     />
-                    
-                    {!devData.daily_rate_defined && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        💡 Votre tarif sera affiché comme "À définir" sur votre profil
-                      </p>
-                    )}
                   </div>
                 </div>
 
-                {/* Compétences techniques */}
+                {/* Compétences */}
                 <div>
                   <label className="block text-sm font-medium text-black mb-3">
-                    Compétences techniques
+                    {t('signup.skills')}
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto border-2 border-gray-300 rounded-lg p-4 bg-white">
                     {skillOptions.map((skill) => (
@@ -609,7 +605,7 @@ export default function SignupPage() {
                 {/* Spécialisations IA/Automation */}
                 <div>
                   <label className="block text-sm font-medium text-black mb-3">
-                    Spécialisations IA & Automatisation
+                    {t('signup.specializations')}
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-32 overflow-y-auto border-2 border-gray-300 rounded-lg p-4 bg-white">
                     {specializationOptions.map((spec) => (
@@ -635,7 +631,7 @@ export default function SignupPage() {
                         type="url"
                         value={devData.github_url}
                         onChange={(e) => setDevData(prev => ({...prev, github_url: e.target.value}))}
-                        placeholder="GitHub URL"
+                        placeholder={t('signup.github.placeholder')}
                         className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
                       />
                     </div>
@@ -644,7 +640,7 @@ export default function SignupPage() {
                         type="url"
                         value={devData.linkedin_url}
                         onChange={(e) => setDevData(prev => ({...prev, linkedin_url: e.target.value}))}
-                        placeholder="LinkedIn URL"
+                        placeholder={t('signup.linkedin.placeholder')}
                         className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
                       />
                     </div>
@@ -653,7 +649,7 @@ export default function SignupPage() {
                         type="url"
                         value={devData.portfolio_url}
                         onChange={(e) => setDevData(prev => ({...prev, portfolio_url: e.target.value}))}
-                        placeholder="Portfolio URL"
+                        placeholder={t('signup.portfolio.placeholder')}
                         className="bg-white border-2 border-gray-300 text-black placeholder-gray-400 focus:border-black"
                       />
                     </div>
@@ -680,7 +676,7 @@ export default function SignupPage() {
                     disabled={loading || !profilePhoto}
                     className="flex-1 bg-black text-white hover:bg-gray-800 border-2 border-black py-3 text-lg font-bold disabled:bg-gray-400 disabled:border-gray-400"
                   >
-                    {loading ? 'Création...' : 'Créer mon profil développeur'}
+                    {loading ? t('signup.creating') : t('signup.create.developer.profile')}
                   </Button>
                 </div>
               </div>
@@ -688,9 +684,9 @@ export default function SignupPage() {
 
             <div className="mt-8 text-center">
               <p className="text-sm text-gray-600">
-                Déjà un compte ?{' '}
+                {t('signup.already.have.account')}{' '}
                 <Link href="/auth/login" className="font-bold text-black hover:underline">
-                  Se connecter
+                  {t('signup.login.here')}
                 </Link>
               </p>
             </div>
