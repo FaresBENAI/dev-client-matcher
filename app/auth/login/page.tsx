@@ -70,6 +70,9 @@ function LoginPageContent() {
 
       console.log('✅ Connexion réussie:', data.user.email);
       
+      // SYSTÈME DE VÉRIFICATION ET CRÉATION AUTOMATIQUE DE PROFILS
+      await ensureUserProfileExists(data.user);
+      
       // Récupérer le profil utilisateur pour redirection appropriée
       const { data: profile } = await supabase
         .from('profiles')
@@ -96,6 +99,125 @@ function LoginPageContent() {
       setError('Une erreur inattendue s\'est produite');
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * S'assurer que l'utilisateur a un profil complet
+   * Rattrape les comptes créés avant que le système automatique soit en place
+   */
+  const ensureUserProfileExists = async (user: any) => {
+    try {
+      console.log('🔄 Vérification profil pour:', user.email);
+      
+      // Vérifier si le profil existe
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (existingProfile) {
+        console.log('✅ Profil existe');
+        
+        // Si c'est un développeur, vérifier le profil développeur
+        if (existingProfile.user_type === 'developer') {
+          await ensureDeveloperProfileExists(user);
+        }
+        return;
+      }
+
+      console.log('⚠️ Profil manquant, création automatique...');
+      
+      // Créer le profil de base avec les métadonnées disponibles
+      const metadata = user.user_metadata || {};
+      const profileData = {
+        id: user.id,
+        email: user.email,
+        full_name: metadata.full_name || user.email?.split('@')[0] || 'Utilisateur',
+        user_type: metadata.user_type || 'developer',
+        phone: metadata.phone || null,
+        avatar_url: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert(profileData);
+
+      if (profileError) {
+        console.error('❌ Erreur création profil:', profileError);
+        return;
+      }
+
+      console.log('✅ Profil créé automatiquement');
+
+      // Si c'est un développeur, créer aussi le profil développeur
+      if (profileData.user_type === 'developer') {
+        await ensureDeveloperProfileExists(user);
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur vérification profil:', error);
+    }
+  };
+
+  /**
+   * S'assurer que le profil développeur existe
+   */
+  const ensureDeveloperProfileExists = async (user: any) => {
+    try {
+      const { data: existingDevProfile } = await supabase
+        .from('developer_profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (existingDevProfile) {
+        console.log('✅ Profil développeur existe');
+        return;
+      }
+
+      console.log('⚠️ Création profil développeur manquant...');
+      
+      const metadata = user.user_metadata || {};
+      const developerProfileData = {
+        id: user.id,
+        title: metadata.title || metadata.full_name || 'Développeur',
+        bio: metadata.bio || '',
+        location: '',
+        phone: metadata.phone || '',
+        experience_years: metadata.experience_years || 0,
+        daily_rate: metadata.daily_rate || null,
+        daily_rate_defined: metadata.daily_rate_defined !== false,
+        availability: 'available',
+        skills: Array.isArray(metadata.skills) ? metadata.skills : [],
+        specializations: Array.isArray(metadata.specializations) ? metadata.specializations : [],
+        languages: [],
+        github_url: metadata.github_url || '',
+        linkedin_url: metadata.linkedin_url || '',
+        portfolio_url: metadata.portfolio_url || '',
+        website: metadata.portfolio_url || '',
+        average_rating: 0,
+        total_ratings: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: devProfileError } = await supabase
+        .from('developer_profiles')
+        .insert(developerProfileData);
+
+      if (devProfileError) {
+        console.error('❌ Erreur création profil développeur:', devProfileError);
+        return;
+      }
+
+      console.log('✅ Profil développeur créé automatiquement');
+
+    } catch (error) {
+      console.error('❌ Erreur vérification profil développeur:', error);
     }
   };
 

@@ -19,14 +19,17 @@ export async function GET(request: NextRequest) {
     if (!error && data.user) {
       console.log('✅ Email confirmé pour:', data.user.email)
       
-      // Vérifier si l'utilisateur a un profil
+      // SYSTÈME DE CRÉATION AUTOMATIQUE RENFORCÉ
+      await ensureUserProfileExists(data.user, supabase)
+      
+      // Vérifier le profil après création
       const { data: profile } = await supabase
         .from('profiles')
         .select('user_type, full_name')
         .eq('id', data.user.id)
         .single()
 
-      console.log('📋 Profil trouvé:', profile)
+      console.log('📋 Profil final trouvé:', profile)
 
       if (profile) {
         // Rediriger vers le dashboard approprié avec confirmation
@@ -37,33 +40,8 @@ export async function GET(request: NextRequest) {
         console.log('🎯 Redirection vers:', dashboardUrl)
         return NextResponse.redirect(dashboardUrl)
       } else {
-        // Pas de profil trouvé, rediriger vers l'accueil avec message
-        console.log('⚠️ Pas de profil trouvé, création automatique...')
-        
-        // Créer un profil basique automatiquement
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            email: data.user.email,
-            full_name: data.user.user_metadata?.full_name || data.user.email,
-            user_type: data.user.user_metadata?.user_type || 'developer',
-            phone: data.user.user_metadata?.phone,
-            created_at: new Date().toISOString()
-          })
-
-        if (profileError) {
-          console.error('❌ Erreur création profil:', profileError)
-          return NextResponse.redirect(`${origin}/?error=profile_creation_failed`)
-        }
-
-        console.log('✅ Profil créé automatiquement')
-        const userType = data.user.user_metadata?.user_type || 'developer'
-        const dashboardUrl = userType === 'client' 
-          ? `${origin}/dashboard/client?welcome=true&confirmed=true`
-          : `${origin}/dashboard/developer?welcome=true&confirmed=true`
-        
-        return NextResponse.redirect(dashboardUrl)
+        console.error('❌ Échec création profil après plusieurs tentatives')
+        return NextResponse.redirect(`${origin}/?error=profile_creation_failed`)
       }
     } else {
       console.error('❌ Erreur échange code:', error)
@@ -76,11 +54,159 @@ export async function GET(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession()
   
   if (session?.user) {
-    console.log('✅ Utilisateur déjà connecté, redirection vers page d\'accueil')
-    return NextResponse.redirect(`${origin}/?login=success`)
+    // Utilisateur déjà connecté, rediriger selon le type
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('user_type')
+      .eq('id', session.user.id)
+      .single()
+
+    if (profile) {
+      const dashboardUrl = profile.user_type === 'client' 
+        ? `${origin}/dashboard/client`
+        : `${origin}/dashboard/developer`
+      return NextResponse.redirect(dashboardUrl)
+    }
   }
 
-  // Fallback - redirection vers la page d'accueil avec info
-  console.log('⚠️ Callback sans code valide, redirection vers accueil')
-  return NextResponse.redirect(`${origin}/?info=please_check_email`)
+  // Redirection par défaut
+  return NextResponse.redirect(`${origin}${next}`)
+}
+
+/**
+ * Système robuste de création de profils utilisateur
+ * Fonctionne même si les triggers de base de données sont cassés
+ */
+async function ensureUserProfileExists(user: any, supabase: any) {
+  try {
+    console.log('🔄 Vérification/création profil pour:', user.email)
+    
+    // 1. Vérifier si le profil existe déjà
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    if (existingProfile) {
+      console.log('✅ Profil existe déjà')
+      
+      // Si c'est un développeur, s'assurer que le profil développeur existe aussi
+      if (existingProfile.user_type === 'developer') {
+        await ensureDeveloperProfileExists(user, supabase)
+      }
+      return
+    }
+
+    console.log('⚠️ Profil manquant, création automatique...')
+    
+    // 2. Extraire les métadonnées utilisateur
+    const metadata = user.user_metadata || {}
+    const userType = metadata.user_type || 'developer' // défaut développeur
+    
+    // 3. Créer le profil de base
+    const profileData = {
+      id: user.id,
+      email: user.email,
+      full_name: metadata.full_name || user.email?.split('@')[0] || 'Utilisateur',
+      user_type: userType,
+      phone: metadata.phone || null,
+      avatar_url: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    console.log('📝 Création profil de base:', profileData)
+
+    const { data: createdProfile, error: profileError } = await supabase
+      .from('profiles')
+      .insert(profileData)
+      .select()
+      .single()
+
+    if (profileError) {
+      console.error('❌ Erreur création profil de base:', profileError)
+      throw profileError
+    }
+
+    console.log('✅ Profil de base créé:', createdProfile)
+
+    // 4. Si c'est un développeur, créer aussi le profil développeur
+    if (userType === 'developer') {
+      await ensureDeveloperProfileExists(user, supabase)
+    }
+
+  } catch (error) {
+    console.error('❌ Erreur dans ensureUserProfileExists:', error)
+    throw error
+  }
+}
+
+/**
+ * Création/vérification du profil développeur étendu
+ */
+async function ensureDeveloperProfileExists(user: any, supabase: any) {
+  try {
+    console.log('🔄 Vérification profil développeur pour:', user.email)
+    
+    // Vérifier si existe déjà
+    const { data: existingDevProfile } = await supabase
+      .from('developer_profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    if (existingDevProfile) {
+      console.log('✅ Profil développeur existe déjà')
+      return
+    }
+
+    console.log('⚠️ Profil développeur manquant, création...')
+    
+    // Extraire les métadonnées
+    const metadata = user.user_metadata || {}
+    
+    const developerProfileData = {
+      id: user.id,
+      title: metadata.title || metadata.full_name || 'Développeur',
+      bio: metadata.bio || '',
+      location: '',
+      phone: metadata.phone || '',
+      experience_years: metadata.experience_years || 0,
+      daily_rate: metadata.daily_rate || null,
+      daily_rate_defined: metadata.daily_rate_defined !== false,
+      availability: 'available',
+      skills: Array.isArray(metadata.skills) ? metadata.skills : [],
+      specializations: Array.isArray(metadata.specializations) ? metadata.specializations : [],
+      languages: [],
+      github_url: metadata.github_url || '',
+      linkedin_url: metadata.linkedin_url || '',
+      portfolio_url: metadata.portfolio_url || '',
+      website: metadata.portfolio_url || '',
+      average_rating: 0,
+      total_ratings: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    console.log('📝 Création profil développeur:', developerProfileData)
+
+    const { data: createdDevProfile, error: devProfileError } = await supabase
+      .from('developer_profiles')
+      .insert(developerProfileData)
+      .select()
+      .single()
+
+    if (devProfileError) {
+      console.error('❌ Erreur création profil développeur:', devProfileError)
+      // Ne pas faire planter tout le processus pour ça
+      return
+    }
+
+    console.log('✅ Profil développeur créé:', createdDevProfile)
+
+  } catch (error) {
+    console.error('❌ Erreur dans ensureDeveloperProfileExists:', error)
+    // Ne pas faire planter tout le processus
+  }
 } 
