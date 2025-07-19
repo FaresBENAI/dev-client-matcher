@@ -21,12 +21,12 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
-  const [profiles, setProfiles] = useState<any>({}) // Cache des profils comme dans l'original
+  const [profiles, setProfiles] = useState<any>({})
   const [sendingMessage, setSendingMessage] = useState(false)
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [otherParticipant, setOtherParticipant] = useState<any>(null)
   const [applicationData, setApplicationData] = useState<any>(null)
-  const [developerRating, setDeveloperRating] = useState<any>(null) // 🆕 NOUVEAU: Données de notation
+  const [developerRating, setDeveloperRating] = useState<any>(null)
   
   const router = useRouter()
   const { t } = useLanguage()
@@ -39,7 +39,6 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!user) return;
 
-    // Écouter les changements de messages
     const messagesSubscription = supabase
       .channel('messages_page_changes')
       .on('postgres_changes', {
@@ -47,8 +46,7 @@ export default function MessagesPage() {
         schema: 'public',
         table: 'messages'
       }, (payload) => {
-        console.log('🆕 Nouveau message reçu (messages page):', payload);
-        // Rafraîchir les conversations si le message n'est pas de l'utilisateur actuel
+        console.log('🆕 Nouveau message reçu:', payload);
         if (payload.new.sender_id !== user.id) {
           loadConversations(user.id);
         }
@@ -58,8 +56,7 @@ export default function MessagesPage() {
         schema: 'public',
         table: 'messages'
       }, (payload) => {
-        console.log('📝 Message mis à jour (messages page):', payload);
-        // Rafraîchir si le statut de lecture a changé
+        console.log('📝 Message mis à jour:', payload);
         if (payload.new.is_read !== payload.old.is_read) {
           loadConversations(user.id);
         }
@@ -79,7 +76,6 @@ export default function MessagesPage() {
     }
     
     setUser(user)
-    // Charger aussi le profil de l'utilisateur connecté
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, user_type, full_name, email')
@@ -90,9 +86,8 @@ export default function MessagesPage() {
     setLoading(false)
   }
 
-  // 🔧 ORIGINAL: Charger les profils avec cache (comme dans votre fichier)
   const loadProfile = async (userId: string) => {
-    if (profiles[userId]) return profiles[userId] // Cache hit
+    if (profiles[userId]) return profiles[userId]
 
     try {
       const { data: profile, error } = await supabase
@@ -135,7 +130,6 @@ export default function MessagesPage() {
 
       if (error) throw error
 
-      // Trier les conversations par dernière activité
       const sortedConversations = (conversations || [])
         .filter(conv => conv.messages && conv.messages.length > 0)
         .sort((a, b) => {
@@ -146,7 +140,6 @@ export default function MessagesPage() {
 
       setConversations(sortedConversations)
 
-      // Charger les profils de tous les participants
       const userIds = new Set<string>()
       sortedConversations.forEach(conv => {
         userIds.add(conv.client_id)
@@ -154,7 +147,6 @@ export default function MessagesPage() {
         conv.messages?.forEach((msg: any) => userIds.add(msg.sender_id))
       })
 
-      // Charger tous les profils en parallèle
       await Promise.all(
         Array.from(userIds).map(id => loadProfile(id))
       )
@@ -165,23 +157,14 @@ export default function MessagesPage() {
 
   const loadMessages = async (conversationId: string) => {
     try {
-      console.log('🔄 Chargement des messages pour conversation:', conversationId)
-      
-      // 🔧 ORIGINAL: Requête simple
       const { data: messages, error } = await supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
 
-      if (error) {
-        console.error('Erreur messages:', error)
-        throw error
-      }
+      if (error) throw error
 
-      console.log('✅ Messages trouvés:', messages?.length || 0)
-      
-      // Charger les profils des expéditeurs
       if (messages && messages.length > 0) {
         for (const message of messages) {
           await loadProfile(message.sender_id)
@@ -189,8 +172,6 @@ export default function MessagesPage() {
       }
 
       setMessages(messages || [])
-      
-      // 🆕 Marquer les messages comme lus après avoir chargé la conversation
       await markMessagesAsRead(conversationId)
     } catch (error) {
       console.error('Erreur lors du chargement des messages:', error)
@@ -198,7 +179,6 @@ export default function MessagesPage() {
     }
   }
 
-  // 🔧 ORIGINAL: Fonction pour obtenir les informations de l'autre participant
   const getOtherParticipant = (conversation: any) => {
     if (!conversation || !user) {
       return {
@@ -233,24 +213,18 @@ export default function MessagesPage() {
     }
   }
 
-  // Sélectionner une conversation
   const selectConversation = async (conversation: any) => {
-    console.log('🔄 Sélection conversation:', conversation.id)
     setSelectedConversation(conversation)
     setOtherParticipant(getOtherParticipant(conversation))
     await loadMessages(conversation.id)
-    
-    // Marquer les messages comme lus quand on ouvre la conversation
     await markMessagesAsRead(conversation.id)
     
-    // Charger les données de candidature si c'est une conversation de projet
     if (conversation.project_id) {
       await loadApplicationData(conversation.project_id, conversation.developer_id)
     } else {
       setApplicationData(null)
     }
     
-    // 🆕 Charger les données de notation du développeur
     if (otherParticipant?.type === 'developer') {
       await loadDeveloperRating(otherParticipant.id)
     } else {
@@ -258,47 +232,17 @@ export default function MessagesPage() {
     }
   }
 
-  // Marquer les messages comme lus
   const markMessagesAsRead = async (conversationId: string) => {
     if (!user) return;
     
     try {
-      console.log('📖 Marquage des messages comme lus pour conversation:', conversationId);
-      
-      // Marquer TOUS les messages de cette conversation comme lus (sauf nos propres messages)
       const { error } = await supabase
         .from('messages')
         .update({ is_read: true })
         .eq('conversation_id', conversationId)
         .neq('sender_id', user.id);
 
-      if (error) {
-        console.error('Erreur marquage messages lus:', error);
-      } else {
-        console.log('✅ Tous les messages marqués comme lus avec succès');
-        
-        // Vérifier que les messages ont bien été marqués
-        const { data: verifyMessages, error: verifyError } = await supabase
-          .from('messages')
-          .select('id, content, is_read')
-          .eq('conversation_id', conversationId)
-          .neq('sender_id', user.id)
-          .eq('is_read', false);
-
-        if (verifyError) {
-          console.error('Erreur vérification messages:', verifyError);
-        } else {
-          console.log('🔍 Messages encore non lus après marquage:', verifyMessages?.length || 0);
-          if (verifyMessages && verifyMessages.length > 0) {
-            console.log('⚠️ Messages encore non lus:', verifyMessages.map(msg => ({
-              id: msg.id,
-              content: msg.content?.substring(0, 30) + '...',
-              is_read: msg.is_read
-            })));
-          }
-        }
-        
-        // Rafraîchir les conversations pour mettre à jour le comptage
+      if (!error) {
         await loadConversations(user.id);
       }
     } catch (error) {
@@ -306,7 +250,6 @@ export default function MessagesPage() {
     }
   }
 
-  // Charger les données de candidature
   const loadApplicationData = async (projectId: string, developerId: string) => {
     try {
       const { data: application, error } = await supabase
@@ -324,21 +267,17 @@ export default function MessagesPage() {
         .single()
 
       if (error) {
-        console.error('Erreur chargement candidature:', error)
         setApplicationData(null)
       } else {
         setApplicationData(application)
       }
     } catch (error) {
-      console.error('Erreur lors du chargement de la candidature:', error)
       setApplicationData(null)
     }
   }
 
-  // 🆕 NOUVEAU: Charger les données de notation du développeur
   const loadDeveloperRating = async (developerId: string) => {
     try {
-      // Charger le profil développeur avec les notes
       const { data: devProfile, error } = await supabase
         .from('developer_profiles')
         .select('average_rating, total_ratings')
@@ -346,18 +285,15 @@ export default function MessagesPage() {
         .single()
 
       if (error) {
-        console.error('Erreur chargement notation développeur:', error)
         setDeveloperRating({ average_rating: 0, total_ratings: 0 })
       } else {
         setDeveloperRating(devProfile || { average_rating: 0, total_ratings: 0 })
       }
     } catch (error) {
-      console.error('Erreur lors du chargement de la notation:', error)
       setDeveloperRating({ average_rating: 0, total_ratings: 0 })
     }
   }
 
-  // Envoyer un message
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !user || sendingMessage) return
 
@@ -375,10 +311,7 @@ export default function MessagesPage() {
       if (error) throw error
 
       setNewMessage('')
-      
-      // Marquer tous les messages comme lus après avoir envoyé un message
       await markMessagesAsRead(selectedConversation.id)
-      
       loadMessages(selectedConversation.id)
       loadConversations(user.id)
     } catch (error) {
@@ -388,7 +321,6 @@ export default function MessagesPage() {
     }
   }
 
-  // Gérer la touche Entrée
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -396,55 +328,6 @@ export default function MessagesPage() {
     }
   }
 
-  // 🆕 Fonction pour changer le statut de candidature
-  const updateApplicationStatus = async (status: string) => {
-    if (!selectedConversation?.application_id) return
-
-    try {
-      const { error } = await supabase
-        .from('project_applications')
-        .update({ 
-          status: status,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedConversation.application_id)
-
-      if (error) {
-        console.error('Erreur mise à jour statut:', error)
-        alert(t('msg.error'))
-        return
-      }
-
-      // Envoyer un message automatique de notification
-      const statusMessage = status === 'accepted' 
-        ? `✅ **${t('messages.application.accepted')}** ${t('messages.application.accepted.desc')}`
-        : `❌ **${t('messages.application.rejected')}** ${t('messages.application.rejected.desc')}`
-
-      await supabase
-        .from('messages')
-        .insert({
-          conversation_id: selectedConversation.id,
-          sender_id: user.id,
-          content: statusMessage,
-          created_at: new Date().toISOString()
-        })
-
-      alert(status === 'accepted' ? t('messages.application.accepted.success') : t('messages.application.rejected.success'))
-      
-      // Recharger les messages et conversations
-      loadMessages(selectedConversation.id)
-      loadConversations(user.id)
-      
-      // Recharger les données de candidature
-      if (selectedConversation.project_id) {
-        await loadApplicationData(selectedConversation.project_id, selectedConversation.developer_id)
-      }
-    } catch (error) {
-      console.error('Erreur générale:', error)
-    }
-  }
-
-  // 🆕 NOUVEAU: Fonction pour accepter une candidature
   const acceptApplication = async (applicationId: string) => {
     if (!user || !selectedConversation) return;
 
@@ -460,7 +343,6 @@ export default function MessagesPage() {
         return;
       }
 
-      // Envoyer un message de notification
       const statusMessage = `✅ **${t('messages.application.accepted')}** ${t('messages.application.accepted.desc')}`;
       await supabase
         .from('messages')
@@ -482,7 +364,6 @@ export default function MessagesPage() {
     }
   };
 
-  // 🆕 NOUVEAU: Fonction pour rejeter une candidature
   const rejectApplication = async (applicationId: string) => {
     if (!user || !selectedConversation) return;
 
@@ -498,7 +379,6 @@ export default function MessagesPage() {
         return;
       }
 
-      // Envoyer un message de notification
       const statusMessage = `❌ **${t('messages.application.rejected')}** ${t('messages.application.rejected.desc')}`;
       await supabase
         .from('messages')
@@ -827,17 +707,17 @@ export default function MessagesPage() {
                     </button>
                   </div>
                 </div>
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-500 bg-white">
-                <div className="text-center">
-                  <MessageCircle className="h-12 md:h-16 w-12 md:w-16 mx-auto mb-4 text-gray-300" />
-                  <p className="text-base md:text-lg font-semibold mb-2">{t('messages.select.conversation')}</p>
-                  <p className="text-sm md:text-base">{t('messages.select.conversation.desc')}</p>
-                </div>
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-gray-500 bg-white">
+              <div className="text-center">
+                <MessageCircle className="h-12 md:h-16 w-12 md:w-16 mx-auto mb-4 text-gray-300" />
+                <p className="text-base md:text-lg font-semibold mb-2">{t('messages.select.conversation')}</p>
+                <p className="text-sm md:text-base">{t('messages.select.conversation.desc')}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Modal de notation */}
@@ -851,7 +731,6 @@ export default function MessagesPage() {
             currentUser={userProfile}
             onRatingSubmitted={() => {
               console.log('Note soumise avec succès')
-              // Recharger les conversations pour mettre à jour
               if (user) {
                 loadConversations(user.id)
               }
@@ -861,4 +740,4 @@ export default function MessagesPage() {
       </div>
     </div>
   )
-}
+} 
