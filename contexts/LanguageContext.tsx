@@ -246,6 +246,7 @@ const translations = {
     'profile.developer.back.to.developers': 'Retour aux développeurs',
     'profile.developer.back': 'Retour',
     'profile.developer.loading': 'Chargement du profil...',
+    'profile.developer.about': 'À propos',
     'profile.developer.daily.rate': '/jour',
     'profile.developer.experience': 'Expérience',
     'profile.developer.years.suffix': 'ans',
@@ -269,6 +270,10 @@ const translations = {
     'profile.developer.send.message': 'Envoyer un message',
     'profile.developer.phone': 'Téléphone',
     'profile.developer.email': 'Email',
+    'profile.developer.no.description': 'Aucune description fournie',
+    'profile.developer.no.skills': 'Aucune compétence listée',
+    'profile.developer.languages': 'Langues',
+    'profile.developer.no.languages': 'Aucune langue spécifiée',
     
     // Project Details Page
     'project.details.back.to.projects': 'Retour aux projets',
@@ -571,6 +576,7 @@ const translations = {
     'profile.developer.back.to.developers': 'Back to developers',
     'profile.developer.back': 'Back',
     'profile.developer.loading': 'Loading profile...',
+    'profile.developer.about': 'About',
     'profile.developer.daily.rate': '/day',
     'profile.developer.experience': 'Experience',
     'profile.developer.years.suffix': 'years',
@@ -594,6 +600,10 @@ const translations = {
     'profile.developer.send.message': 'Send message',
     'profile.developer.phone': 'Phone',
     'profile.developer.email': 'Email',
+    'profile.developer.no.description': 'No description provided',
+    'profile.developer.no.skills': 'No skills listed',
+    'profile.developer.languages': 'Languages',
+    'profile.developer.no.languages': 'No languages specified',
     
     // Project Details Page
     'project.details.back.to.projects': 'Back to projects',

@@ -303,19 +303,26 @@ export default function DeveloperProfilePage() {
             <div className="lg:w-1/3">
               <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
                 <div className="text-center mb-6">
-                  {developer.profile_image ? (
+                  {developer.profile_image && developer.profile_image.trim() !== '' ? (
                     <img 
                       src={developer.profile_image} 
                       alt={developer.full_name}
                       className="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-4 border-gray-200"
                       onError={(e) => {
+                        console.log('❌ Erreur chargement image:', developer.profile_image);
                         // Fallback si l'image ne charge pas
                         e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (fallback) {
+                          fallback.classList.remove('hidden');
+                        }
+                      }}
+                      onLoad={() => {
+                        console.log('✅ Image chargée:', developer.profile_image);
                       }}
                     />
                   ) : null}
-                  <div className={`w-32 h-32 rounded-full mx-auto mb-4 bg-gray-200 flex items-center justify-center border-4 border-gray-300 ${developer.profile_image ? 'hidden' : ''}`}>
+                  <div className={`w-32 h-32 rounded-full mx-auto mb-4 bg-gray-200 flex items-center justify-center border-4 border-gray-300 ${developer.profile_image && developer.profile_image.trim() !== '' ? 'hidden' : ''}`}>
                     <User className="h-16 w-16 text-gray-400" />
                   </div>
                   
