@@ -3,8 +3,10 @@
 
 import { useState } from 'react'
 import { X, Send, MessageCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
 import { useAuth } from '@/components/layout/auth-context'
+
+const supabase = createClient()
 
 interface ContactModalProps {
   isOpen: boolean

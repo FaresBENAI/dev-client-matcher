@@ -9,6 +9,7 @@ import { X } from 'lucide-react' // Added for the new filter clear buttons
 import { Search } from 'lucide-react' // Added for the new search icon
 import { useLanguage } from '@/contexts/LanguageContext'
 import { ensureDeveloperProfile } from '@/utils/developer-profile-helper'
+import ContactModal from '../../components/ContactModal'
 
 const supabase = createClient()
 
@@ -64,6 +65,10 @@ export default function DevelopersPage() {
   const [allSkills, setAllSkills] = useState<string[]>([])
   const [allLanguages, setAllLanguages] = useState<string[]>([])
   const { t } = useLanguage()
+
+  // États pour la modal de contact
+  const [showContactModal, setShowContactModal] = useState(false)
+  const [selectedDeveloper, setSelectedDeveloper] = useState<any>(null)
 
   useEffect(() => {
     loadDevelopers()
@@ -212,6 +217,16 @@ export default function DevelopersPage() {
         ? prev.filter(l => l !== lang)
         : [...prev, lang]
     )
+  }
+
+  const handleContactDeveloper = (developer: any) => {
+    setSelectedDeveloper(developer)
+    setShowContactModal(true)
+  }
+
+  const closeContactModal = () => {
+    setShowContactModal(false)
+    setSelectedDeveloper(null)
   }
 
   if (loading) {
@@ -547,7 +562,10 @@ export default function DevelopersPage() {
                         {t('developers.see.profile')} →
                       </Button>
                     </Link>
-                    <Button className="border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium px-4 py-2 rounded-lg text-sm">
+                    <Button 
+                      onClick={() => handleContactDeveloper(developer)}
+                      className="border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium px-4 py-2 rounded-lg text-sm"
+                    >
                       💬
                     </Button>
                   </div>
@@ -577,6 +595,16 @@ export default function DevelopersPage() {
           )}
         </div>
       </div>
+
+      {/* Modal de contact */}
+      {showContactModal && selectedDeveloper && (
+        <ContactModal
+          isOpen={showContactModal}
+          onClose={closeContactModal}
+          developerId={selectedDeveloper.id}
+          developerName={selectedDeveloper.full_name}
+        />
+      )}
 
       <style jsx>{`
         .line-clamp-2 {
