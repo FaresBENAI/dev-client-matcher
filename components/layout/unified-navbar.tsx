@@ -315,6 +315,58 @@ function NavbarContent() {
                   </div>
                 </button>
               )}
+              
+              {/* Actions utilisateur mobile */}
+              <div className="pt-4 border-t border-gray-200">
+                {user ? (
+                  <div className="space-y-2">
+                    <button
+                      onClick={(e) => {
+                        handleDashboardClick(e);
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full bg-black text-white px-4 py-3 rounded-lg font-bold hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <User className="h-4 w-4" />
+                      <span>{t('nav.dashboard')}</span>
+                    </button>
+                    
+                    <div className="text-center text-sm text-gray-600 py-2">
+                      {userProfile?.full_name || user.email?.split('@')[0]}
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>{t('nav.logout')}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Link href="/auth/login">
+                      <button 
+                        className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-3 rounded-lg font-medium transition-colors"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        {t('nav.login')}
+                      </button>
+                    </Link>
+                    <Link href="/auth/signup">
+                      <button 
+                        className="w-full bg-black text-white px-4 py-3 rounded-lg font-bold hover:bg-gray-800 transition-colors"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        {t('nav.signup')}
+                      </button>
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
