@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
+import SuccessModal from '../../../components/ui/success-modal'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -17,6 +18,15 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  
+  // 🎉 Success Modal State
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [successData, setSuccessData] = useState({
+    title: '',
+    message: '',
+    emailConfirmed: false
+  })
+  
   const router = useRouter()
   const { t } = useLanguage()
 
@@ -466,14 +476,18 @@ export default function SignupPage() {
         console.log('🎉 Processus complet de création de compte terminé!')
         updateDebugInfo('Account creation process completed successfully')
         
-        // Message de succès différencié
-        if (authData.user.email_confirmed_at) {
-          alert('Compte créé avec succès ! Vous pouvez vous connecter.')
-        } else {
-          alert('Compte créé avec succès ! Vérifiez votre email pour confirmer votre compte avant de vous connecter.')
-        }
+        // 🎉 Afficher le modal de succès personnalisé au lieu de l'alert
+        const isEmailConfirmed = !!authData.user.email_confirmed_at
+        setSuccessData({
+          title: 'Compte créé avec succès !',
+          message: isEmailConfirmed 
+            ? 'Votre compte a été créé et votre email est déjà confirmé. Vous pouvez maintenant vous connecter.'
+            : 'Votre compte a été créé avec succès ! Un email de confirmation a été envoyé à votre adresse.',
+          emailConfirmed: isEmailConfirmed
+        })
+        setShowSuccessModal(true)
         
-        router.push('/auth/login')
+        // Note: La redirection se fera via les boutons du modal
 
       } catch (err) {
         console.error('❌ ERREUR GENERALE COMPLETE:')
@@ -922,7 +936,7 @@ export default function SignupPage() {
             </div>
 
             {/* 🔍 DEBUG Panel - Temporarily enabled for production debugging */}
-            {(process.env.NODE_ENV === 'development' || true) && (
+            {(process.env.NODE_ENV === 'development') && (
               <div className="mt-8 p-4 bg-gray-100 rounded-lg border-2 border-gray-300">
                 <h3 className="text-sm font-bold text-gray-800 mb-2">🔍 Debug Info</h3>
                 <div className="text-xs text-gray-600 space-y-1">
@@ -965,6 +979,15 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
+      
+      {/* 🎉 Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title={successData.title}
+        message={successData.message}
+        emailConfirmed={successData.emailConfirmed}
+      />
     </div>
   )
 }
