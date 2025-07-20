@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
 import { Eye, MessageCircle, Clock, Play, CheckCircle, Users, Calendar, DollarSign, XCircle, Star, User, Plus, RefreshCw, X } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import InfoPopup from '@/components/ui/info-popup';
 
 const supabase = createClient()
 
@@ -57,6 +58,14 @@ export default function ClientDashboard() {
   });
   const [skillInput, setSkillInput] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
+
+  // États pour le popup d'information
+  const [showInfoPopup, setShowInfoPopup] = useState(false);
+  const [infoPopupData, setInfoPopupData] = useState({
+    title: '',
+    message: '',
+    type: 'info' as 'info' | 'processing' | 'success'
+  });
 
   useEffect(() => {
     const getUser = async () => {
@@ -361,6 +370,14 @@ export default function ClientDashboard() {
     e.preventDefault();
     if (!user) return;
 
+    // Afficher le popup d'information immédiatement
+    setInfoPopupData({
+      title: 'Création en cours',
+      message: 'La création de votre projet peut prendre quelques minutes. Nous analysons vos besoins et préparons votre projet pour recevoir les meilleures candidatures de développeurs.',
+      type: 'processing'
+    });
+    setShowInfoPopup(true);
+
     setCreateLoading(true);
     try {
       console.log('=== CREATION PROJET ===');
@@ -397,9 +414,22 @@ export default function ClientDashboard() {
       closeCreateModal();
       await loadDashboardData(user.id); // Recharger les données du dashboard
       
+      // Afficher popup de succès
+      setInfoPopupData({
+        title: 'Projet créé !',
+        message: '🎉 Votre projet a été créé avec succès ! Il est maintenant visible par tous les développeurs de la plateforme. Vous recevrez des notifications dès que des développeurs candidateront.',
+        type: 'success'
+      });
+      
     } catch (error: any) {
       console.error('Erreur lors de la création:', error);
-      alert(`Erreur lors de la création du projet: ${error.message}`);
+      
+      // Afficher popup d'erreur
+      setInfoPopupData({
+        title: 'Erreur de création',
+        message: `Une erreur s'est produite lors de la création de votre projet : ${error.message}. Veuillez réessayer.`,
+        type: 'info'
+      });
     } finally {
       setCreateLoading(false);
     }
@@ -971,6 +1001,16 @@ export default function ClientDashboard() {
           </div>
         </div>
       )}
+
+      {/* Popup d'information */}
+      <InfoPopup
+        isOpen={showInfoPopup}
+        onClose={() => setShowInfoPopup(false)}
+        title={infoPopupData.title}
+        message={infoPopupData.message}
+        type={infoPopupData.type}
+        autoCloseDelay={infoPopupData.type === 'success' ? 5000 : 0}
+      />
     </div>
   );
 }

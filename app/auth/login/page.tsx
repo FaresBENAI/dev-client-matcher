@@ -44,10 +44,7 @@ function LoginPageContent() {
           }
         });
         
-        // 4. Nettoyer l'état global Supabase
-        if (window.supabase) {
-          window.supabase = null;
-        }
+        // 4. Nettoyer l'état global Supabase (plus nécessaire avec la déconnexion directe)
         
         console.log('✅ Nettoyage agressif terminé');
         

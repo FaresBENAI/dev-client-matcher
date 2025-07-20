@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Calendar, DollarSign, Clock, Zap, User, Building, Send, X, CheckCircle, AlertCircle, Edit, Settings } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import InfoPopup from '@/components/ui/info-popup';
 
 const supabase = createClient()
 
@@ -56,6 +57,14 @@ export default function ProjectDetailPage() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
+
+  // États pour le popup d'information
+  const [showInfoPopup, setShowInfoPopup] = useState(false);
+  const [infoPopupData, setInfoPopupData] = useState({
+    title: '',
+    message: '',
+    type: 'info' as 'info' | 'processing' | 'success'
+  });
   
   const router = useRouter();
   const params = useParams();
@@ -216,6 +225,14 @@ export default function ProjectDetailPage() {
     e.preventDefault();
     if (!user || !project) return;
 
+    // Afficher le popup d'information immédiatement
+    setInfoPopupData({
+      title: 'Candidature en cours',
+      message: 'Votre candidature est en cours de traitement. Nous créons votre profil de candidature et notifions le client. Cette opération peut prendre quelques minutes.',
+      type: 'processing'
+    });
+    setShowInfoPopup(true);
+
     setApplicationLoading(true);
     try {
       console.log('=== DÉBUT CANDIDATURE ===');
@@ -259,6 +276,14 @@ export default function ProjectDetailPage() {
 
       // 4. Succès final - Candidature et conversation créées automatiquement
       console.log('🎉 Candidature et conversation créées automatiquement !');
+      
+      // Afficher popup de succès
+      setInfoPopupData({
+        title: 'Candidature envoyée !',
+        message: '🎉 Votre candidature a été envoyée avec succès ! Le client a été notifié et vous pouvez suivre l\'évolution dans vos messages. Bonne chance !',
+        type: 'success'
+      });
+      
       setApplicationSuccess(true);
       
       // Fermer la modal avec un message amélioré
@@ -270,7 +295,13 @@ export default function ProjectDetailPage() {
       
     } catch (error: any) {
       console.error('Erreur globale:', error);
-      alert(`Erreur globale: ${error.message}`);
+      
+      // Afficher popup d'erreur
+      setInfoPopupData({
+        title: 'Erreur de candidature',
+        message: `Une erreur s'est produite lors de l'envoi de votre candidature : ${error.message}. Veuillez réessayer.`,
+        type: 'info'
+      });
     } finally {
       setApplicationLoading(false);
     }
@@ -841,6 +872,16 @@ export default function ProjectDetailPage() {
           }
         }
       `}</style>
+
+      {/* Popup d'information */}
+      <InfoPopup
+        isOpen={showInfoPopup}
+        onClose={() => setShowInfoPopup(false)}
+        title={infoPopupData.title}
+        message={infoPopupData.message}
+        type={infoPopupData.type}
+        autoCloseDelay={infoPopupData.type === 'success' ? 5000 : 0}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, MapPin, Calendar, DollarSign, Grid, List, Plus, X, CheckCircle, Clock, Zap, Send, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/contexts/LanguageContext';
+import InfoPopup from '@/components/ui/info-popup';
 
 interface Project {
   id: string;
@@ -66,6 +67,14 @@ function ProjectsContent() {
     status: string;
     project: Project | null;
   }>({ status: '', project: null });
+
+  // États pour le popup d'information
+  const [showInfoPopup, setShowInfoPopup] = useState(false);
+  const [infoPopupData, setInfoPopupData] = useState({
+    title: '',
+    message: '',
+    type: 'info' as 'info' | 'processing' | 'success'
+  });
   
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -380,6 +389,14 @@ function ProjectsContent() {
     e.preventDefault();
     if (!user || !selectedProject) return;
 
+    // Afficher le popup d'information immédiatement
+    setInfoPopupData({
+      title: 'Candidature en cours',
+      message: 'Votre candidature est en cours de traitement. Nous créons votre profil de candidature et notifions le client. Cette opération peut prendre quelques minutes.',
+      type: 'processing'
+    });
+    setShowInfoPopup(true);
+
     setApplicationLoading(true);
     try {
       console.log('🚀 DÉMARRAGE CANDIDATURE FORCÉE:', {
@@ -477,7 +494,13 @@ function ProjectsContent() {
       console.log('✅ Message créé:', newMessage);
 
       console.log('🎉 CANDIDATURE COMPLÈTE RÉUSSIE !');
-      alert('✅ Candidature envoyée avec succès ! Vérifiez vos messages.');
+      
+      // Afficher popup de succès
+      setInfoPopupData({
+        title: 'Candidature envoyée !',
+        message: '🎉 Votre candidature a été envoyée avec succès ! Le client a été notifié et vous pouvez suivre l\'évolution dans vos messages. Bonne chance !',
+        type: 'success'
+      });
       
       setApplicationSuccess(true);
       setTimeout(() => {
@@ -486,7 +509,13 @@ function ProjectsContent() {
       
     } catch (error: any) {
       console.error('💥 ERREUR CANDIDATURE:', error);
-      alert(`❌ Erreur: ${error.message}`);
+      
+      // Afficher popup d'erreur
+      setInfoPopupData({
+        title: 'Erreur de candidature',
+        message: `Une erreur s'est produite lors de l'envoi de votre candidature : ${error.message}. Veuillez réessayer.`,
+        type: 'info'
+      });
     } finally {
       setApplicationLoading(false);
     }
@@ -1300,6 +1329,16 @@ function ProjectsContent() {
           }
         }
       `}</style>
+
+      {/* Popup d'information */}
+      <InfoPopup
+        isOpen={showInfoPopup}
+        onClose={() => setShowInfoPopup(false)}
+        title={infoPopupData.title}
+        message={infoPopupData.message}
+        type={infoPopupData.type}
+        autoCloseDelay={infoPopupData.type === 'success' ? 5000 : 0}
+      />
     </div>
   );
 }
