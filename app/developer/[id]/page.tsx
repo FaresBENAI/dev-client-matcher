@@ -660,8 +660,11 @@ export default function DeveloperProfilePage() {
           currentUser={currentUser}
           onRatingSubmitted={() => {
             setShowRatingModal(false);
-            // Recharger les ratings
-            loadDeveloperRatings();
+            // Recharger les ratings ET le profil complet après un délai pour laisser le temps à la base de se mettre à jour
+            setTimeout(() => {
+              loadDeveloperProfile();
+              loadDeveloperRatings();
+            }, 2000); // Attendre 2 secondes pour que la mise à jour des stats soit terminée
           }}
         />
       )}

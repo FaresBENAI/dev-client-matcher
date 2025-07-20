@@ -166,6 +166,21 @@ export default function RatingModal({
 
       if (!ratings || ratings.length === 0) {
         console.log('⚠️ Aucune note trouvée pour le développeur');
+        // Même s'il n'y a pas de notes, on met à jour pour avoir 0
+        const { error: updateError } = await supabase
+          .from('developer_profiles')
+          .update({
+            average_rating: 0,
+            total_ratings: 0,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', developerId);
+
+        if (updateError) {
+          console.error('❌ Erreur mise à jour (0 ratings):', updateError);
+        } else {
+          console.log('✅ Statistiques mises à 0 (aucune note)');
+        }
         return;
       }
 
@@ -178,10 +193,11 @@ export default function RatingModal({
         averageRating: averageRating.toFixed(2)
       });
 
-      // Mettre à jour le profil développeur
+      // Mettre à jour le profil développeur avec UPSERT pour forcer la création si inexistant
       const { error: updateError } = await supabase
         .from('developer_profiles')
-        .update({
+        .upsert({
+          id: developerId,
           average_rating: Math.round(averageRating * 10) / 10, // Arrondi à 1 décimale
           total_ratings: totalRatings,
           updated_at: new Date().toISOString()
@@ -190,9 +206,38 @@ export default function RatingModal({
 
       if (updateError) {
         console.error('❌ Erreur mise à jour profil développeur:', updateError);
+        
+        // 🔧 FALLBACK: Si l'upsert échoue, essayer un simple UPDATE
+        console.log('🔄 Tentative de fallback avec UPDATE simple...');
+        const { error: fallbackError } = await supabase
+          .from('developer_profiles')
+          .update({
+            average_rating: Math.round(averageRating * 10) / 10,
+            total_ratings: totalRatings,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', developerId);
+
+        if (fallbackError) {
+          console.error('❌ Erreur fallback:', fallbackError);
+        } else {
+          console.log('✅ Fallback UPDATE réussi');
+        }
       } else {
         console.log('✅ Statistiques de rating mises à jour avec succès');
       }
+
+      // 🆕 FORCER UN REFRESH DES CACHES
+      // Attendre un peu puis vérifier que la mise à jour a bien pris
+      setTimeout(async () => {
+        const { data: verifyData } = await supabase
+          .from('developer_profiles')
+          .select('average_rating, total_ratings')
+          .eq('id', developerId)
+          .single();
+        
+        console.log('🔍 Vérification post-update:', verifyData);
+      }, 1000);
 
     } catch (error) {
       console.error('❌ Erreur recalcul statistiques:', error);
