@@ -240,7 +240,7 @@ function ProjectsContent() {
             .select('id, content')
             .eq('conversation_id', existingConversation.id)
             .eq('sender_id', user.id)
-            .ilike('content', '%🎯 **Candidature pour votre projet**%')
+            .ilike('content', '%nouvelle candidature%')
             .single();
 
           console.log('🔍 DEBUG - Message existant:', existingMessage);
@@ -251,7 +251,7 @@ function ProjectsContent() {
             const messageData = {
               conversation_id: existingConversation.id,
               sender_id: user.id,
-              content: `🎯 **Candidature pour votre projet**\n\n**Projet :** ${project.title}\n\n**Message du candidat :**\nCandidature envoyée\n\n💡 *Le candidat peut vous envoyer son CV dans cette conversation si nécessaire.*`,
+              content: `🎉 Vous avez reçu une nouvelle candidature !\n\nCandidature envoyée\n\nNous vous souhaitons une excellente collaboration et la réussite de votre projet. L'équipe LinkerAI reste disponible pour vous accompagner tout au long de cette aventure.\n\nBonne chance ! 🚀`,
               is_read: false
             };
 
@@ -462,7 +462,7 @@ function ProjectsContent() {
         .insert({
           conversation_id: conversationId,
           sender_id: user.id,
-          content: `🎯 **NOUVELLE CANDIDATURE**\n\n**Projet :** ${selectedProject.title}\n\n**Message du candidat :**\n${applicationData.message}\n\n💼 **Budget :** ${selectedProject.budget_min}€ - ${selectedProject.budget_max}€\n\n✨ Le candidat est prêt à démarrer le projet !`,
+          content: `🎉 Vous avez reçu une nouvelle candidature !\n\n${applicationData.message}\n\nNous vous souhaitons une excellente collaboration et la réussite de votre projet. L'équipe LinkerAI reste disponible pour vous accompagner tout au long de cette aventure.\n\nBonne chance ! 🚀`,
           is_read: false,
           created_at: new Date().toISOString()
         })
