@@ -848,8 +848,8 @@ export default function SignupPage() {
               </p>
             </div>
 
-            {/* 🔍 DEBUG Panel - Only in development */}
-            {process.env.NODE_ENV === 'development' && (
+            {/* 🔍 DEBUG Panel - Temporarily enabled for production debugging */}
+            {(process.env.NODE_ENV === 'development' || true) && (
               <div className="mt-8 p-4 bg-gray-100 rounded-lg border-2 border-gray-300">
                 <h3 className="text-sm font-bold text-gray-800 mb-2">🔍 Debug Info</h3>
                 <div className="text-xs text-gray-600 space-y-1">
