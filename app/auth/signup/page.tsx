@@ -30,7 +30,8 @@ export default function SignupPage() {
     recommendation: '',
     errorType: '',
     errorStatus: '',
-    errorCode: ''
+    errorCode: '',
+    attempt: 0
   })
 
   // 🔍 DEBUG - Fonction pour mettre à jour les infos de debug
@@ -203,227 +204,256 @@ export default function SignupPage() {
     setError('')
     updateDebugInfo('Starting signup process...')
 
-    // 🔍 DEBUG AMÉLIORÉ - Information système
-    console.log('🔄 DEBUT INSCRIPTION - TIMESTAMP:', new Date().toISOString())
-    console.log('🌐 User Agent:', navigator.userAgent)
-    console.log('🌐 URL actuelle:', window.location.href)
-    console.log('🌐 Origin:', window.location.origin)
-    
-    console.log('📝 Données:', { 
-      email: basicData.email, 
-      password: basicData.password.length + ' caractères', 
-      fullName: basicData.fullName,
-      userType 
-    })
-
-    // 🔍 DEBUG - Vérifier l'état de Supabase
-    console.log('🔧 Configuration Supabase:')
-    console.log('- URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-    console.log('- Anon Key disponible:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-
-    try {
-      // Validation photo obligatoire pour développeurs
-      if (userType === 'developer' && !profilePhoto) {
-        updateDebugInfo('Validation failed: Missing profile photo')
-        setError('Une photo de profil est obligatoire pour les développeurs')
-        setLoading(false)
-        return
-      }
-
-      updateDebugInfo('Preparing Supabase request...')
-      console.log('📤 Envoi requête Supabase...')
-
-      // 🔍 DEBUG - Test de connectivité avant signup
-      console.log('🔍 Test connectivité Supabase...')
-      updateDebugInfo('Testing Supabase connectivity before signup...')
-      try {
-        const { data: testSession } = await supabase.auth.getSession()
-        console.log('✅ Connectivité Supabase OK, session actuelle:', testSession)
-        updateDebugInfo('Supabase connectivity OK', { supabaseStatus: 'ok' })
-      } catch (connectError) {
-        console.error('❌ Problème connectivité Supabase:', connectError)
-        updateDebugInfo('Supabase connectivity failed', { supabaseStatus: 'failed', error: connectError.message })
-      }
-
-      // Préparer les métadonnées utilisateur
-      const userMetadata = {
-        full_name: basicData.fullName,
-        phone: basicData.phone,
-        user_type: userType
-      }
-
-      // Ajouter les données développeur si applicable
-      if (userType === 'developer') {
-        // 🆕 NOUVEAU: Gérer le TJM selon la checkbox (correspond à la BDD)
-        const dailyRateValue = devData.daily_rate_defined ? (devData.daily_rate ? parseInt(devData.daily_rate) : null) : null
-        
-        Object.assign(userMetadata, {
-          title: devData.title,
-          bio: devData.bio,
-          experience_years: devData.experience_years ? parseInt(devData.experience_years) : 0,
-          daily_rate: dailyRateValue,
-          daily_rate_defined: devData.daily_rate_defined, // 🆕 NOUVEAU
-          skills: devData.skills,
-          specializations: devData.specializations,
-          github_url: devData.github_url,
-          linkedin_url: devData.linkedin_url,
-          portfolio_url: devData.portfolio_url
-        })
-      }
-
-      console.log('📊 Métadonnées utilisateur complètes:', userMetadata)
-
-      // 🔍 DEBUG - Préparer les options de signup avec debug
-      const signUpOptions = {
-        data: userMetadata,
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?type=signup`
-      }
-      console.log('📤 Options signup:', signUpOptions)
-
-      // 🔍 DEBUG - Timestamp avant l'appel
-      const startTime = Date.now()
-      console.log('⏰ Début appel signUp:', new Date(startTime).toISOString())
-      updateDebugInfo('Calling Supabase signUp API...', { startTime })
-
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: basicData.email,
-        password: basicData.password,
-        options: signUpOptions
-      })
-
-      // 🔍 DEBUG - Timestamp après l'appel
-      const endTime = Date.now()
-      console.log('⏰ Fin appel signUp:', new Date(endTime).toISOString())
-      console.log('⏱️ Durée appel:', (endTime - startTime), 'ms')
-      updateDebugInfo('Supabase signUp API completed', { 
-        duration: (endTime - startTime),
-        hasError: !!authError,
-        hasData: !!authData
-      })
-
-      console.log('📊 REPONSE SUPABASE COMPLETE:')
-      console.log('✅ Data:', authData)
-      console.log('❌ Error:', authError)
-
-      // 🔍 DEBUG - Analyse détaillée de l'erreur
-      if (authError) {
-        console.log('🚨 ERREUR DETAILS COMPLETES:')
-        console.log('- Message:', authError.message)
-        console.log('- Status:', authError.status)
-        console.log('- Code:', authError.code)
-        console.log('- Stack:', authError.stack)
-        console.log('- Objet complet:', JSON.stringify(authError, null, 2))
-        
-        updateDebugInfo('Supabase signup failed', {
-          errorMessage: authError.message,
-          errorStatus: authError.status,
-          errorCode: authError.code
-        })
-        
-        // 🔍 DEBUG - Spécial pour rate limit
-        if (authError.message?.includes('rate limit') || authError.status === 429) {
-          console.log('🚨 RATE LIMIT DETECTE!')
-          console.log('- Type d\'erreur: Rate Limit Exceeded')
-          console.log('- Statut HTTP:', authError.status)
-          console.log('- Recommandation: Attendre ou configurer SMTP personnalisé')
-          updateDebugInfo('Rate limit detected', { 
-            errorType: 'RATE_LIMIT',
-            status: authError.status,
-            recommendation: 'Wait or configure custom SMTP'
-          })
-        }
-
-        // 🔍 DEBUG - Spécial pour 504/timeout
-        if (authError.status === 504 || authError.message?.includes('timeout')) {
-          console.log('🚨 TIMEOUT/504 DETECTE!')
-          console.log('- Type d\'erreur: Server Timeout')
-          console.log('- Cause probable: Problème infrastructure Supabase')
-          console.log('- Recommandation: Réessayer dans quelques minutes')
-          updateDebugInfo('Server timeout detected', {
-            errorType: 'TIMEOUT',
-            status: authError.status,
-            recommendation: 'Retry in a few minutes'
-          })
-        }
-
-        setError(authError.message)
-        setLoading(false)
-        return
-      }
-
-      if (!authData.user) {
-        console.log('❌ Aucun utilisateur retourné par Supabase')
-        updateDebugInfo('No user returned by Supabase')
-        setError('Erreur lors de la création du compte')
-        setLoading(false)
-        return
-      }
-
-      console.log('✅ Utilisateur créé avec succès!')
-      console.log('- ID:', authData.user.id)
-      console.log('- Email:', authData.user.email)
-      console.log('- Email confirmé:', authData.user.email_confirmed_at)
-      console.log('- Métadonnées:', authData.user.user_metadata)
+    const attemptSignup = async (retryCount = 0) => {
+      const maxRetries = 2
       
-      updateDebugInfo('User created successfully', {
-        userId: authData.user.id,
-        emailConfirmed: !!authData.user.email_confirmed_at
+      // 🔍 DEBUG AMÉLIORÉ - Information système
+      console.log('🔄 DEBUT INSCRIPTION - TIMESTAMP:', new Date().toISOString())
+      console.log('🔄 Tentative:', retryCount + 1, '/', maxRetries + 1)
+      console.log('🌐 User Agent:', navigator.userAgent)
+      console.log('🌐 URL actuelle:', window.location.href)
+      console.log('🌐 Origin:', window.location.origin)
+      
+      console.log('📝 Données:', { 
+        email: basicData.email, 
+        password: basicData.password.length + ' caractères', 
+        fullName: basicData.fullName,
+        userType 
       })
 
-      // Upload photo si développeur
-      let photoUrl = null
-      if (userType === 'developer' && profilePhoto) {
-        console.log('📸 Upload de la photo...')
-        updateDebugInfo('Uploading profile photo...')
-        photoUrl = await uploadProfilePhoto(authData.user.id)
-        
-        if (photoUrl) {
-          console.log('🔄 Mise à jour du profil avec la photo...')
-          updateDebugInfo('Updating profile with photo...')
-          // Attendre un peu pour que le trigger ait créé le profil
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({ profile_photo_url: photoUrl })
-            .eq('id', authData.user.id)
+      // 🔍 DEBUG - Vérifier l'état de Supabase
+      console.log('🔧 Configuration Supabase:')
+      console.log('- URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+      console.log('- Anon Key disponible:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
-          if (updateError) {
-            console.error('❌ Erreur mise à jour photo:', updateError)
-            updateDebugInfo('Photo update failed', { error: updateError.message })
-          } else {
-            console.log('✅ Photo mise à jour dans le profil')
-            updateDebugInfo('Photo updated successfully')
+      try {
+        // Validation photo obligatoire pour développeurs
+        if (userType === 'developer' && !profilePhoto) {
+          updateDebugInfo('Validation failed: Missing profile photo')
+          setError('Une photo de profil est obligatoire pour les développeurs')
+          setLoading(false)
+          return
+        }
+
+        updateDebugInfo(`Preparing Supabase request... (Attempt ${retryCount + 1})`)
+        console.log('📤 Envoi requête Supabase...')
+
+        // 🔍 DEBUG - Test de connectivité avant signup
+        console.log('🔍 Test connectivité Supabase...')
+        updateDebugInfo('Testing Supabase connectivity before signup...')
+        try {
+          const { data: testSession } = await supabase.auth.getSession()
+          console.log('✅ Connectivité Supabase OK, session actuelle:', testSession)
+          updateDebugInfo('Supabase connectivity OK', { supabaseStatus: 'ok' })
+        } catch (connectError) {
+          console.error('❌ Problème connectivité Supabase:', connectError)
+          updateDebugInfo('Supabase connectivity failed', { supabaseStatus: 'failed', error: connectError.message })
+        }
+
+        // Préparer les métadonnées utilisateur
+        const userMetadata = {
+          full_name: basicData.fullName,
+          phone: basicData.phone,
+          user_type: userType
+        }
+
+        // Ajouter les données développeur si applicable
+        if (userType === 'developer') {
+          // 🆕 NOUVEAU: Gérer le TJM selon la checkbox (correspond à la BDD)
+          const dailyRateValue = devData.daily_rate_defined ? (devData.daily_rate ? parseInt(devData.daily_rate) : null) : null
+          
+          Object.assign(userMetadata, {
+            title: devData.title,
+            bio: devData.bio,
+            experience_years: devData.experience_years ? parseInt(devData.experience_years) : 0,
+            daily_rate: dailyRateValue,
+            daily_rate_defined: devData.daily_rate_defined, // 🆕 NOUVEAU
+            skills: devData.skills,
+            specializations: devData.specializations,
+            github_url: devData.github_url,
+            linkedin_url: devData.linkedin_url,
+            portfolio_url: devData.portfolio_url
+          })
+        }
+
+        console.log('📊 Métadonnées utilisateur complètes:', userMetadata)
+
+        // 🔍 DEBUG - Préparer les options de signup avec debug
+        const signUpOptions = {
+          data: userMetadata,
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?type=signup`
+        }
+        console.log('📤 Options signup:', signUpOptions)
+
+        // 🔍 DEBUG - Timestamp avant l'appel
+        const startTime = Date.now()
+        console.log('⏰ Début appel signUp:', new Date(startTime).toISOString())
+        updateDebugInfo('Calling Supabase signUp API...', { startTime })
+
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: basicData.email,
+          password: basicData.password,
+          options: signUpOptions
+        })
+
+        // 🔍 DEBUG - Timestamp après l'appel
+        const endTime = Date.now()
+        console.log('⏰ Fin appel signUp:', new Date(endTime).toISOString())
+        console.log('⏱️ Durée appel:', (endTime - startTime), 'ms')
+        updateDebugInfo('Supabase signUp API completed', { 
+          duration: (endTime - startTime),
+          hasError: !!authError,
+          hasData: !!authData,
+          attempt: retryCount + 1
+        })
+
+        console.log('📊 REPONSE SUPABASE COMPLETE:')
+        console.log('✅ Data:', authData)
+        console.log('❌ Error:', authError)
+
+        // 🔍 DEBUG - Analyse détaillée de l'erreur
+        if (authError) {
+          console.log('🚨 ERREUR DETAILS COMPLETES:')
+          console.log('- Message:', authError.message)
+          console.log('- Status:', authError.status)
+          console.log('- Code:', authError.code)
+          console.log('- Stack:', authError.stack)
+          console.log('- Objet complet:', JSON.stringify(authError, null, 2))
+          
+          updateDebugInfo('Supabase signup failed', {
+            errorMessage: authError.message,
+            errorStatus: authError.status,
+            errorCode: authError.code,
+            attempt: retryCount + 1
+          })
+          
+          // 🔍 DEBUG - Spécial pour rate limit
+          if (authError.message?.includes('rate limit') || authError.status === 429) {
+            console.log('🚨 RATE LIMIT DETECTE!')
+            console.log('- Type d\'erreur: Rate Limit Exceeded')
+            console.log('- Statut HTTP:', authError.status)
+            console.log('- Recommandation: Attendre ou configurer SMTP personnalisé')
+            updateDebugInfo('Rate limit detected', { 
+              errorType: 'RATE_LIMIT',
+              status: authError.status,
+              recommendation: 'Wait or configure custom SMTP',
+              attempt: retryCount + 1
+            })
+            throw authError // Ne pas retry pour rate limit
+          }
+
+          // 🔍 DEBUG - Spécial pour 504/timeout avec retry
+          if (authError.status === 504 || authError.message?.includes('timeout') || authError.name?.includes('AuthRetryableFetchError')) {
+            console.log('🚨 TIMEOUT/504 DETECTE!')
+            console.log('- Type d\'erreur: Server Timeout')
+            console.log('- Cause probable: Problème infrastructure Supabase')
+            
+            if (retryCount < maxRetries) {
+              console.log(`🔄 Tentative de retry (${retryCount + 1}/${maxRetries})...`)
+              updateDebugInfo('Server timeout detected - retrying...', {
+                errorType: 'TIMEOUT',
+                status: authError.status,
+                recommendation: `Retrying... (${retryCount + 1}/${maxRetries})`,
+                attempt: retryCount + 1
+              })
+              
+              // Attendre 2 secondes avant retry
+              await new Promise(resolve => setTimeout(resolve, 2000))
+              return attemptSignup(retryCount + 1)
+            } else {
+              console.log('❌ Tous les retries épuisés')
+              updateDebugInfo('All retries exhausted', {
+                errorType: 'TIMEOUT',
+                status: authError.status,
+                recommendation: 'Configure custom SMTP or try again later',
+                attempt: retryCount + 1
+              })
+            }
+          }
+
+          throw authError
+        }
+
+        if (!authData.user) {
+          console.log('❌ Aucun utilisateur retourné par Supabase')
+          updateDebugInfo('No user returned by Supabase')
+          throw new Error('Erreur lors de la création du compte')
+        }
+
+        console.log('✅ Utilisateur créé avec succès!')
+        console.log('- ID:', authData.user.id)
+        console.log('- Email:', authData.user.email)
+        console.log('- Email confirmé:', authData.user.email_confirmed_at)
+        console.log('- Métadonnées:', authData.user.user_metadata)
+        
+        updateDebugInfo('User created successfully', {
+          userId: authData.user.id,
+          emailConfirmed: !!authData.user.email_confirmed_at,
+          attempt: retryCount + 1
+        })
+
+        // Upload photo si développeur
+        let photoUrl = null
+        if (userType === 'developer' && profilePhoto) {
+          console.log('📸 Upload de la photo...')
+          updateDebugInfo('Uploading profile photo...')
+          photoUrl = await uploadProfilePhoto(authData.user.id)
+          
+          if (photoUrl) {
+            console.log('🔄 Mise à jour du profil avec la photo...')
+            updateDebugInfo('Updating profile with photo...')
+            // Attendre un peu pour que le trigger ait créé le profil
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ profile_photo_url: photoUrl })
+              .eq('id', authData.user.id)
+
+            if (updateError) {
+              console.error('❌ Erreur mise à jour photo:', updateError)
+              updateDebugInfo('Photo update failed', { error: updateError.message })
+            } else {
+              console.log('✅ Photo mise à jour dans le profil')
+              updateDebugInfo('Photo updated successfully')
+            }
           }
         }
-      }
 
-      console.log('🎉 Processus complet de création de compte terminé!')
-      updateDebugInfo('Account creation process completed successfully')
-      
-      // Message de succès différencié
-      if (authData.user.email_confirmed_at) {
-        alert('Compte créé avec succès ! Vous pouvez vous connecter.')
-      } else {
-        alert('Compte créé avec succès ! Vérifiez votre email pour confirmer votre compte avant de vous connecter.')
-      }
-      
-      router.push('/auth/login')
+        console.log('🎉 Processus complet de création de compte terminé!')
+        updateDebugInfo('Account creation process completed successfully')
+        
+        // Message de succès différencié
+        if (authData.user.email_confirmed_at) {
+          alert('Compte créé avec succès ! Vous pouvez vous connecter.')
+        } else {
+          alert('Compte créé avec succès ! Vérifiez votre email pour confirmer votre compte avant de vous connecter.')
+        }
+        
+        router.push('/auth/login')
 
+      } catch (err) {
+        console.error('❌ ERREUR GENERALE COMPLETE:')
+        console.error('- Message:', err.message)
+        console.error('- Stack:', err.stack)
+        console.error('- Objet complet:', err)
+        console.error('- Type:', typeof err)
+        console.error('- Constructor:', err.constructor?.name)
+        
+        updateDebugInfo('General error occurred', {
+          errorMessage: err.message,
+          errorType: typeof err,
+          errorConstructor: err.constructor?.name,
+          attempt: retryCount + 1
+        })
+        
+        throw err
+      }
+    }
+
+    try {
+      await attemptSignup()
     } catch (err) {
-      console.error('❌ ERREUR GENERALE COMPLETE:')
-      console.error('- Message:', err.message)
-      console.error('- Stack:', err.stack)
-      console.error('- Objet complet:', err)
-      console.error('- Type:', typeof err)
-      console.error('- Constructor:', err.constructor?.name)
-      
-      updateDebugInfo('General error occurred', {
-        errorMessage: err.message,
-        errorType: typeof err,
-        errorConstructor: err.constructor?.name
-      })
-      
       setError('Une erreur est survenue lors de la création du compte: ' + err.message)
     } finally {
       setLoading(false)
