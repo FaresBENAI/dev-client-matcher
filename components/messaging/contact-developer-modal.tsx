@@ -93,11 +93,9 @@ export default function ContactDeveloperModal({
         const { data: newApplication, error: appError } = await supabase
           .from('project_applications')
           .insert({
-            client_id: user.id,
             developer_id: developerId,
             project_id: projectId,
-            status: 'pending',
-            message: message
+            status: 'pending'
           })
           .select()
           .single()
@@ -181,8 +179,7 @@ export default function ContactDeveloperModal({
         .insert({
           conversation_id: conversationId,
           sender_id: user.id,
-          content: message,
-          application_id: application?.id || null // Seulement si c'est une candidature
+          content: message
         })
         .select()
         .single()
@@ -194,8 +191,7 @@ export default function ContactDeveloperModal({
 
       console.log('✅ DEBUG - Message créé:', {
         messageId: messageData.id,
-        conversationId: messageData.conversation_id,
-        applicationId: messageData.application_id
+        conversationId: messageData.conversation_id
       })
 
       // 5. Succès

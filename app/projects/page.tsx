@@ -214,7 +214,7 @@ function ProjectsContent() {
     try {
       const { data: existingApplication } = await supabase
         .from('project_applications')
-        .select('id, status, message')
+        .select('id, status')
         .eq('project_id', project.id)
         .eq('developer_id', user.id)
         .single();
@@ -234,12 +234,13 @@ function ProjectsContent() {
         if (existingConversation) {
           console.log('🔍 DEBUG - Conversation existante trouvée:', existingConversation.id);
           
-          // Vérifier si un message de candidature existe déjà
+          // Vérifier si un message de candidature existe déjà (en cherchant par contenu)
           const { data: existingMessage } = await supabase
             .from('messages')
             .select('id, content')
             .eq('conversation_id', existingConversation.id)
-            .eq('application_id', existingApplication.id)
+            .eq('sender_id', user.id)
+            .ilike('content', '%🎯 **Candidature pour votre projet**%')
             .single();
 
           console.log('🔍 DEBUG - Message existant:', existingMessage);
@@ -250,7 +251,7 @@ function ProjectsContent() {
             const messageData = {
               conversation_id: existingConversation.id,
               sender_id: user.id,
-              content: `🎯 **Candidature pour votre projet**\n\n**Projet :** ${project.title}\n\n**Message du candidat :**\n${existingApplication.message || 'Candidature envoyée'}\n\n💡 *Le candidat peut vous envoyer son CV dans cette conversation si nécessaire.*`,
+              content: `🎯 **Candidature pour votre projet**\n\n**Projet :** ${project.title}\n\n**Message du candidat :**\nCandidature envoyée\n\n💡 *Le candidat peut vous envoyer son CV dans cette conversation si nécessaire.*`,
               is_read: false
             };
 
@@ -392,7 +393,7 @@ function ProjectsContent() {
       console.log('🔍 DEBUG - Vérification candidature existante...');
       const { data: existingApplication, error: checkError } = await supabase
         .from('project_applications')
-        .select('id, status, message')
+        .select('id, status')
         .eq('project_id', selectedProject.id)
         .eq('developer_id', user.id)
         .single();
@@ -420,7 +421,8 @@ function ProjectsContent() {
             .from('messages')
             .select('id')
             .eq('conversation_id', existingConversation.id)
-            .eq('application_id', existingApplication.id)
+            .eq('sender_id', user.id)
+            .ilike('content', '%🎯 **Candidature pour votre projet**%')
             .single();
 
           if (!existingMessage) {
@@ -429,7 +431,7 @@ function ProjectsContent() {
             const messageData = {
               conversation_id: existingConversation.id,
               sender_id: user.id,
-              content: `🎯 **Candidature pour votre projet**\n\n**Projet :** ${selectedProject.title}\n\n**Message du candidat :**\n${existingApplication.message || 'Candidature envoyée'}\n\n💡 *Le candidat peut vous envoyer son CV dans cette conversation si nécessaire.*`,
+              content: `🎯 **Candidature pour votre projet**\n\n**Projet :** ${selectedProject.title}\n\n**Message du candidat :**\nCandidature envoyée\n\n💡 *Le candidat peut vous envoyer son CV dans cette conversation si nécessaire.*`,
               is_read: false
             };
 
@@ -465,7 +467,6 @@ function ProjectsContent() {
       const applicationDataToInsert = {
         developer_id: user.id,
         project_id: selectedProject.id,
-        message: applicationData.message,
         status: 'pending'
       };
 

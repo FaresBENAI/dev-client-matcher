@@ -123,8 +123,8 @@ export default function DeveloperApplicationsPage() {
       // Récupérer les conversations pour le lien Messages
       const { data: conversationsData, error: conversationsError } = await supabase
         .from('conversations')
-        .select('id, application_id')
-        .in('application_id', data.map(app => app.id));
+        .select('id, project_id, developer_id')
+        .eq('developer_id', userId);
 
       if (conversationsError) {
         addDebug(`⚠️ Erreur conversations: ${conversationsError.message}`);
@@ -134,7 +134,9 @@ export default function DeveloperApplicationsPage() {
       const applicationsWithDetails = data.map(app => {
         const project = projectsData?.find(p => p.id === app.project_id);
         const client = clientsData?.find(c => c.id === project?.client_id);
-        const conversation = conversationsData?.find(c => c.application_id === app.id);
+        const conversation = conversationsData?.find(c => 
+          c.project_id === app.project_id && c.developer_id === app.developer_id
+        );
         
         return {
           ...app,
