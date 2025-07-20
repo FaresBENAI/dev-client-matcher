@@ -406,43 +406,61 @@ function ProjectsContent() {
 
       console.log('✅ Candidature créée:', newApplication);
 
-      // 2. SUPPRIMER CONVERSATION EXISTANTE S'IL Y EN A UNE (pour éviter conflits)
-      await supabase
+      // 2. CRÉER OU RÉCUPÉRER CONVERSATION (UPSERT LOGIC)
+      let conversationId: string;
+      
+      // D'abord essayer de récupérer une conversation existante
+      const { data: existingConv } = await supabase
         .from('conversations')
-        .delete()
+        .select('id')
         .eq('client_id', selectedProject.client_id)
         .eq('developer_id', user.id)
-        .eq('project_id', selectedProject.id);
-
-      console.log('🗑️ Conversations existantes supprimées');
-
-      // 3. CRÉER NOUVELLE CONVERSATION FORCÉE
-      const { data: newConversation, error: convError } = await supabase
-        .from('conversations')
-        .insert({
-          client_id: selectedProject.client_id,
-          developer_id: user.id,
-          project_id: selectedProject.id,
-          subject: `Candidature pour "${selectedProject.title}"`,
-          status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
+        .eq('project_id', selectedProject.id)
         .single();
 
-      if (convError) {
-        console.error('❌ Erreur conversation:', convError);
-        throw new Error(`Erreur conversation: ${convError.message}`);
+      if (existingConv) {
+        // Conversation existe, on l'utilise
+        conversationId = existingConv.id;
+        console.log('📞 Conversation existante utilisée:', conversationId);
+        
+        // Mettre à jour timestamp
+        await supabase
+          .from('conversations')
+          .update({ 
+            updated_at: new Date().toISOString(),
+            last_message_at: new Date().toISOString()
+          })
+          .eq('id', conversationId);
+      } else {
+        // Créer nouvelle conversation
+        const { data: newConversation, error: convError } = await supabase
+          .from('conversations')
+          .insert({
+            client_id: selectedProject.client_id,
+            developer_id: user.id,
+            project_id: selectedProject.id,
+            subject: `Candidature pour "${selectedProject.title}"`,
+            status: 'active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (convError) {
+          console.error('❌ Erreur conversation:', convError);
+          throw new Error(`Erreur conversation: ${convError.message}`);
+        }
+
+        conversationId = newConversation.id;
+        console.log('✅ Nouvelle conversation créée:', conversationId);
       }
 
-      console.log('✅ Conversation créée:', newConversation);
-
-      // 4. CRÉER MESSAGE DE CANDIDATURE FORCÉ
+      // 3. CRÉER MESSAGE DE CANDIDATURE FORCÉ
       const { data: newMessage, error: msgError } = await supabase
         .from('messages')
         .insert({
-          conversation_id: newConversation.id,
+          conversation_id: conversationId,
           sender_id: user.id,
           content: `🎯 **NOUVELLE CANDIDATURE**\n\n**Projet :** ${selectedProject.title}\n\n**Message du candidat :**\n${applicationData.message}\n\n💼 **Budget :** ${selectedProject.budget_min}€ - ${selectedProject.budget_max}€\n\n✨ Le candidat est prêt à démarrer le projet !`,
           is_read: false,
@@ -457,15 +475,6 @@ function ProjectsContent() {
       }
 
       console.log('✅ Message créé:', newMessage);
-
-      // 5. METTRE À JOUR LE TIMESTAMP DE LA CONVERSATION
-      await supabase
-        .from('conversations')
-        .update({ 
-          updated_at: new Date().toISOString(),
-          last_message_at: new Date().toISOString()
-        })
-        .eq('id', newConversation.id);
 
       console.log('🎉 CANDIDATURE COMPLÈTE RÉUSSIE !');
       alert('✅ Candidature envoyée avec succès ! Vérifiez vos messages.');
