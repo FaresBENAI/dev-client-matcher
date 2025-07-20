@@ -21,36 +21,61 @@ function LoginPageContent() {
   useEffect(() => {
     setMounted(true);
     
-    // 🔧 CORRECTION : Nettoyer toute session corrompue au chargement
-    const forceCleanSession = async () => {
+    // 🔧 CORRECTION RADICALE : Nettoyage agressif des sessions corrompues
+    const aggressiveCleanSession = async () => {
       try {
-        // Vérifier la session actuelle
-        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('🧹 Nettoyage agressif des sessions...');
         
-        if (error || (session && !session.user)) {
-          console.log('🧹 Session corrompue détectée, nettoyage...');
-          await supabase.auth.signOut();
-          // Forcer la suppression des tokens localStorage
-          localStorage.removeItem('supabase.auth.token');
-          sessionStorage.clear();
-          console.log('✅ Session nettoyée');
-        }
-      } catch (err) {
-        console.log('🧹 Erreur session, nettoyage forcé...');
+        // 1. Forcer la déconnexion Supabase
         await supabase.auth.signOut();
+        
+        // 2. Nettoyer TOUT le localStorage
         localStorage.clear();
         sessionStorage.clear();
+        
+        // 3. Nettoyer les cookies spécifiques à Supabase
+        const cookies = document.cookie.split(";");
+        cookies.forEach(cookie => {
+          const eqPos = cookie.indexOf("=");
+          const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+          if (name.trim().includes('supabase') || name.trim().includes('auth')) {
+            document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+            document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
+          }
+        });
+        
+        // 4. Nettoyer l'état global Supabase
+        if (window.supabase) {
+          window.supabase = null;
+        }
+        
+        console.log('✅ Nettoyage agressif terminé');
+        
+        // 5. Attendre un peu avant de continuer
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (err) {
+        console.log('🧹 Erreur lors du nettoyage, mais on continue...', err);
       }
     };
     
-    // Nettoyer d'abord, puis vérifier l'utilisateur
-    forceCleanSession().then(() => {
-      // Vérifier si l'utilisateur est déjà connecté (après nettoyage)
+    // Nettoyer agressivement, puis vérifier l'utilisateur
+    aggressiveCleanSession().then(() => {
+      // Vérifier si l'utilisateur est connecté (après nettoyage complet)
       const checkUser = async () => {
         try {
-          const { data: { session } } = await supabase.auth.getSession();
+          // Attendre que Supabase soit prêt
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          const { data: { session }, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.log('⚠️ Erreur session (normal après nettoyage):', error.message);
+            return; // Rester sur la page de login
+          }
+          
           if (session?.user) {
-            console.log('✅ Utilisateur déjà connecté, redirection...');
+            console.log('✅ Utilisateur valide connecté, redirection...');
             
             // Récupérer le profil pour redirection appropriée
             const { data: profile } = await supabase
@@ -59,14 +84,16 @@ function LoginPageContent() {
               .eq('id', session.user.id)
               .single();
             
-            const dashboardRoute = profile?.user_type === 'client' 
-              ? '/dashboard/client'
-              : '/dashboard/developer';
-            
-            router.push(dashboardRoute);
+            if (profile) {
+              const dashboardRoute = profile.user_type === 'client' 
+                ? '/dashboard/client'
+                : '/dashboard/developer';
+              
+              router.push(dashboardRoute);
+            }
           }
         } catch (error) {
-          console.log('⚠️ Erreur lors de la vérification utilisateur:', error);
+          console.log('⚠️ Erreur lors de la vérification utilisateur (normal):', error);
           // Continuer normalement sur la page de login
         }
       };
