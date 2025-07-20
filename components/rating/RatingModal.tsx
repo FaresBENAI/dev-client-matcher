@@ -118,6 +118,10 @@ export default function RatingModal({
       }
 
       console.log('✅ Note soumise avec succès!', data);
+
+      // 🆕 NOUVEAU: Recalculer et mettre à jour les statistiques du développeur
+      await updateDeveloperRatingStats(developerId);
+
       setSuccess(true);
       
       // Appeler le callback si fourni
@@ -141,6 +145,57 @@ export default function RatingModal({
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // 🆕 NOUVEAU: Fonction pour recalculer les statistiques de rating du développeur
+  const updateDeveloperRatingStats = async (developerId: string) => {
+    try {
+      console.log('🔄 Recalcul des statistiques de rating pour:', developerId);
+
+      // Récupérer toutes les notes du développeur
+      const { data: ratings, error: ratingsError } = await supabase
+        .from('ratings')
+        .select('rating')
+        .eq('developer_id', developerId);
+
+      if (ratingsError) {
+        console.error('❌ Erreur récupération ratings:', ratingsError);
+        return;
+      }
+
+      if (!ratings || ratings.length === 0) {
+        console.log('⚠️ Aucune note trouvée pour le développeur');
+        return;
+      }
+
+      // Calculer la moyenne et le total
+      const totalRatings = ratings.length;
+      const averageRating = ratings.reduce((sum, r) => sum + r.rating, 0) / totalRatings;
+
+      console.log('📊 Nouvelles statistiques:', {
+        totalRatings,
+        averageRating: averageRating.toFixed(2)
+      });
+
+      // Mettre à jour le profil développeur
+      const { error: updateError } = await supabase
+        .from('developer_profiles')
+        .update({
+          average_rating: Math.round(averageRating * 10) / 10, // Arrondi à 1 décimale
+          total_ratings: totalRatings,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', developerId);
+
+      if (updateError) {
+        console.error('❌ Erreur mise à jour profil développeur:', updateError);
+      } else {
+        console.log('✅ Statistiques de rating mises à jour avec succès');
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur recalcul statistiques:', error);
     }
   };
 
