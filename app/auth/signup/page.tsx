@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
 import SuccessModal from '../../../components/ui/success-modal'
+import InfoPopup from '../../../components/ui/info-popup'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -25,6 +26,14 @@ export default function SignupPage() {
     title: '',
     message: '',
     emailConfirmed: false
+  })
+
+  // États pour le popup d'information
+  const [showInfoPopup, setShowInfoPopup] = useState(false)
+  const [infoPopupData, setInfoPopupData] = useState({
+    title: '',
+    message: '',
+    type: 'info' as 'info' | 'processing' | 'success'
   })
   
   const router = useRouter()
@@ -205,11 +214,29 @@ export default function SignupPage() {
     if (userType === 'developer') {
       setStep(2) // Passer aux infos développeur
     } else {
+      // Afficher le popup d'information pour les clients
+      setInfoPopupData({
+        title: 'Création de compte client',
+        message: 'Votre compte client est en cours de création. Nous configurons votre profil et vos accès pour vous permettre de publier des projets et trouver les meilleurs développeurs.',
+        type: 'processing'
+      })
+      setShowInfoPopup(true)
+      
       handleFinalSubmit() // Créer le compte client directement
     }
   }
 
   const handleFinalSubmit = async () => {
+    // Afficher le popup d'information pour les développeurs (si c'est un développeur et que le popup n'est pas déjà affiché)
+    if (userType === 'developer' && !showInfoPopup) {
+      setInfoPopupData({
+        title: 'Création de profil développeur',
+        message: 'Votre profil développeur est en cours de création. Nous configurons vos compétences, votre portfolio et vos informations professionnelles pour vous connecter aux meilleurs projets.',
+        type: 'processing'
+      })
+      setShowInfoPopup(true)
+    }
+
     setLoading(true)
     setError('')
     updateDebugInfo('Starting signup process...')
@@ -476,6 +503,15 @@ export default function SignupPage() {
         console.log('🎉 Processus complet de création de compte terminé!')
         updateDebugInfo('Account creation process completed successfully')
         
+        // 🎉 Afficher le popup de succès d'abord
+        setInfoPopupData({
+          title: 'Compte créé avec succès !',
+          message: userType === 'developer' 
+            ? '🎉 Votre profil développeur a été créé avec succès ! Vous pouvez maintenant accéder aux projets et commencer à recevoir des propositions de mission.'
+            : '🎉 Votre compte client a été créé avec succès ! Vous pouvez maintenant publier des projets et collaborer avec les meilleurs développeurs.',
+          type: 'success'
+        })
+        
         // 🎉 Afficher le modal de succès personnalisé au lieu de l'alert
         const isEmailConfirmed = !!authData.user.email_confirmed_at
         setSuccessData({
@@ -511,6 +547,13 @@ export default function SignupPage() {
     try {
       await attemptSignup()
     } catch (err) {
+      // Afficher le popup d'erreur
+      setInfoPopupData({
+        title: 'Erreur de création',
+        message: `Une erreur s'est produite lors de la création de votre compte : ${err.message}. Veuillez vérifier vos informations et réessayer.`,
+        type: 'info'
+      })
+      
       setError('Une erreur est survenue lors de la création du compte: ' + err.message)
     } finally {
       setLoading(false)
@@ -987,6 +1030,16 @@ export default function SignupPage() {
         title={successData.title}
         message={successData.message}
         emailConfirmed={successData.emailConfirmed}
+      />
+
+      {/* 🎉 Info Popup */}
+      <InfoPopup
+        isOpen={showInfoPopup}
+        onClose={() => setShowInfoPopup(false)}
+        title={infoPopupData.title}
+        message={infoPopupData.message}
+        type={infoPopupData.type}
+        autoCloseDelay={infoPopupData.type === 'success' ? 5000 : 0}
       />
     </div>
   )
