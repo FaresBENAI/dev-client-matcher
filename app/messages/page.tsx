@@ -731,43 +731,43 @@ export default function MessagesPage() {
                 {/* Barre de statut du projet */}
                 {projectData && (
                   <div className="px-4 md:px-6 pb-4">
-                    <div className="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-bold text-gray-800">Statut du Projet</h4>
+                    <div className="bg-gray-50 rounded-lg p-3 border-2 border-gray-200">
+                      {/* Header compact avec statut et bouton */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          {(() => {
+                            const StatusIcon = getStatusIcon(projectData.status);
+                            return <StatusIcon className="h-4 w-4 text-gray-600" />;
+                          })()}
+                          <span className="font-bold text-gray-800 text-sm">Statut du Projet</span>
+                          <span className={`px-2 py-1 text-xs font-bold border rounded ${getStatusColor(projectData.status)}`}>
+                            {getStatusLabel(projectData.status)}
+                          </span>
+                        </div>
                         {userProfile?.user_type === 'client' && user?.id === projectData.client_id && (
                           <button
                             onClick={() => setShowStatusModal(true)}
-                            className="bg-gray-600 text-white px-3 py-1 rounded-lg font-bold hover:bg-gray-700 transition-colors text-sm flex items-center"
+                            className="bg-gray-600 text-white px-2 py-1 rounded font-bold hover:bg-gray-700 transition-colors text-xs flex items-center"
                           >
-                            <Settings className="h-4 w-4 mr-1" />
+                            <Settings className="h-3 w-3 mr-1" />
                             Modifier
                           </button>
                         )}
                       </div>
-                      
-                      <div className="flex items-center space-x-3">
-                        {(() => {
-                          const StatusIcon = getStatusIcon(projectData.status);
-                          return <StatusIcon className="h-5 w-5 text-gray-600" />;
-                        })()}
-                        <span className={`px-3 py-1 text-sm font-bold border ${getStatusColor(projectData.status)}`}>
-                          {getStatusLabel(projectData.status)}
-                        </span>
-                      </div>
 
-                      {/* Barre de progression */}
-                      <div className="mt-4">
-                        <div className="flex justify-between text-xs text-gray-600 mb-2">
+                      {/* Progression compacte */}
+                      <div className="mb-2">
+                        <div className="flex justify-between text-xs text-gray-600 mb-1">
                           <span>Progression</span>
-                          <span>
+                          <span className="font-medium">
                             {projectData.status === 'completed' ? '100%' : 
                              projectData.status === 'in_progress' ? '50%' : 
                              projectData.status === 'open' ? '10%' : '0%'}
                           </span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
                           <div 
-                            className={`h-2 rounded-full transition-all duration-300 ${
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
                               projectData.status === 'completed' ? 'bg-green-500 w-full' :
                               projectData.status === 'in_progress' ? 'bg-blue-500 w-1/2' :
                               projectData.status === 'open' ? 'bg-yellow-500 w-1/12' :
@@ -776,22 +776,28 @@ export default function MessagesPage() {
                           ></div>
                         </div>
                       </div>
-
-                      {/* Informations supplémentaires */}
-                      <div className="mt-3 grid grid-cols-2 gap-4 text-xs text-gray-600">
-                        <div>
-                          <span className="font-medium">Budget:</span>
-                          <span className="ml-1">
-                            {projectData.budget_min && projectData.budget_max 
-                              ? `${projectData.budget_min}€ - ${projectData.budget_max}€`
-                              : 'À négocier'
-                            }
-                          </span>
+                        
+                      {/* Informations compactes en ligne */}
+                      <div className="flex justify-between text-xs text-gray-600">
+                        <div className="flex items-center space-x-3">
+                          <div>
+                            <span className="font-medium">💼 Budget:</span>
+                            <span className="ml-1">
+                              {projectData.budget_min && projectData.budget_max 
+                                ? `${projectData.budget_min}€ - ${projectData.budget_max}€`
+                                : 'À négocier'
+                              }
+                            </span>
+                          </div>
                         </div>
                         <div>
-                          <span className="font-medium">Créé:</span>
+                          <span className="font-medium">📅 Créé:</span>
                           <span className="ml-1">
-                            {new Date(projectData.created_at).toLocaleDateString()}
+                            {new Date(projectData.created_at).toLocaleDateString('fr-FR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: '2-digit'
+                            })}
                           </span>
                         </div>
                       </div>
