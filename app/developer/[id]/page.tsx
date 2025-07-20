@@ -563,21 +563,36 @@ export default function DeveloperProfilePage() {
 
               {/* Avis & Évaluations */}
               <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
-                <h2 className="text-xl font-black text-black mb-6">{t('profile.developer.ratings.reviews')}</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-black text-black">{t('profile.developer.ratings.reviews')}</h2>
+                  <button
+                    onClick={() => {
+                      loadDeveloperProfile();
+                      loadDeveloperRatings();
+                    }}
+                    className="text-sm text-gray-600 hover:text-black transition-colors px-3 py-1 rounded-lg border border-gray-300 hover:border-gray-400"
+                  >
+                    🔄 Actualiser
+                  </button>
+                </div>
                 
-                {developer.average_rating && developer.total_ratings && developer.total_ratings > 0 ? (
+                {/* Afficher les ratings s'il y en a, même si average_rating est 0 */}
+                {ratings.length > 0 ? (
                   <div className="mb-6">
-                    <div className="flex items-center space-x-4 mb-4">
-                      <div className="text-3xl font-black text-black">
-                        {developer.average_rating.toFixed(1)}
+                    {/* Afficher les statistiques seulement si elles existent */}
+                    {developer.average_rating > 0 && developer.total_ratings > 0 && (
+                      <div className="flex items-center space-x-4 mb-4">
+                        <div className="text-3xl font-black text-black">
+                          {developer.average_rating.toFixed(1)}
+                        </div>
+                        <div>
+                          <StarRating rating={developer.average_rating} />
+                          <p className="text-gray-600 text-sm">
+                            {developer.total_ratings} {t('profile.developer.ratings.total')}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <StarRating rating={developer.average_rating} />
-                        <p className="text-gray-600 text-sm">
-                          {developer.total_ratings} {t('profile.developer.ratings.total')}
-                        </p>
-                      </div>
-                    </div>
+                    )}
                     
                     {/* Liste des avis */}
                     <div className="space-y-4">
