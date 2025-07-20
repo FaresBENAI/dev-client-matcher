@@ -30,32 +30,32 @@ export default function RatingModal({
   const [success, setSuccess] = useState<boolean>(false);
   const [clientProfileId, setClientProfileId] = useState<string | null>(null);
 
-  // Récupérer l'ID du profil client depuis la vraie table client_profiles
+  // Récupérer l'ID du profil client depuis la table profiles avec user_type
   useEffect(() => {
     async function fetchClientProfile() {
       if (!isOpen || !user?.id) return;
 
       try {
-        console.log('🔍 Recherche du profil client pour user:', user.id);
+        console.log('🔍 Vérification du type d\'utilisateur pour:', user.id);
         
-        const { data: clientProfile, error } = await supabase
-          .from('client_profiles')
-          .select('id')
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('id, user_type')
           .eq('id', user.id)
           .single();
 
         if (error) {
-          console.error('❌ Erreur lors de la récupération du profil client:', error);
-          setError('Impossible de récupérer votre profil client');
+          console.error('❌ Erreur lors de la récupération du profil:', error);
+          setError('Impossible de récupérer votre profil');
           return;
         }
 
-        if (clientProfile) {
-          setClientProfileId(clientProfile.id);
-          console.log('✅ Profil client trouvé:', clientProfile.id);
+        if (profile && profile.user_type === 'client') {
+          setClientProfileId(profile.id);
+          console.log('✅ Utilisateur client confirmé:', profile.id);
           setError(''); // Clear any previous errors
         } else {
-          console.warn('⚠️ Aucun profil client trouvé pour cet utilisateur');
+          console.warn('⚠️ Utilisateur n\'est pas un client, type:', profile?.user_type);
           setError('Vous devez être un client pour noter un développeur');
         }
       } catch (err) {
