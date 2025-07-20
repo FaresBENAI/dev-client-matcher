@@ -2,97 +2,54 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
-import { ArrowLeft, MessageCircle, Send, User, Star, CheckCircle, Settings, Clock, Play, XCircle } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import RatingModal from '@/components/rating/RatingModal'
-import { useLanguage } from '@/contexts/LanguageContext'
+import { Button } from '../../components/ui/button'
+import RatingModal from '../../components/rating/RatingModal'
+import StatusBar from '../../components/StatusBar'
+import { markConversationAsRead } from '../../utils/markMessagesAsRead'
+import { ArrowLeft, MessageCircle } from 'lucide-react'
 
-const supabase = createClient()
-
-interface UserProfile {
-  id: string
-  full_name: string
-  user_type: string
-}
+const supabase = createClient(
+ 
+)
 
 export default function MessagesPage() {
   const [user, setUser] = useState<any>(null)
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [userProfile, setUserProfile] = useState<any>(null)
   const [conversations, setConversations] = useState<any[]>([])
   const [selectedConversation, setSelectedConversation] = useState<any>(null)
   const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
-  const [profiles, setProfiles] = useState<any>({})
-  const [sendingMessage, setSendingMessage] = useState(false)
+  const [profiles, setProfiles] = useState<any>({}) // Cache des profils
   const [showRatingModal, setShowRatingModal] = useState(false)
-  const [otherParticipant, setOtherParticipant] = useState<any>(null)
-  const [applicationData, setApplicationData] = useState<any>(null)
-  const [developerRating, setDeveloperRating] = useState<any>(null)
-  const [projectData, setProjectData] = useState<any>(null)
-  const [showStatusModal, setShowStatusModal] = useState(false)
-  const [newStatus, setNewStatus] = useState('')
+  const [applicationData, setApplicationData] = useState<any>(null) // 🆕 NOUVEAU: Données de candidature
   
-  const router = useRouter()
-  const { t } = useLanguage()
+  // 🆕 NOUVEAU: État pour gérer l'affichage mobile
+  const [showConversationList, setShowConversationList] = useState(true)
 
   useEffect(() => {
     checkUser()
   }, [])
 
-  // Écouteur en temps réel pour les messages
-  useEffect(() => {
-    if (!user) return;
-
-    const messagesSubscription = supabase
-      .channel('messages_page_changes')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages'
-      }, (payload) => {
-        console.log('🆕 Nouveau message reçu:', payload);
-        if (payload.new.sender_id !== user.id) {
-          loadConversations(user.id);
-        }
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'messages'
-      }, (payload) => {
-        console.log('📝 Message mis à jour:', payload);
-        if (payload.new.is_read !== payload.old.is_read) {
-          loadConversations(user.id);
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(messagesSubscription);
-    };
-  }, [user]);
-
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      router.push('/auth/login')
-      return
+    if (user) {
+      setUser(user)
+      // Charger aussi le profil de l'utilisateur connecté
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('user_type, full_name, email')
+        .eq('id', user.id)
+        .single()
+      setUserProfile(profile)
+      loadConversations(user.id)
     }
-    
-    setUser(user)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id, user_type, full_name, email')
-      .eq('id', user.id)
-      .single()
-    setUserProfile(profile)
-    loadConversations(user.id)
     setLoading(false)
   }
 
+  // 🔧 CORRECTION: Charger les profils séparément
   const loadProfile = async (userId: string) => {
-    if (profiles[userId]) return profiles[userId]
+    if (profiles[userId]) return profiles[userId] // Cache hit
 
     try {
       const { data: profile, error } = await supabase
@@ -113,21 +70,14 @@ export default function MessagesPage() {
 
   const loadConversations = async (userId: string) => {
     try {
+      console.log('🔄 Chargement des conversations pour:', userId)
+      
+      // 🔧 CORRECTION: Requête simplifiée sans jointures complexes
       const { data: conversations, error } = await supabase
         .from('conversations')
         .select(`
           *,
-          projects (
-            id,
-            title,
-            client_id,
-            status,
-            created_at,
-            budget_min,
-            budget_max
-          ),
           messages (
-            id,
             content,
             created_at,
             sender_id,
@@ -137,43 +87,47 @@ export default function MessagesPage() {
         .or(`client_id.eq.${userId},developer_id.eq.${userId}`)
         .order('updated_at', { ascending: false })
 
-      if (error) throw error
-
-      const sortedConversations = (conversations || [])
-        .filter(conv => conv.messages && conv.messages.length > 0)
-        .sort((a, b) => {
-          const lastMessageA = a.messages[a.messages.length - 1]
-          const lastMessageB = b.messages[b.messages.length - 1]
-          return new Date(lastMessageB.created_at).getTime() - new Date(lastMessageA.created_at).getTime()
-        })
-
-      setConversations(sortedConversations)
-
-      const userIds = new Set<string>()
-      sortedConversations.forEach(conv => {
-        userIds.add(conv.client_id)
-        userIds.add(conv.developer_id)
-        conv.messages?.forEach((msg: any) => userIds.add(msg.sender_id))
-      })
-
-      await Promise.all(
-        Array.from(userIds).map(id => loadProfile(id))
-      )
+      if (error) {
+        console.error('Erreur conversations:', error)
+        throw error
+      }
+      
+      console.log('✅ Conversations trouvées:', conversations?.length || 0)
+      
+      // Charger les profils pour chaque conversation
+      if (conversations && conversations.length > 0) {
+        for (const conv of conversations) {
+          await loadProfile(conv.client_id)
+          await loadProfile(conv.developer_id)
+        }
+      }
+      
+      setConversations(conversations || [])
     } catch (error) {
       console.error('Erreur lors du chargement des conversations:', error)
+      setConversations([])
     }
   }
 
   const loadMessages = async (conversationId: string) => {
     try {
+      console.log('🔄 Chargement des messages pour conversation:', conversationId)
+      
+      // 🔧 CORRECTION: Requête simplifiée sans jointures
       const { data: messages, error } = await supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
 
-      if (error) throw error
+      if (error) {
+        console.error('Erreur messages:', error)
+        throw error
+      }
 
+      console.log('✅ Messages trouvés:', messages?.length || 0)
+      
+      // Charger les profils des expéditeurs
       if (messages && messages.length > 0) {
         for (const message of messages) {
           await loadProfile(message.sender_id)
@@ -181,18 +135,89 @@ export default function MessagesPage() {
       }
 
       setMessages(messages || [])
-      await markMessagesAsRead(conversationId)
     } catch (error) {
       console.error('Erreur lors du chargement des messages:', error)
       setMessages([])
     }
   }
 
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation || !user) return
+
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: selectedConversation.id,
+          sender_id: user.id,
+          content: newMessage.trim()
+        })
+
+      if (error) throw error
+
+      setNewMessage('')
+      loadMessages(selectedConversation.id)
+      loadConversations(user.id)
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi du message:', error)
+    }
+  }
+
+  // 🆕 NOUVEAU: Fonction mise à jour pour sélectionner une conversation et marquer comme lu
+  const selectConversation = async (conversation: any) => {
+    console.log('🔄 Sélection conversation:', conversation.id)
+    setSelectedConversation(conversation)
+    loadMessages(conversation.id)
+    
+    // 🆕 Sur mobile, masquer la liste des conversations quand on sélectionne une conversation
+    setShowConversationList(false)
+    
+    // 🆕 Marquer les messages de cette conversation comme lus
+    await markConversationAsRead(conversation.id)
+    
+    // 🆕 CORRECTION: Si c'est une conversation liée à un projet, chercher une candidature
+    if (conversation.project_id) {
+      try {
+        // Chercher une candidature pour ce projet avec ce développeur
+        const { data: appData } = await supabase
+          .from('project_applications')
+          .select(`
+            *,
+            projects (
+              client_id,
+              title
+            )
+          `)
+          .eq('project_id', conversation.project_id)
+          .eq('developer_id', conversation.developer_id)
+          .single()
+        
+        console.log('✅ Candidature trouvée:', appData)
+        setApplicationData(appData)
+      } catch (error) {
+        console.error('⚠️ Aucune candidature trouvée pour cette conversation:', error.message)
+        setApplicationData(null)
+      }
+    } else {
+      setApplicationData(null)
+    }
+    
+    // 🆕 Recharger les conversations pour mettre à jour les compteurs
+    await loadConversations(user.id)
+  }
+
+  // 🆕 NOUVEAU: Fonction pour revenir à la liste des conversations (mobile)
+  const backToConversationList = () => {
+    setShowConversationList(true)
+    setSelectedConversation(null)
+  }
+
+  // 🔧 CORRECTION: Fonction pour obtenir les informations de l'autre participant
   const getOtherParticipant = (conversation: any) => {
     if (!conversation || !user) {
       return {
         id: '',
-        name: t('messages.anonymous.user'),
+        name: 'Utilisateur',
         avatar: null,
         email: 'utilisateur@exemple.com',
         type: 'client'
@@ -206,7 +231,7 @@ export default function MessagesPage() {
     if (!otherUserProfile) {
       return {
         id: otherUserId,
-        name: isClient ? t('messages.anonymous.developer') : t('messages.anonymous.client'),
+        name: isClient ? 'Développeur' : 'Client',
         avatar: null,
         email: 'utilisateur@exemple.com',
         type: isClient ? 'developer' : 'client'
@@ -215,303 +240,44 @@ export default function MessagesPage() {
     
     return {
       id: otherUserId,
-      name: otherUserProfile.full_name || otherUserProfile.email?.split('@')[0] || t('messages.anonymous.user'),
+      name: otherUserProfile.full_name || otherUserProfile.email?.split('@')[0] || 'Utilisateur',
       avatar: otherUserProfile.avatar_url,
       email: otherUserProfile.email,
       type: otherUserProfile.user_type
     }
   }
 
-  const selectConversation = async (conversation: any) => {
-    setSelectedConversation(conversation)
-    setOtherParticipant(getOtherParticipant(conversation))
-    await loadMessages(conversation.id)
-    await markMessagesAsRead(conversation.id)
+  // 🔧 AJOUT: Fonction pour ouvrir le modal de notation
+  const openRatingModal = () => {
+    if (!selectedConversation || !userProfile) return
     
-    // Charger les données du projet si disponible
-    if (conversation.project_id) {
-      await loadProjectData(conversation.project_id)
-      await loadApplicationData(conversation.project_id, conversation.developer_id)
-    } else {
-      setProjectData(null)
-      setApplicationData(null)
+    // Seuls les clients peuvent noter les développeurs
+    if (userProfile.user_type !== 'client') {
+      alert('Seuls les clients peuvent noter les développeurs.')
+      return
     }
-    
-    // Charger les ratings du développeur si c'est une conversation avec un développeur
-    const otherUser = getOtherParticipant(conversation)
-    if (otherUser?.type === 'developer') {
-      await loadDeveloperRating(otherUser.id)
-    } else {
-      setDeveloperRating(null)
+
+    const otherParticipant = getOtherParticipant(selectedConversation)
+    if (otherParticipant.type !== 'developer') {
+      alert('Vous ne pouvez noter que des développeurs.')
+      return
     }
+
+    setShowRatingModal(true)
   }
 
-  const loadProjectData = async (projectId: string) => {
-    try {
-      const { data: project, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single()
-
-      if (!error && project) {
-        setProjectData(project)
-        setNewStatus(project.status)
-      } else {
-        setProjectData(null)
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement du projet:', error)
-      setProjectData(null)
-    }
-  }
-
-  const markMessagesAsRead = async (conversationId: string) => {
-    if (!user) return;
-    
-    try {
-      const { error } = await supabase
-        .from('messages')
-        .update({ is_read: true })
-        .eq('conversation_id', conversationId)
-        .neq('sender_id', user.id);
-
-      if (!error) {
-        await loadConversations(user.id);
-      }
-    } catch (error) {
-      console.error('Erreur lors du marquage des messages:', error);
-    }
-  }
-
-  const loadApplicationData = async (projectId: string, developerId: string) => {
-    try {
-      const { data: application, error } = await supabase
-        .from('project_applications')
-        .select(`
-          *,
-          projects (
-            id,
-            title,
-            client_id
-          )
-        `)
-        .eq('project_id', projectId)
-        .eq('developer_id', developerId)
-        .single()
-
-      if (error) {
-        setApplicationData(null)
-      } else {
-        setApplicationData(application)
-      }
-    } catch (error) {
-      setApplicationData(null)
-    }
-  }
-
-  const loadDeveloperRating = async (developerId: string) => {
-    try {
-      const { data: devProfile, error } = await supabase
-        .from('developer_profiles')
-        .select('average_rating, total_ratings')
-        .eq('id', developerId)
-        .single()
-
-      if (error) {
-        setDeveloperRating({ average_rating: 0, total_ratings: 0 })
-      } else {
-        setDeveloperRating(devProfile || { average_rating: 0, total_ratings: 0 })
-      }
-    } catch (error) {
-      setDeveloperRating({ average_rating: 0, total_ratings: 0 })
-    }
-  }
-
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || !user || sendingMessage) return
-
-    setSendingMessage(true)
-    try {
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: selectedConversation.id,
-          sender_id: user.id,
-          content: newMessage.trim(),
-          created_at: new Date().toISOString()
-        })
-
-      if (error) throw error
-
-      setNewMessage('')
-      await markMessagesAsRead(selectedConversation.id)
-      loadMessages(selectedConversation.id)
+  const handleRatingSubmitted = () => {
+    // Recharger les conversations pour mettre à jour les données
+    if (user) {
       loadConversations(user.id)
-    } catch (error) {
-      console.error('Erreur lors de l\'envoi du message:', error)
-    } finally {
-      setSendingMessage(false)
     }
   }
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
-  }
-
-  const acceptApplication = async (applicationId: string) => {
-    if (!user || !selectedConversation) return;
-
-    try {
-      const { error } = await supabase
-        .from('project_applications')
-        .update({ status: 'accepted', updated_at: new Date().toISOString() })
-        .eq('id', applicationId);
-
-      if (error) {
-        console.error('Erreur mise à jour statut application:', error);
-        alert(t('msg.error'));
-        return;
-      }
-
-      const statusMessage = `✅ **${t('messages.application.accepted')}** ${t('messages.application.accepted.desc')}`;
-      await supabase
-        .from('messages')
-        .insert({
-          conversation_id: selectedConversation.id,
-          sender_id: user.id,
-          content: statusMessage,
-          created_at: new Date().toISOString()
-        });
-
-      alert(t('messages.application.accepted.success'));
-      loadMessages(selectedConversation.id);
-      loadConversations(user.id);
-      if (selectedConversation.project_id) {
-        await loadApplicationData(selectedConversation.project_id, selectedConversation.developer_id);
-      }
-    } catch (error) {
-      console.error('Erreur générale:', error);
-    }
-  };
-
-  const rejectApplication = async (applicationId: string) => {
-    if (!user || !selectedConversation) return;
-
-    try {
-      const { error } = await supabase
-        .from('project_applications')
-        .update({ status: 'rejected', updated_at: new Date().toISOString() })
-        .eq('id', applicationId);
-
-      if (error) {
-        console.error('Erreur mise à jour statut application:', error);
-        alert(t('msg.error'));
-        return;
-      }
-
-      const statusMessage = `❌ **${t('messages.application.rejected')}** ${t('messages.application.rejected.desc')}`;
-      await supabase
-        .from('messages')
-        .insert({
-          conversation_id: selectedConversation.id,
-          sender_id: user.id,
-          content: statusMessage,
-          created_at: new Date().toISOString()
-        });
-
-      alert(t('messages.application.rejected.success'));
-      loadMessages(selectedConversation.id);
-      loadConversations(user.id);
-      if (selectedConversation.project_id) {
-        await loadApplicationData(selectedConversation.project_id, selectedConversation.developer_id);
-      }
-    } catch (error) {
-      console.error('Erreur générale:', error);
-    }
-  };
-
-  const updateProjectStatus = async () => {
-    if (!projectData || !user || user.id !== projectData.client_id) return;
-    
-    try {
-      const { error } = await supabase
-        .from('projects')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', projectData.id)
-        .eq('client_id', user.id);
-
-      if (error) {
-        console.error('Erreur mise à jour statut projet:', error);
-        alert('Erreur lors de la mise à jour du statut');
-        return;
-      }
-
-      // Envoyer un message de notification
-      const statusMessage = `📋 **Statut du projet mis à jour** : ${getStatusLabel(newStatus)}`;
-      await supabase
-        .from('messages')
-        .insert({
-          conversation_id: selectedConversation.id,
-          sender_id: user.id,
-          content: statusMessage,
-          created_at: new Date().toISOString()
-        });
-
-      setProjectData({ ...projectData, status: newStatus });
-      setShowStatusModal(false);
-      loadMessages(selectedConversation.id);
-      loadConversations(user.id);
-    } catch (error) {
-      console.error('Erreur générale:', error);
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'open': return t('status.open');
-      case 'in_progress': return t('status.in_progress');
-      case 'completed': return t('status.completed');
-      case 'cancelled': return t('status.cancelled');
-      case 'paused': return t('status.paused');
-      default: return status;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'open': return 'bg-green-100 text-green-800 border-green-200';
-      case 'in_progress': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'completed': return 'bg-gray-100 text-gray-800 border-gray-200';
-      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
-      case 'paused': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'open': return Play;
-      case 'in_progress': return Clock;
-      case 'completed': return CheckCircle;
-      case 'cancelled': return XCircle;
-      case 'paused': return Clock;
-      default: return Clock;
-    }
-  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">{t('messages.loading')}</p>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
         </div>
       </div>
     )
@@ -519,452 +285,320 @@ export default function MessagesPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{t('messages.login.required')}</p>
+          <h1 className="text-xl sm:text-2xl font-bold mb-4">Accès refusé</h1>
+          <p className="text-gray-600">Vous devez être connecté pour accéder aux messages.</p>
         </div>
       </div>
     )
   }
 
+  const otherParticipant = selectedConversation ? getOtherParticipant(selectedConversation) : null
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto h-screen flex">
-        {/* Header mobile uniquement */}
-        <div className="md:hidden absolute top-0 left-0 right-0 bg-white border-b border-gray-200 z-10 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <button 
-                onClick={() => router.back()}
-                className="flex items-center text-gray-600 hover:text-black transition-colors mr-4"
-              >
-                <ArrowLeft className="h-5 w-5 mr-2" />
-                {t('messages.back')}
-              </button>
-              <h1 className="text-xl font-black text-black">{t('nav.messages')}</h1>
-            </div>
-          </div>
+    <div className="h-screen flex">
+      {/* Liste des conversations - Sidebar responsive */}
+      <div className={`${
+        showConversationList ? 'block' : 'hidden'
+      } w-full sm:w-80 sm:block bg-gray-50 border-r border-gray-200 flex flex-col`}>
+        {/* Header compact */}
+        <div className="p-3 sm:p-3 border-b border-gray-200 bg-white">
+          <h1 className="text-lg sm:text-lg font-bold text-gray-900">💬 Conversations</h1>
+          <p className="text-xs text-gray-500">{conversations.length} conversation{conversations.length > 1 ? 's' : ''}</p>
         </div>
 
-        {/* Header desktop uniquement */}
-        <div className="hidden md:block w-full absolute top-0 left-0 right-0 bg-gray-50 z-10 p-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <button 
-                  onClick={() => router.back()}
-                  className="flex items-center text-gray-600 hover:text-black transition-colors mr-4"
-                >
-                  <ArrowLeft className="h-5 w-5 mr-2" />
-                  {t('messages.back')}
-                </button>
-                <h1 className="text-2xl font-black text-black">{t('nav.messages')}</h1>
+        {/* Liste des conversations */}
+        <div className="flex-1 overflow-y-auto">
+          {conversations.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
               </div>
+              <p className="text-sm">Aucune conversation</p>
+              <p className="text-xs mt-1">Démarrez une conversation depuis un projet</p>
             </div>
-          </div>
-        </div>
-
-        {/* Sidebar - Liste des conversations */}
-        <div className="w-full md:w-1/3 bg-white border-r border-gray-200 flex flex-col mt-16 md:mt-24">
-          <div className="p-4 md:p-6 border-b border-gray-200">
-            <h2 className="text-lg md:text-xl font-bold text-black flex items-center">
-              <MessageCircle className="h-5 w-5 mr-2" />
-              {t('messages.conversations')} ({conversations.length})
-            </h2>
-          </div>
-          
-          <div className="overflow-y-auto h-full">
-            {conversations.length === 0 ? (
-              <div className="p-4 md:p-6 text-center text-gray-500">
-                <MessageCircle className="h-8 md:h-12 w-8 md:w-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-sm md:text-base">{t('messages.no.conversations')}</p>
-              </div>
-            ) : (
-              conversations.map((conversation) => {
+          ) : (
+            <div className="space-y-1 p-2">
+              {conversations.map((conversation) => {
                 const lastMessage = conversation.messages?.[conversation.messages.length - 1]
                 const otherParticipant = getOtherParticipant(conversation)
-                const isSelected = selectedConversation?.id === conversation.id
                 
+                // 🆕 NOUVEAU: Compter les messages non lus pour cette conversation
+                const unreadInConversation = conversation.messages?.filter(
+                  (msg: any) => msg.sender_id !== user?.id && !msg.is_read
+                ).length || 0
+
                 return (
                   <div
                     key={conversation.id}
                     onClick={() => selectConversation(conversation)}
-                    className={`p-3 md:p-4 border-b border-gray-100 cursor-pointer transition-colors ${
-                      isSelected ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
+                    className={`p-3 rounded-lg cursor-pointer transition-colors relative ${
+                      selectedConversation?.id === conversation.id
+                        ? 'bg-blue-50 border border-blue-200'
+                        : 'bg-white hover:bg-gray-50 border border-gray-200'
                     }`}
                   >
-                    <div className="flex items-start space-x-3">
-                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                        {otherParticipant?.avatar ? (
+                    {/* 🆕 NOUVEAU: Badge de messages non lus - NOIR */}
+                    {unreadInConversation > 0 && (
+                      <div className="absolute -top-1 -right-1 bg-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold z-10">
+                        {unreadInConversation > 9 ? '9+' : unreadInConversation}
+                      </div>
+                    )}
+                    
+                    {/* Avatar + nom */}
+                    <div className="flex items-center space-x-3 mb-2">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                        {otherParticipant.avatar ? (
                           <img
                             src={otherParticipant.avatar}
                             alt={otherParticipant.name}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback si l'image ne charge pas
+                              e.currentTarget.style.display = 'none'
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                            }}
                           />
-                        ) : (
-                          <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs md:text-sm">
-                            {(otherParticipant?.name || 'U').charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                        ) : null}
+                        <div className={`w-full h-full bg-black flex items-center justify-center text-white font-bold text-sm ${otherParticipant.avatar ? 'hidden' : ''}`}>
+                          {otherParticipant.name.charAt(0).toUpperCase()}
+                        </div>
                       </div>
-                      
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-sm md:text-base text-black truncate">
-                          {otherParticipant?.name || t('messages.anonymous.user')}
-                        </h3>
-                        <p className="text-xs text-gray-500 mb-1">
-                          {conversation.projects?.title || t('messages.general.conversation')}
+                        <div className="flex items-center justify-between">
+                          <h3 className={`font-medium text-sm text-gray-900 truncate ${unreadInConversation > 0 ? 'font-bold' : ''}`}>
+                            {otherParticipant.name}
+                          </h3>
+                          {lastMessage && (
+                            <span className="text-xs text-gray-500">
+                              {new Date(lastMessage.created_at).toLocaleDateString('fr-FR', {
+                                day: '2-digit',
+                                month: '2-digit'
+                              })}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          {otherParticipant.type === 'developer' ? '⚡ Développeur' : '👤 Client'}
                         </p>
-                        {lastMessage && (
-                          <p className="text-xs md:text-sm text-gray-600 truncate">
-                            {lastMessage.content}
-                          </p>
-                        )}
-                        {lastMessage && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            {new Date(lastMessage.created_at).toLocaleString()}
-                          </p>
-                        )}
                       </div>
                     </div>
+                    
+                    <p className="text-xs text-gray-600 mb-1 font-medium">
+                      {conversation.project_title || 'Projet'}
+                    </p>
+                    {lastMessage && (
+                      <p className={`text-xs text-gray-500 truncate ${unreadInConversation > 0 ? 'font-medium text-gray-700' : ''}`}>
+                        {lastMessage.content}
+                      </p>
+                    )}
                   </div>
                 )
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Zone des messages - cachée sur mobile si aucune conversation sélectionnée */}
-        <div className={`flex-1 flex-col mt-16 md:mt-24 ${selectedConversation ? 'flex' : 'hidden md:flex'}`}>
-          {selectedConversation ? (
-            <>
-              {/* Header de la conversation enrichi */}
-              <div className="bg-white border-b border-gray-200">
-                {/* Header principal */}
-                <div className="p-4 md:p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      {/* Bouton retour mobile */}
-                      <button
-                        onClick={() => setSelectedConversation(null)}
-                        className="md:hidden text-gray-400 hover:text-black p-1 rounded"
-                      >
-                        ←
-                      </button>
-                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-gray-200">
-                        {otherParticipant?.avatar ? (
-                          <img
-                            src={otherParticipant.avatar}
-                            alt={otherParticipant.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs md:text-sm">
-                            {(otherParticipant?.name || 'U').charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-sm md:text-base text-black">
-                          {otherParticipant?.name || t('messages.anonymous.user')}
-                        </h3>
-                        <p className="text-xs md:text-sm text-gray-500">
-                          {projectData?.title || selectedConversation.projects?.title || t('messages.general.conversation')}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-end space-y-2">
-                      {/* Actions pour les clients */}
-                      {userProfile?.user_type === 'client' && applicationData && applicationData.status === 'pending' && (
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => acceptApplication(applicationData.id)}
-                            className="bg-green-600 text-white px-3 py-1 rounded-lg font-bold hover:bg-green-700 transition-colors text-sm flex items-center"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            {t('messages.accept')}
-                          </button>
-                          <button
-                            onClick={() => rejectApplication(applicationData.id)}
-                            className="bg-red-600 text-white px-3 py-1 rounded-lg font-bold hover:bg-red-700 transition-colors text-sm"
-                          >
-                            {t('messages.reject')}
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Bouton de notation pour les clients */}
-                      {userProfile?.user_type === 'client' && otherParticipant?.type === 'developer' && (
-                        <div>
-                          {/* Affichage de la note existante */}
-                          {developerRating && developerRating.average_rating > 0 && (
-                            <div className="text-right mb-2">
-                              <div className="flex items-center justify-end space-x-1">
-                                <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                                <span className="text-sm font-bold">
-                                  {developerRating.average_rating.toFixed(1)}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  ({developerRating.total_ratings} {t('messages.ratings')})
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Bouton pour noter */}
-                          {applicationData && applicationData.status === 'accepted' && (
-                            <button
-                              onClick={() => setShowRatingModal(true)}
-                              className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-yellow-600 transition-colors text-sm flex items-center"
-                            >
-                              <Star className="h-4 w-4 mr-2" />
-                              {t('messages.rate')}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Barre de statut du projet */}
-                {projectData && (
-                  <div className="px-4 md:px-6 pb-4">
-                    <div className="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-bold text-gray-800">Statut du Projet</h4>
-                        {userProfile?.user_type === 'client' && user?.id === projectData.client_id && (
-                          <button
-                            onClick={() => setShowStatusModal(true)}
-                            className="bg-gray-600 text-white px-3 py-1 rounded-lg font-bold hover:bg-gray-700 transition-colors text-sm flex items-center"
-                          >
-                            <Settings className="h-4 w-4 mr-1" />
-                            Modifier
-                          </button>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center space-x-3">
-                        {(() => {
-                          const StatusIcon = getStatusIcon(projectData.status);
-                          return <StatusIcon className="h-5 w-5 text-gray-600" />;
-                        })()}
-                        <span className={`px-3 py-1 text-sm font-bold border ${getStatusColor(projectData.status)}`}>
-                          {getStatusLabel(projectData.status)}
-                        </span>
-                      </div>
-
-                      {/* Barre de progression */}
-                      <div className="mt-4">
-                        <div className="flex justify-between text-xs text-gray-600 mb-2">
-                          <span>Progression</span>
-                          <span>
-                            {projectData.status === 'completed' ? '100%' : 
-                             projectData.status === 'in_progress' ? '50%' : 
-                             projectData.status === 'open' ? '10%' : '0%'}
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full transition-all duration-300 ${
-                              projectData.status === 'completed' ? 'bg-green-500 w-full' :
-                              projectData.status === 'in_progress' ? 'bg-blue-500 w-1/2' :
-                              projectData.status === 'open' ? 'bg-yellow-500 w-1/12' :
-                              'bg-gray-400 w-0'
-                            }`}
-                          ></div>
-                        </div>
-                      </div>
-
-                      {/* Informations supplémentaires */}
-                      <div className="mt-3 grid grid-cols-2 gap-4 text-xs text-gray-600">
-                        <div>
-                          <span className="font-medium">Budget:</span>
-                          <span className="ml-1">
-                            {projectData.budget_min && projectData.budget_max 
-                              ? `${projectData.budget_min}€ - ${projectData.budget_max}€`
-                              : 'À négocier'
-                            }
-                          </span>
-                        </div>
-                        <div>
-                          <span className="font-medium">Créé:</span>
-                          <span className="ml-1">
-                            {new Date(projectData.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 md:space-y-4">
-                {messages.length === 0 ? (
-                  <div className="text-center text-gray-500 py-8">
-                    <MessageCircle className="h-8 md:h-12 w-8 md:w-12 mx-auto mb-4 text-gray-300" />
-                    <p className="text-sm md:text-base">{t('messages.no.messages')}</p>
-                    <p className="text-xs md:text-sm mt-2">{t('messages.start.conversation')}</p>
-                  </div>
-                ) : (
-                  messages.map((message) => {
-                    const isOwnMessage = message.sender_id === user?.id
-                    const senderProfile = profiles[message.sender_id]
-                    
-                    return (
-                      <div
-                        key={message.id}
-                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className={`flex items-end space-x-2 max-w-[85%] md:max-w-xs lg:max-w-md ${
-                          isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''
-                        }`}>
-                          {/* Avatar dans les messages */}
-                          {!isOwnMessage && (
-                            <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                              {senderProfile?.avatar_url ? (
-                                <img
-                                  src={senderProfile.avatar_url}
-                                  alt={senderProfile.full_name || t('messages.user')}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none'
-                                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                                  }}
-                                />
-                              ) : null}
-                              <div className={`w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs ${senderProfile?.avatar_url ? 'hidden' : ''}`}>
-                                {(senderProfile?.full_name || 'U').charAt(0).toUpperCase()}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Message */}
-                          <div className={`px-3 py-2 rounded-lg max-w-full ${
-                            isOwnMessage 
-                              ? 'bg-black text-white' 
-                              : 'bg-gray-200 text-gray-900'
-                          }`}>
-                            <p className="text-xs md:text-sm break-words whitespace-pre-wrap">
-                              {message.content}
-                            </p>
-                            <p className={`text-xs mt-1 ${
-                              isOwnMessage ? 'text-gray-300' : 'text-gray-500'
-                            }`}>
-                              {new Date(message.created_at).toLocaleTimeString('fr-FR', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-
-              {/* Zone de saisie */}
-              <div className="p-3 md:p-6 border-t border-gray-200 bg-white">
-                <div className="flex space-x-2 md:space-x-4">
-                  <textarea
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder={t('messages.type.message')}
-                    className="flex-1 p-2 md:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent resize-none text-sm md:text-base"
-                    rows={2}
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={sendingMessage || !newMessage.trim()}
-                    className="bg-black text-white px-3 md:px-6 py-2 rounded-lg font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                  >
-                    {sendingMessage ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-500 bg-white">
-              <div className="text-center">
-                <MessageCircle className="h-12 md:h-16 w-12 md:w-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-base md:text-lg font-semibold mb-2">{t('messages.select.conversation')}</p>
-                <p className="text-sm md:text-base">{t('messages.select.conversation.desc')}</p>
-              </div>
+              })}
             </div>
           )}
         </div>
+      </div>
 
-        {/* Modal de changement de statut */}
-        {showStatusModal && projectData && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-bold text-black">Modifier le statut du projet</h3>
+      {/* Zone de chat principale - responsive */}
+      <div className={`${
+        showConversationList ? 'hidden' : 'flex'
+      } sm:flex flex-1 flex-col`}>
+        {selectedConversation ? (
+          <>
+            {/* Header de conversation - Responsive avec bouton retour mobile */}
+            <div className="p-3 border-b border-gray-200 bg-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  {/* Bouton retour sur mobile */}
+                  <button
+                    onClick={backToConversationList}
+                    className="sm:hidden p-2 hover:bg-gray-100 rounded-full"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  
+                  {/* Avatar dans le header */}
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                    {otherParticipant?.avatar ? (
+                      <img
+                        src={otherParticipant.avatar}
+                        alt={otherParticipant.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-full h-full bg-black flex items-center justify-center text-white font-bold text-xs sm:text-sm ${otherParticipant?.avatar ? 'hidden' : ''}`}>
+                      {otherParticipant?.name.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="font-bold text-gray-900 text-sm sm:text-base truncate">
+                      {otherParticipant?.name || 'Utilisateur'}
+                    </h2>
+                    <p className="text-xs text-gray-500 truncate">
+                      {selectedConversation.project_title || 'Projet'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  <span className="hidden sm:inline-flex px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                    ● Active
+                  </span>
+                  {/* 🔧 AJOUT: Bouton Noter (seulement pour les clients notant des développeurs) */}
+                  {userProfile?.user_type === 'client' && otherParticipant?.type === 'developer' && (
+                    <Button
+                      onClick={openRatingModal}
+                      className="bg-yellow-500 text-white hover:bg-yellow-600 font-medium px-2 sm:px-3 py-1 rounded-lg text-xs flex items-center space-x-1"
+                    >
+                      <span>⭐</span>
+                      <span className="hidden sm:inline">Noter</span>
+                    </Button>
+                  )}
+                </div>
               </div>
               
-              <div className="p-6">
-                <div className="mb-4">
-                  <label className="block text-sm font-bold text-black mb-2">
-                    Nouveau statut
-                  </label>
-                  <select
-                    value={newStatus}
-                    onChange={(e) => setNewStatus(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                  >
-                    <option value="open">Ouvert</option>
-                    <option value="in_progress">En cours</option>
-                    <option value="completed">Terminé</option>
-                    <option value="paused">En pause</option>
-                    <option value="cancelled">Annulé</option>
-                  </select>
+              {/* 🆕 NOUVEAU: StatusBar intégrée si c'est une candidature */}
+              {applicationData && (
+                <div className="mt-3">
+                  <StatusBar 
+                    applicationId={applicationData.id}
+                    developerId={applicationData.developer_id}
+                    currentStatus={applicationData.status}
+                    projectClientId={applicationData.projects?.client_id}
+                    isCreator={user?.id === applicationData.projects?.client_id}
+                  />
                 </div>
-                
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => setShowStatusModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-bold hover:bg-gray-50 transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={updateProjectStatus}
-                    className="flex-1 px-4 py-2 bg-black text-white rounded-lg font-bold hover:bg-gray-800 transition-colors"
-                  >
-                    Mettre à jour
-                  </button>
+              )}
+            </div>
+
+            {/* Messages - Responsive */}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
+              {messages.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <MessageCircle className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
+                  </div>
+                  <p className="text-sm">Aucun message dans cette conversation</p>
+                  <p className="text-xs mt-1">Envoyez le premier message pour commencer !</p>
                 </div>
+              ) : (
+                messages.map((message) => {
+                  const senderProfile = profiles[message.sender_id]
+                  
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`flex items-end space-x-2 max-w-xs sm:max-w-sm lg:max-w-md ${
+                        message.sender_id === user.id ? 'flex-row-reverse space-x-reverse' : ''
+                      }`}>
+                        {/* Avatar dans les messages - masqué sur mobile pour économiser l'espace */}
+                        {message.sender_id !== user.id && (
+                          <div className="hidden sm:block w-6 h-6 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                            {senderProfile?.avatar_url ? (
+                              <img
+                                src={senderProfile.avatar_url}
+                                alt={senderProfile.full_name || 'Utilisateur'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                                }}
+                              />
+                            ) : null}
+                            <div className={`w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs ${senderProfile?.avatar_url ? 'hidden' : ''}`}>
+                              {(senderProfile?.full_name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div
+                          className={`px-3 py-2 rounded-lg ${
+                            message.sender_id === user.id
+                              ? 'bg-black text-white rounded-br-sm'
+                              : 'bg-gray-100 text-gray-900 rounded-bl-sm'
+                          }`}
+                        >
+                          <p className="text-sm break-words">{message.content}</p>
+                          <p className={`text-xs mt-1 ${
+                            message.sender_id === user.id ? 'text-gray-300' : 'text-gray-500'
+                          }`}>
+                            {new Date(message.created_at).toLocaleTimeString('fr-FR', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* Zone de saisie - Responsive */}
+            <div className="p-3 border-t border-gray-200 bg-white">
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  placeholder="Tapez votre message..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+                <Button
+                  onClick={sendMessage}
+                  disabled={!newMessage.trim()}
+                  className="bg-black text-white hover:bg-gray-800 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                >
+                  ✈️
+                </Button>
               </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-gray-50 p-4">
+            <div className="text-center">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2">
+                Sélectionnez une conversation
+              </h3>
+              <p className="text-sm text-gray-600">
+                Choisissez une conversation dans la liste pour commencer à discuter
+              </p>
+              {/* Bouton pour afficher la liste sur mobile si aucune conversation sélectionnée */}
+              <button
+                onClick={() => setShowConversationList(true)}
+                className="sm:hidden mt-4 bg-black text-white px-4 py-2 rounded-lg font-medium"
+              >
+                Voir les conversations
+              </button>
             </div>
           </div>
         )}
-
-        {/* Modal de notation */}
-        {showRatingModal && selectedConversation && otherParticipant && userProfile && (
-          <RatingModal
-            isOpen={showRatingModal}
-            onClose={() => setShowRatingModal(false)}
-            developerId={otherParticipant.id}
-            developerName={otherParticipant.name}
-            projectTitle={projectData?.title || selectedConversation.projects?.title}
-            currentUser={userProfile}
-            onRatingSubmitted={() => {
-              console.log('Note soumise avec succès')
-              if (user) {
-                loadConversations(user.id)
-              }
-            }}
-          />
-        )}
       </div>
+
+      {/* 🔧 AJOUT: Modal de notation */}
+      {showRatingModal && otherParticipant && (
+        <RatingModal
+          isOpen={showRatingModal}
+          onClose={() => setShowRatingModal(false)}
+          developerId={otherParticipant.id}
+          developerName={otherParticipant.name}
+          projectTitle={selectedConversation?.project_title || 'Projet'}
+          currentUser={user}
+          onRatingSubmitted={handleRatingSubmitted}
+        />
+      )}
     </div>
   )
-} 
+}
