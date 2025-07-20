@@ -30,36 +30,13 @@ export default function RatingModal({
   const [success, setSuccess] = useState<boolean>(false);
   const [clientProfileId, setClientProfileId] = useState<string | null>(null);
 
-  // Récupérer l'ID du profil client
+  // Récupérer l'ID du profil client - SIMPLIFIÉ
   useEffect(() => {
-    const fetchClientProfile = async () => {
-      if (user?.id) {
-        try {
-          const { data, error } = await supabase
-            .from('client_profiles')
-            .select('id')
-            .eq('id', user.id)
-            .single();
-          
-          if (error) {
-            console.error('Erreur récupération profil client:', error);
-            setError('Impossible de récupérer votre profil client');
-            return;
-          }
-          
-          if (data) {
-            setClientProfileId(data.id);
-            console.log('✅ Profil client récupéré:', data.id);
-          }
-        } catch (err) {
-          console.error('Erreur lors de la récupération du profil client:', err);
-          setError('Erreur lors de la récupération de votre profil');
-        }
-      }
-    };
-
-    if (isOpen && user) {
-      fetchClientProfile();
+    if (isOpen && user?.id) {
+      // Utiliser directement l'ID utilisateur au lieu de chercher dans client_profiles
+      setClientProfileId(user.id);
+      console.log('✅ Utilisation ID utilisateur comme client:', user.id);
+      setError(''); // Clear any previous errors
     }
   }, [user, isOpen]);
 
