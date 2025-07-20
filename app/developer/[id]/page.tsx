@@ -179,8 +179,9 @@ export default function DeveloperProfilePage() {
         dbTotal: devProfile?.total_ratings
       });
 
-      // Combiner les données en priorisant les données calculées en direct si elles diffèrent
-      const useCalculatedStats = calculatedTotal !== (devProfile?.total_ratings || 0);
+      // 🆕 FORCER L'UTILISATION DES STATS CALCULÉES EN DIRECT - Plus fiable que la DB
+      // Au lieu de vérifier si elles diffèrent, on utilise toujours les stats calculées
+      const useCalculatedStats = true; // Toujours utiliser les stats en temps réel
       
       const combinedProfile = {
         // Données de base du profil

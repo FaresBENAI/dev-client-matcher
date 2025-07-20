@@ -95,6 +95,19 @@ export default function DevelopersPage() {
               .eq('id', profile.id)
               .single()
 
+            // 🆕 CALCULER LES STATISTIQUES EN TEMPS RÉEL pour chaque développeur
+            const { data: ratingsForStats } = await supabase
+              .from('ratings')
+              .select('rating')
+              .eq('developer_id', profile.id);
+
+            let calculatedAverage = 0;
+            let calculatedTotal = 0;
+            if (ratingsForStats && ratingsForStats.length > 0) {
+              calculatedTotal = ratingsForStats.length;
+              calculatedAverage = ratingsForStats.reduce((sum, r) => sum + r.rating, 0) / calculatedTotal;
+            }
+
             // Si le profil développeur n'existe pas, essayer de le créer
             if (!devProfile) {
               console.log(`⚠️ Profil développeur manquant pour ${profile.full_name}, création...`)
@@ -115,7 +128,10 @@ export default function DevelopersPage() {
                 full_name: profile.full_name,
                 email: profile.email,
                 avatar_url: profile.avatar_url,
-                user_type: profile.user_type
+                user_type: profile.user_type,
+                // 🆕 Utiliser les statistiques calculées en temps réel
+                average_rating: Math.round(calculatedAverage * 10) / 10,
+                total_ratings: calculatedTotal
               }
             }
 
@@ -127,7 +143,10 @@ export default function DevelopersPage() {
               full_name: profile.full_name,
               email: profile.email,
               avatar_url: profile.avatar_url,
-              user_type: profile.user_type
+              user_type: profile.user_type,
+              // 🆕 Toujours utiliser les statistiques calculées en temps réel
+              average_rating: Math.round(calculatedAverage * 10) / 10,
+              total_ratings: calculatedTotal
             }
           })
         )
