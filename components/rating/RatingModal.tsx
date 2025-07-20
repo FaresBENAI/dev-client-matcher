@@ -30,14 +30,41 @@ export default function RatingModal({
   const [success, setSuccess] = useState<boolean>(false);
   const [clientProfileId, setClientProfileId] = useState<string | null>(null);
 
-  // Récupérer l'ID du profil client - SIMPLIFIÉ
+  // Récupérer l'ID du profil client depuis la vraie table client_profiles
   useEffect(() => {
-    if (isOpen && user?.id) {
-      // Utiliser directement l'ID utilisateur au lieu de chercher dans client_profiles
-      setClientProfileId(user.id);
-      console.log('✅ Utilisation ID utilisateur comme client:', user.id);
-      setError(''); // Clear any previous errors
+    async function fetchClientProfile() {
+      if (!isOpen || !user?.id) return;
+
+      try {
+        console.log('🔍 Recherche du profil client pour user:', user.id);
+        
+        const { data: clientProfile, error } = await supabase
+          .from('client_profiles')
+          .select('id')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('❌ Erreur lors de la récupération du profil client:', error);
+          setError('Impossible de récupérer votre profil client');
+          return;
+        }
+
+        if (clientProfile) {
+          setClientProfileId(clientProfile.id);
+          console.log('✅ Profil client trouvé:', clientProfile.id);
+          setError(''); // Clear any previous errors
+        } else {
+          console.warn('⚠️ Aucun profil client trouvé pour cet utilisateur');
+          setError('Vous devez être un client pour noter un développeur');
+        }
+      } catch (err) {
+        console.error('❌ Erreur complète:', err);
+        setError('Erreur lors du chargement de votre profil');
+      }
     }
+
+    fetchClientProfile();
   }, [user, isOpen]);
 
   // Reset du modal quand il s'ouvre
