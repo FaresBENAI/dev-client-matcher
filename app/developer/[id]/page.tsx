@@ -159,7 +159,29 @@ export default function DeveloperProfilePage() {
         console.error('Erreur developer_profiles:', devError);
       }
 
-      // Combiner les données en priorisant les données de developer_profiles
+      // 🆕 DEBUG: Calculer les statistiques directement depuis la table ratings pour comparaison
+      const { data: ratingsForStats } = await supabase
+        .from('ratings')
+        .select('rating')
+        .eq('developer_id', developerId);
+
+      let calculatedAverage = 0;
+      let calculatedTotal = 0;
+      if (ratingsForStats && ratingsForStats.length > 0) {
+        calculatedTotal = ratingsForStats.length;
+        calculatedAverage = ratingsForStats.reduce((sum, r) => sum + r.rating, 0) / calculatedTotal;
+      }
+      
+      console.log('🔍 DEBUG - Statistiques calculées en direct:', {
+        calculatedAverage: calculatedAverage.toFixed(1),
+        calculatedTotal,
+        dbAverage: devProfile?.average_rating,
+        dbTotal: devProfile?.total_ratings
+      });
+
+      // Combiner les données en priorisant les données calculées en direct si elles diffèrent
+      const useCalculatedStats = calculatedTotal !== (devProfile?.total_ratings || 0);
+      
       const combinedProfile = {
         // Données de base du profil
         id: profile.id,
@@ -180,8 +202,9 @@ export default function DeveloperProfilePage() {
         speciality: devProfile?.specialization || '',
         years_of_experience: devProfile?.experience_years || devProfile?.years_of_experience,
         hourly_rate: devProfile?.daily_rate || devProfile?.hourly_rate,
-        average_rating: devProfile?.average_rating || 0,
-        total_ratings: devProfile?.total_ratings || 0,
+        // 🆕 Utiliser les statistiques calculées en direct si la DB n'est pas à jour
+        average_rating: useCalculatedStats ? Math.round(calculatedAverage * 10) / 10 : (devProfile?.average_rating || 0),
+        total_ratings: useCalculatedStats ? calculatedTotal : (devProfile?.total_ratings || 0),
         languages: devProfile?.languages || [],
         availability: devProfile?.availability || 'available',
         timezone: devProfile?.timezone || '',
@@ -191,7 +214,11 @@ export default function DeveloperProfilePage() {
         website_url: devProfile?.website || ''
       };
 
-      console.log('✅ Profil combiné:', combinedProfile);
+      console.log('✅ Profil combiné avec stats:', {
+        average_rating: combinedProfile.average_rating,
+        total_ratings: combinedProfile.total_ratings,
+        useCalculatedStats
+      });
       setDeveloper(combinedProfile);
 
     } catch (error) {
@@ -660,11 +687,25 @@ export default function DeveloperProfilePage() {
           currentUser={currentUser}
           onRatingSubmitted={() => {
             setShowRatingModal(false);
-            // Recharger les ratings ET le profil complet après un délai pour laisser le temps à la base de se mettre à jour
+            // Rechargement immédiat puis avec délais pour capturer toutes les mises à jour
+            console.log('🔄 Rating soumis, rechargement en cours...');
+            
+            // Rechargement immédiat
+            loadDeveloperRatings();
+            
+            // Premier rechargement après 1 seconde
             setTimeout(() => {
+              console.log('🔄 Premier rechargement (1s)');
               loadDeveloperProfile();
               loadDeveloperRatings();
-            }, 2000); // Attendre 2 secondes pour que la mise à jour des stats soit terminée
+            }, 1000);
+            
+            // Deuxième rechargement après 3 secondes
+            setTimeout(() => {
+              console.log('🔄 Deuxième rechargement (3s)');
+              loadDeveloperProfile();
+              loadDeveloperRatings();
+            }, 3000);
           }}
         />
       )}
