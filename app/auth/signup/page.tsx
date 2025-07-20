@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
 import { createClient } from '@/lib/supabase'
@@ -19,6 +19,50 @@ export default function SignupPage() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const router = useRouter()
   const { t } = useLanguage()
+
+  // 🔍 DEBUG - État pour afficher les informations de debug
+  const [debugInfo, setDebugInfo] = useState({
+    lastAction: '',
+    timestamp: '',
+    supabaseStatus: 'unknown',
+    networkStatus: 'unknown',
+    errorMessage: '',
+    recommendation: '',
+    errorType: '',
+    errorStatus: '',
+    errorCode: ''
+  })
+
+  // 🔍 DEBUG - Fonction pour mettre à jour les infos de debug
+  const updateDebugInfo = (action: string, details?: any) => {
+    setDebugInfo(prev => ({
+      ...prev,
+      lastAction: action,
+      timestamp: new Date().toISOString(),
+      ...(details || {})
+    }))
+    console.log('🔍 DEBUG UPDATE:', action, details)
+  }
+
+  // 🔍 DEBUG - Test de connectivité au montage du composant
+  useEffect(() => {
+    const testConnectivity = async () => {
+      updateDebugInfo('Testing Supabase connectivity...')
+      try {
+        const { data, error } = await supabase.auth.getSession()
+        updateDebugInfo('Supabase connectivity test', {
+          supabaseStatus: error ? 'error' : 'ok',
+          networkStatus: 'ok'
+        })
+      } catch (err) {
+        updateDebugInfo('Supabase connectivity failed', {
+          supabaseStatus: 'failed',
+          networkStatus: 'failed'
+        })
+      }
+    }
+    testConnectivity()
+  }, [])
 
   // Données de base
   const [basicData, setBasicData] = useState({
@@ -157,8 +201,14 @@ export default function SignupPage() {
   const handleFinalSubmit = async () => {
     setLoading(true)
     setError('')
+    updateDebugInfo('Starting signup process...')
 
-    console.log('🔄 DEBUT INSCRIPTION')
+    // 🔍 DEBUG AMÉLIORÉ - Information système
+    console.log('🔄 DEBUT INSCRIPTION - TIMESTAMP:', new Date().toISOString())
+    console.log('🌐 User Agent:', navigator.userAgent)
+    console.log('🌐 URL actuelle:', window.location.href)
+    console.log('🌐 Origin:', window.location.origin)
+    
     console.log('📝 Données:', { 
       email: basicData.email, 
       password: basicData.password.length + ' caractères', 
@@ -166,15 +216,34 @@ export default function SignupPage() {
       userType 
     })
 
+    // 🔍 DEBUG - Vérifier l'état de Supabase
+    console.log('🔧 Configuration Supabase:')
+    console.log('- URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+    console.log('- Anon Key disponible:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+
     try {
       // Validation photo obligatoire pour développeurs
       if (userType === 'developer' && !profilePhoto) {
+        updateDebugInfo('Validation failed: Missing profile photo')
         setError('Une photo de profil est obligatoire pour les développeurs')
         setLoading(false)
         return
       }
 
+      updateDebugInfo('Preparing Supabase request...')
       console.log('📤 Envoi requête Supabase...')
+
+      // 🔍 DEBUG - Test de connectivité avant signup
+      console.log('🔍 Test connectivité Supabase...')
+      updateDebugInfo('Testing Supabase connectivity before signup...')
+      try {
+        const { data: testSession } = await supabase.auth.getSession()
+        console.log('✅ Connectivité Supabase OK, session actuelle:', testSession)
+        updateDebugInfo('Supabase connectivity OK', { supabaseStatus: 'ok' })
+      } catch (connectError) {
+        console.error('❌ Problème connectivité Supabase:', connectError)
+        updateDebugInfo('Supabase connectivity failed', { supabaseStatus: 'failed', error: connectError.message })
+      }
 
       // Préparer les métadonnées utilisateur
       const userMetadata = {
@@ -202,44 +271,115 @@ export default function SignupPage() {
         })
       }
 
-      console.log('📊 Métadonnées utilisateur:', userMetadata)
+      console.log('📊 Métadonnées utilisateur complètes:', userMetadata)
+
+      // 🔍 DEBUG - Préparer les options de signup avec debug
+      const signUpOptions = {
+        data: userMetadata,
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?type=signup`
+      }
+      console.log('📤 Options signup:', signUpOptions)
+
+      // 🔍 DEBUG - Timestamp avant l'appel
+      const startTime = Date.now()
+      console.log('⏰ Début appel signUp:', new Date(startTime).toISOString())
+      updateDebugInfo('Calling Supabase signUp API...', { startTime })
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: basicData.email,
         password: basicData.password,
-        options: {
-          data: userMetadata,
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?type=signup`
-        }
+        options: signUpOptions
       })
 
-      console.log('📊 REPONSE SUPABASE:')
+      // 🔍 DEBUG - Timestamp après l'appel
+      const endTime = Date.now()
+      console.log('⏰ Fin appel signUp:', new Date(endTime).toISOString())
+      console.log('⏱️ Durée appel:', (endTime - startTime), 'ms')
+      updateDebugInfo('Supabase signUp API completed', { 
+        duration: (endTime - startTime),
+        hasError: !!authError,
+        hasData: !!authData
+      })
+
+      console.log('📊 REPONSE SUPABASE COMPLETE:')
       console.log('✅ Data:', authData)
       console.log('❌ Error:', authError)
 
+      // 🔍 DEBUG - Analyse détaillée de l'erreur
       if (authError) {
-        console.log('🚨 ERREUR DETAILS:', authError.message, authError.status)
+        console.log('🚨 ERREUR DETAILS COMPLETES:')
+        console.log('- Message:', authError.message)
+        console.log('- Status:', authError.status)
+        console.log('- Code:', authError.code)
+        console.log('- Stack:', authError.stack)
+        console.log('- Objet complet:', JSON.stringify(authError, null, 2))
+        
+        updateDebugInfo('Supabase signup failed', {
+          errorMessage: authError.message,
+          errorStatus: authError.status,
+          errorCode: authError.code
+        })
+        
+        // 🔍 DEBUG - Spécial pour rate limit
+        if (authError.message?.includes('rate limit') || authError.status === 429) {
+          console.log('🚨 RATE LIMIT DETECTE!')
+          console.log('- Type d\'erreur: Rate Limit Exceeded')
+          console.log('- Statut HTTP:', authError.status)
+          console.log('- Recommandation: Attendre ou configurer SMTP personnalisé')
+          updateDebugInfo('Rate limit detected', { 
+            errorType: 'RATE_LIMIT',
+            status: authError.status,
+            recommendation: 'Wait or configure custom SMTP'
+          })
+        }
+
+        // 🔍 DEBUG - Spécial pour 504/timeout
+        if (authError.status === 504 || authError.message?.includes('timeout')) {
+          console.log('🚨 TIMEOUT/504 DETECTE!')
+          console.log('- Type d\'erreur: Server Timeout')
+          console.log('- Cause probable: Problème infrastructure Supabase')
+          console.log('- Recommandation: Réessayer dans quelques minutes')
+          updateDebugInfo('Server timeout detected', {
+            errorType: 'TIMEOUT',
+            status: authError.status,
+            recommendation: 'Retry in a few minutes'
+          })
+        }
+
         setError(authError.message)
         setLoading(false)
         return
       }
 
       if (!authData.user) {
+        console.log('❌ Aucun utilisateur retourné par Supabase')
+        updateDebugInfo('No user returned by Supabase')
         setError('Erreur lors de la création du compte')
         setLoading(false)
         return
       }
 
-      console.log('✅ Utilisateur créé:', authData.user.id)
+      console.log('✅ Utilisateur créé avec succès!')
+      console.log('- ID:', authData.user.id)
+      console.log('- Email:', authData.user.email)
+      console.log('- Email confirmé:', authData.user.email_confirmed_at)
+      console.log('- Métadonnées:', authData.user.user_metadata)
+      
+      updateDebugInfo('User created successfully', {
+        userId: authData.user.id,
+        emailConfirmed: !!authData.user.email_confirmed_at
+      })
 
       // Upload photo si développeur
       let photoUrl = null
       if (userType === 'developer' && profilePhoto) {
         console.log('📸 Upload de la photo...')
+        updateDebugInfo('Uploading profile photo...')
         photoUrl = await uploadProfilePhoto(authData.user.id)
         
         if (photoUrl) {
           console.log('🔄 Mise à jour du profil avec la photo...')
+          updateDebugInfo('Updating profile with photo...')
           // Attendre un peu pour que le trigger ait créé le profil
           await new Promise(resolve => setTimeout(resolve, 1000))
           
@@ -250,13 +390,16 @@ export default function SignupPage() {
 
           if (updateError) {
             console.error('❌ Erreur mise à jour photo:', updateError)
+            updateDebugInfo('Photo update failed', { error: updateError.message })
           } else {
             console.log('✅ Photo mise à jour dans le profil')
+            updateDebugInfo('Photo updated successfully')
           }
         }
       }
 
-      console.log('🎉 Compte créé avec succès!')
+      console.log('🎉 Processus complet de création de compte terminé!')
+      updateDebugInfo('Account creation process completed successfully')
       
       // Message de succès différencié
       if (authData.user.email_confirmed_at) {
@@ -268,10 +411,24 @@ export default function SignupPage() {
       router.push('/auth/login')
 
     } catch (err) {
-      console.error('❌ Erreur générale:', err)
-      setError('Une erreur est survenue lors de la création du compte')
+      console.error('❌ ERREUR GENERALE COMPLETE:')
+      console.error('- Message:', err.message)
+      console.error('- Stack:', err.stack)
+      console.error('- Objet complet:', err)
+      console.error('- Type:', typeof err)
+      console.error('- Constructor:', err.constructor?.name)
+      
+      updateDebugInfo('General error occurred', {
+        errorMessage: err.message,
+        errorType: typeof err,
+        errorConstructor: err.constructor?.name
+      })
+      
+      setError('Une erreur est survenue lors de la création du compte: ' + err.message)
     } finally {
       setLoading(false)
+      console.log('🔄 FIN PROCESSUS INSCRIPTION - TIMESTAMP:', new Date().toISOString())
+      updateDebugInfo('Signup process finished')
     }
   }
 
@@ -690,6 +847,48 @@ export default function SignupPage() {
                 </Link>
               </p>
             </div>
+
+            {/* 🔍 DEBUG Panel - Only in development */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-8 p-4 bg-gray-100 rounded-lg border-2 border-gray-300">
+                <h3 className="text-sm font-bold text-gray-800 mb-2">🔍 Debug Info</h3>
+                <div className="text-xs text-gray-600 space-y-1">
+                  <div><strong>Dernière action:</strong> {debugInfo.lastAction}</div>
+                  <div><strong>Timestamp:</strong> {debugInfo.timestamp}</div>
+                  <div><strong>Statut Supabase:</strong> 
+                    <span className={`ml-1 px-2 py-1 rounded ${
+                      debugInfo.supabaseStatus === 'ok' ? 'bg-green-200 text-green-800' :
+                      debugInfo.supabaseStatus === 'failed' ? 'bg-red-200 text-red-800' :
+                      'bg-yellow-200 text-yellow-800'
+                    }`}>
+                      {debugInfo.supabaseStatus}
+                    </span>
+                  </div>
+                  <div><strong>Réseau:</strong> 
+                    <span className={`ml-1 px-2 py-1 rounded ${
+                      debugInfo.networkStatus === 'ok' ? 'bg-green-200 text-green-800' :
+                      debugInfo.networkStatus === 'failed' ? 'bg-red-200 text-red-800' :
+                      'bg-yellow-200 text-yellow-800'
+                    }`}>
+                      {debugInfo.networkStatus}
+                    </span>
+                  </div>
+                  {debugInfo.errorMessage && (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                      <strong>Erreur:</strong> {debugInfo.errorMessage}
+                    </div>
+                  )}
+                  {debugInfo.recommendation && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                      <strong>Recommandation:</strong> {debugInfo.recommendation}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2 text-xs text-gray-500">
+                  Ouvrez la console (F12) pour plus de détails
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
