@@ -21,6 +21,14 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     headers: {
       'x-application-name': 'dev-client-matcher'
+    },
+    // 🔧 Augmenter le timeout pour les réponses lentes
+    fetch: (url, options = {}) => {
+      return fetch(url, {
+        ...options,
+        // Timeout de 30 secondes au lieu de 10 par défaut
+        signal: AbortSignal.timeout(30000)
+      })
     }
   },
   // 🔍 DEBUG - Ajouter des logs pour les requêtes

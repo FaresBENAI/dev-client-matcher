@@ -290,11 +290,54 @@ export default function SignupPage() {
         console.log('⏰ Début appel signUp:', new Date(startTime).toISOString())
         updateDebugInfo('Calling Supabase signUp API...', { startTime })
 
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: basicData.email,
-          password: basicData.password,
-          options: signUpOptions
-        })
+        let authData, authError
+
+        try {
+          // Tentative avec le client Supabase normal
+          const result = await supabase.auth.signUp({
+            email: basicData.email,
+            password: basicData.password,
+            options: signUpOptions
+          })
+          authData = result.data
+          authError = result.error
+        } catch (clientError) {
+          console.log('❌ Erreur client Supabase, tentative API directe...', clientError)
+          
+          // 🔄 Fallback: Appel direct à l'API Supabase
+          try {
+            updateDebugInfo('Trying direct API call as fallback...')
+            
+            const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/signup`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+              },
+              body: JSON.stringify({
+                email: basicData.email,
+                password: basicData.password,
+                data: signUpOptions.data,
+                gotrue_meta_security: {},
+              })
+            })
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+            }
+
+            const apiResult = await response.json()
+            authData = apiResult
+            authError = null
+            console.log('✅ API directe réussie!', apiResult)
+            updateDebugInfo('Direct API call successful')
+            
+          } catch (apiError) {
+            console.error('❌ Erreur API directe aussi:', apiError)
+            authError = clientError // Garder l'erreur client originale
+          }
+        }
 
         // 🔍 DEBUG - Timestamp après l'appel
         const endTime = Date.now()
