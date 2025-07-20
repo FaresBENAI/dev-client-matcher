@@ -382,207 +382,102 @@ function ProjectsContent() {
 
     setApplicationLoading(true);
     try {
-      console.log('🔍 DEBUG - Début candidature:', {
+      console.log('🚀 DÉMARRAGE CANDIDATURE FORCÉE:', {
         userId: user.id,
         projectId: selectedProject.id,
-        clientId: selectedProject.client_id,
-        message: applicationData.message.substring(0, 50) + '...'
+        clientId: selectedProject.client_id
       });
 
-      // 1. Vérifier si une candidature existe déjà
-      console.log('🔍 DEBUG - Vérification candidature existante...');
-      const { data: existingApplication, error: checkError } = await supabase
+      // 1. CRÉER LA CANDIDATURE D'ABORD
+      const { data: newApplication, error: appError } = await supabase
         .from('project_applications')
-        .select('id, status')
-        .eq('project_id', selectedProject.id)
-        .eq('developer_id', user.id)
+        .insert({
+          developer_id: user.id,
+          project_id: selectedProject.id,
+          status: 'pending'
+        })
+        .select()
         .single();
 
-      console.log('🔍 DEBUG - Résultat vérification:', {
-        existingApplication,
-        checkError,
-        errorCode: checkError?.code
-      });
-
-      if (existingApplication) {
-        console.log('❌ DEBUG - Candidature existante trouvée');
-        
-        // Vérifier si le message de candidature existe dans la conversation
-        const { data: existingConversation } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('client_id', selectedProject.client_id)
-          .eq('developer_id', user.id)
-          .eq('project_id', selectedProject.id)
-          .single();
-
-        if (existingConversation) {
-          const { data: existingMessage } = await supabase
-            .from('messages')
-            .select('id')
-            .eq('conversation_id', existingConversation.id)
-            .eq('sender_id', user.id)
-            .ilike('content', '%🎯 **Candidature pour votre projet**%')
-            .single();
-
-          if (!existingMessage) {
-            console.log('🔍 DEBUG - Création du message de candidature manquant...');
-            // Créer le message de candidature manquant
-            const messageData = {
-              conversation_id: existingConversation.id,
-              sender_id: user.id,
-              content: `🎯 **Candidature pour votre projet**\n\n**Projet :** ${selectedProject.title}\n\n**Message du candidat :**\nCandidature envoyée\n\n💡 *Le candidat peut vous envoyer son CV dans cette conversation si nécessaire.*`,
-              is_read: false
-            };
-
-            const { error: msgError } = await supabase
-              .from('messages')
-              .insert([messageData]);
-
-            if (msgError) {
-              console.error('❌ DEBUG - Erreur création message:', msgError);
-            } else {
-              console.log('✅ DEBUG - Message de candidature créé avec succès');
-            }
-          }
-        }
-        
-        // Fermer la modal actuelle et afficher l'alerte stylée
-        closeApplicationModal();
-        setExistingApplicationData({
-          status: existingApplication.status,
-          project: selectedProject
-        });
-        setShowExistingApplicationAlert(true);
-        return;
-      }
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('❌ DEBUG - Erreur lors de la vérification:', checkError);
-        throw new Error(`Erreur vérification: ${checkError.message}`);
-      }
-
-      // 2. Créer la candidature directement
-      console.log('🔍 DEBUG - Création candidature...');
-      const applicationDataToInsert = {
-        developer_id: user.id,
-        project_id: selectedProject.id,
-        status: 'pending'
-      };
-
-      console.log('🔍 DEBUG - Données à insérer:', applicationDataToInsert);
-
-      const { data: appData, error: appError } = await supabase
-        .from('project_applications')
-        .insert([applicationDataToInsert])
-        .select();
-
-      console.log('🔍 DEBUG - Résultat insertion candidature:', {
-        appData,
-        appError
-      });
-
       if (appError) {
-        console.error('❌ DEBUG - Erreur création candidature:', appError);
+        console.error('❌ Erreur candidature:', appError);
         throw new Error(`Erreur candidature: ${appError.message}`);
       }
 
-      console.log('✅ DEBUG - Candidature créée avec succès:', appData);
+      console.log('✅ Candidature créée:', newApplication);
 
-      // 3. Créer une conversation si elle n'existe pas déjà
-      console.log('🔍 DEBUG - Vérification conversation existante...');
-      const { data: existingConv, error: convCheckError } = await supabase
+      // 2. SUPPRIMER CONVERSATION EXISTANTE S'IL Y EN A UNE (pour éviter conflits)
+      await supabase
         .from('conversations')
-        .select('id')
+        .delete()
         .eq('client_id', selectedProject.client_id)
         .eq('developer_id', user.id)
-        .eq('project_id', selectedProject.id)
-        .single();
+        .eq('project_id', selectedProject.id);
 
-      console.log('🔍 DEBUG - Résultat vérification conversation:', {
-        existingConv,
-        convCheckError,
-        errorCode: convCheckError?.code
-      });
+      console.log('🗑️ Conversations existantes supprimées');
 
-      let conversationId = existingConv?.id;
-
-      if (!conversationId) {
-        console.log('🔍 DEBUG - Création nouvelle conversation...');
-        const conversationData = {
+      // 3. CRÉER NOUVELLE CONVERSATION FORCÉE
+      const { data: newConversation, error: convError } = await supabase
+        .from('conversations')
+        .insert({
           client_id: selectedProject.client_id,
           developer_id: user.id,
           project_id: selectedProject.id,
-          subject: `Candidature pour "${selectedProject.title}"`
-        };
+          subject: `Candidature pour "${selectedProject.title}"`,
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-        console.log('🔍 DEBUG - Données conversation:', conversationData);
-
-        const { data: newConv, error: convError } = await supabase
-          .from('conversations')
-          .insert([conversationData])
-          .select('id')
-          .single();
-
-        console.log('🔍 DEBUG - Résultat création conversation:', {
-          newConv,
-          convError
-        });
-
-        if (convError) {
-          console.error('❌ DEBUG - Erreur conversation:', convError);
-          // Ne pas faire échouer toute la candidature pour ça
-          console.log('⚠️ DEBUG - Candidature créée mais pas de conversation');
-        } else {
-          conversationId = newConv.id;
-          console.log('✅ DEBUG - Conversation créée:', conversationId);
-        }
-      } else {
-        console.log('✅ DEBUG - Conversation existante utilisée:', conversationId);
+      if (convError) {
+        console.error('❌ Erreur conversation:', convError);
+        throw new Error(`Erreur conversation: ${convError.message}`);
       }
 
-      // 4. Créer un message de candidature (si conversation disponible)
-      if (conversationId) {
-        console.log('🔍 DEBUG - Création message de candidature...');
-        const messageData = {
-          conversation_id: conversationId,
+      console.log('✅ Conversation créée:', newConversation);
+
+      // 4. CRÉER MESSAGE DE CANDIDATURE FORCÉ
+      const { data: newMessage, error: msgError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: newConversation.id,
           sender_id: user.id,
-          content: `🎯 **Nouvelle candidature pour votre projet**\n\n**Projet :** ${selectedProject.title}\n\n**Message du candidat :**\n${applicationData.message}\n\n💡 *Le candidat peut vous envoyer son CV dans cette conversation si nécessaire.*`,
-          is_read: false
-        };
+          content: `🎯 **NOUVELLE CANDIDATURE**\n\n**Projet :** ${selectedProject.title}\n\n**Message du candidat :**\n${applicationData.message}\n\n💼 **Budget :** ${selectedProject.budget_min}€ - ${selectedProject.budget_max}€\n\n✨ Le candidat est prêt à démarrer le projet !`,
+          is_read: false,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-        console.log('🔍 DEBUG - Données message:', messageData);
-
-        const { error: msgError } = await supabase
-          .from('messages')
-          .insert([messageData]);
-
-        console.log('🔍 DEBUG - Résultat création message:', { msgError });
-
-        if (msgError) {
-          console.error('❌ DEBUG - Erreur message:', msgError);
-          // Ne pas faire échouer la candidature pour ça
-          console.log('⚠️ DEBUG - Candidature créée mais pas de message');
-        } else {
-          console.log('✅ DEBUG - Message créé avec succès');
-        }
+      if (msgError) {
+        console.error('❌ Erreur message:', msgError);
+        throw new Error(`Erreur message: ${msgError.message}`);
       }
 
-      console.log('🎉 DEBUG - Candidature soumise avec succès !');
-      setApplicationSuccess(true);
+      console.log('✅ Message créé:', newMessage);
+
+      // 5. METTRE À JOUR LE TIMESTAMP DE LA CONVERSATION
+      await supabase
+        .from('conversations')
+        .update({ 
+          updated_at: new Date().toISOString(),
+          last_message_at: new Date().toISOString()
+        })
+        .eq('id', newConversation.id);
+
+      console.log('🎉 CANDIDATURE COMPLÈTE RÉUSSIE !');
+      alert('✅ Candidature envoyée avec succès ! Vérifiez vos messages.');
       
-      // Fermer la modal après 2 secondes
+      setApplicationSuccess(true);
       setTimeout(() => {
         closeApplicationModal();
       }, 2000);
       
     } catch (error: any) {
-      console.error('❌ DEBUG - Erreur globale:', {
-        error,
-        message: error?.message,
-        stack: error?.stack
-      });
-      alert(`Erreur lors de la candidature: ${error?.message || 'Erreur inconnue'}`);
+      console.error('💥 ERREUR CANDIDATURE:', error);
+      alert(`❌ Erreur: ${error.message}`);
     } finally {
       setApplicationLoading(false);
     }
