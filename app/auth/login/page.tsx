@@ -21,28 +21,58 @@ function LoginPageContent() {
   useEffect(() => {
     setMounted(true);
     
-    // Vérifier si l'utilisateur est déjà connecté
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        console.log('✅ Utilisateur déjà connecté, redirection...');
+    // 🔧 CORRECTION : Nettoyer toute session corrompue au chargement
+    const forceCleanSession = async () => {
+      try {
+        // Vérifier la session actuelle
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        // Récupérer le profil pour redirection appropriée
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('user_type')
-          .eq('id', session.user.id)
-          .single();
-        
-        const dashboardRoute = profile?.user_type === 'client' 
-          ? '/dashboard/client'
-          : '/dashboard/developer';
-        
-        router.push(dashboardRoute);
+        if (error || (session && !session.user)) {
+          console.log('🧹 Session corrompue détectée, nettoyage...');
+          await supabase.auth.signOut();
+          // Forcer la suppression des tokens localStorage
+          localStorage.removeItem('supabase.auth.token');
+          sessionStorage.clear();
+          console.log('✅ Session nettoyée');
+        }
+      } catch (err) {
+        console.log('🧹 Erreur session, nettoyage forcé...');
+        await supabase.auth.signOut();
+        localStorage.clear();
+        sessionStorage.clear();
       }
     };
     
-    checkUser();
+    // Nettoyer d'abord, puis vérifier l'utilisateur
+    forceCleanSession().then(() => {
+      // Vérifier si l'utilisateur est déjà connecté (après nettoyage)
+      const checkUser = async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            console.log('✅ Utilisateur déjà connecté, redirection...');
+            
+            // Récupérer le profil pour redirection appropriée
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('user_type')
+              .eq('id', session.user.id)
+              .single();
+            
+            const dashboardRoute = profile?.user_type === 'client' 
+              ? '/dashboard/client'
+              : '/dashboard/developer';
+            
+            router.push(dashboardRoute);
+          }
+        } catch (error) {
+          console.log('⚠️ Erreur lors de la vérification utilisateur:', error);
+          // Continuer normalement sur la page de login
+        }
+      };
+      
+      checkUser();
+    });
   }, []);
 
   // Récupérer le redirectTo seulement côté client
