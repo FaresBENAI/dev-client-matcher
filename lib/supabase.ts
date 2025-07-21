@@ -1,5 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 
+// 🔧 Polyfill pour AbortSignal.timeout (compatibilité navigateurs)
+if (typeof AbortSignal !== 'undefined' && !AbortSignal.timeout) {
+  AbortSignal.timeout = function(delay: number): AbortSignal {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), delay);
+    return controller.signal;
+  };
+}
+
 // Variables d'environnement Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
