@@ -212,22 +212,53 @@ function ProjectsContent() {
       console.log('📍 DEBUG: Pas d\'utilisateur, redirection vers login');
       // Stocker le projet dans le localStorage pour après l'auth
       localStorage.setItem('pendingApplication', JSON.stringify(project));
-      router.push('/auth/login?redirect=projects&action=apply');
+      
+      // Mettre à jour le popup pour informer de la redirection
+      setInfoPopupData({
+        title: 'Connexion requise',
+        message: 'Vous devez être connecté pour candidater. Redirection vers la page de connexion...',
+        type: 'info'
+      });
+      
+      // Redirection après un court délai
+      setTimeout(() => {
+        router.push('/auth/login?redirect=projects&action=apply');
+      }, 1500);
       return;
     }
     
     // Vérifier si l'utilisateur n'est pas le créateur du projet
     if (user.id === project.client_id) {
       console.log('⚠️ DEBUG: Utilisateur est le créateur du projet');
-      alert('Vous ne pouvez pas candidater à votre propre projet.');
+      
+      // Mettre à jour le popup pour informer de l'erreur
+      setInfoPopupData({
+        title: 'Candidature impossible',
+        message: 'Vous ne pouvez pas candidater à votre propre projet.',
+        type: 'info'
+      });
       return;
     }
     
     // Avertissement pour les clients mais permettre quand même
     if (userProfile?.user_type === 'client') {
       console.log('⚠️ DEBUG: Utilisateur est un client');
+      
+      // Fermer le popup de traitement et demander confirmation
+      setShowInfoPopup(false);
+      
       const confirmed = confirm('Vous êtes inscrit comme client. Voulez-vous vraiment candidater à ce projet en tant que développeur ?');
-      if (!confirmed) return;
+      if (!confirmed) {
+        return;
+      }
+      
+      // Réafficher le popup de traitement si confirmé
+      setInfoPopupData({
+        title: 'Traitement en cours...',
+        message: 'Votre demande de candidature est en cours de traitement. Veuillez patienter quelques instants.',
+        type: 'processing'
+      });
+      setShowInfoPopup(true);
     }
     
     console.log('🔍 DEBUG: Vérification des candidatures existantes...');
@@ -294,6 +325,9 @@ function ProjectsContent() {
         }
 
         console.log('📢 DEBUG: Affichage alerte candidature existante');
+        // Fermer le popup de traitement
+        setShowInfoPopup(false);
+        
         // Afficher l'alerte stylée pour candidature existante
         setExistingApplicationData({
           status: existingApplication.status,
@@ -311,6 +345,9 @@ function ProjectsContent() {
     // Ouvrir la modal de candidature
     setSelectedProject(project);
     setShowApplicationModal(true);
+    
+    // Fermer le popup de traitement puisqu'on ouvre la modal
+    setShowInfoPopup(false);
   };
 
   const closeCreateModal = () => {
@@ -644,7 +681,7 @@ function ProjectsContent() {
   }
 
   const ProjectCard = ({ project }: { project: Project }) => {
-    // Fonction pour gérer la candidature avec preventDefault et debug
+    // Fonction pour gérer la candidature avec popup immédiat
     const handleApply = (e: React.MouseEvent) => {
       console.log('🔥 DEBUG: Bouton candidature cliqué!', {
         projectId: project.id,
@@ -656,12 +693,29 @@ function ProjectsContent() {
       e.preventDefault();
       e.stopPropagation();
       
-      try {
-        handleApplyToProject(project);
-        console.log('✅ DEBUG: handleApplyToProject appelé avec succès');
-      } catch (error) {
-        console.error('❌ DEBUG: Erreur dans handleApplyToProject:', error);
-      }
+      // 🎯 POPUP IMMÉDIAT - Afficher le popup de traitement dès le premier clic
+      setInfoPopupData({
+        title: 'Traitement en cours...',
+        message: 'Votre demande de candidature est en cours de traitement. Veuillez patienter quelques instants.',
+        type: 'processing'
+      });
+      setShowInfoPopup(true);
+      
+      // Délai court pour permettre au popup de s'afficher, puis traiter la candidature
+      setTimeout(() => {
+        try {
+          handleApplyToProject(project);
+          console.log('✅ DEBUG: handleApplyToProject appelé avec succès');
+        } catch (error) {
+          console.error('❌ DEBUG: Erreur dans handleApplyToProject:', error);
+          // En cas d'erreur immédiate, fermer le popup et afficher l'erreur
+          setInfoPopupData({
+            title: 'Erreur',
+            message: 'Une erreur est survenue lors du traitement de votre candidature. Veuillez réessayer.',
+            type: 'info'
+          });
+        }
+      }, 100);
     };
 
     return (
