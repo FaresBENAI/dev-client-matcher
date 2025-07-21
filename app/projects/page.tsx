@@ -678,7 +678,7 @@ function ProjectsContent() {
           <div className="mb-3">
             <div className="flex flex-wrap gap-1">
               {project.required_skills.slice(0, 2).map((skill, index) => (
-                <span key={index} className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded hover:scale-105 transition-all duration-300">
+                <span key={index} className="px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-medium rounded transition-colors duration-300">
                   {skill}
                 </span>
               ))}
@@ -945,7 +945,7 @@ function ProjectsContent() {
                   <p className="text-gray-600 mb-4">Publiez votre projet et trouvez le développeur parfait !</p>
                   <button
                     onClick={handleCreateProject}
-                    className="bg-black text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-black hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto text-sm sm:text-base"
+                    className="bg-black text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-black hover:bg-gray-800 transition-colors duration-300 flex items-center gap-2 mx-auto text-sm sm:text-base"
                   >
                     <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
                     Créer mon premier projet
