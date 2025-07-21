@@ -629,8 +629,15 @@ function ProjectsContent() {
   }
 
   const ProjectCard = ({ project }: { project: Project }) => {
+    // Fonction pour gérer la candidature avec preventDefault
+    const handleApply = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleApplyToProject(project);
+    };
+
     return (
-      <div className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+      <div className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
           <span className="px-3 py-1 bg-black text-white text-xs font-bold rounded-full w-fit">
             {getTypeIcon(project.project_type)} {project.project_type || 'Projet'}
@@ -694,18 +701,19 @@ function ProjectsContent() {
         <div className="flex gap-2">
           <button 
             onClick={() => router.push(`/projects/${project.id}`)}
-            className="flex-1 bg-black text-white hover:bg-gray-800 font-bold py-2 rounded-lg text-sm transition-all duration-300 hover:scale-105"
+            className="flex-1 bg-black text-white hover:bg-gray-800 font-bold py-2 rounded-lg text-sm transition-colors duration-300"
           >
             {t('projects.see')} →
           </button>
           
-          {/* Bouton candidater - simple condition */}
+          {/* Bouton candidater amélioré */}
           {user?.id !== project.client_id && (
             <button 
-              onClick={() => handleApplyToProject(project)}
-              className="border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium px-4 py-2 rounded-lg text-sm"
+              onClick={handleApply}
+              className="border-2 border-gray-300 text-gray-700 hover:border-black hover:bg-gray-50 font-bold px-4 py-2 rounded-lg text-sm transition-colors duration-300 flex items-center justify-center min-w-[48px]"
+              title="Candidater à ce projet"
             >
-              <Send className="h-3 w-3" />
+              <Send className="h-4 w-4" />
             </button>
           )}
         </div>
