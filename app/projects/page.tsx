@@ -200,7 +200,16 @@ function ProjectsContent() {
   };
 
   const handleApplyToProject = async (project: Project) => {
+    console.log('🚀 DEBUG: handleApplyToProject appelé', {
+      project: project.title,
+      projectId: project.id,
+      user: user?.email,
+      userId: user?.id,
+      userProfile: userProfile
+    });
+
     if (!user) {
+      console.log('📍 DEBUG: Pas d\'utilisateur, redirection vers login');
       // Stocker le projet dans le localStorage pour après l'auth
       localStorage.setItem('pendingApplication', JSON.stringify(project));
       router.push('/auth/login?redirect=projects&action=apply');
@@ -209,15 +218,19 @@ function ProjectsContent() {
     
     // Vérifier si l'utilisateur n'est pas le créateur du projet
     if (user.id === project.client_id) {
+      console.log('⚠️ DEBUG: Utilisateur est le créateur du projet');
       alert('Vous ne pouvez pas candidater à votre propre projet.');
       return;
     }
     
     // Avertissement pour les clients mais permettre quand même
     if (userProfile?.user_type === 'client') {
+      console.log('⚠️ DEBUG: Utilisateur est un client');
       const confirmed = confirm('Vous êtes inscrit comme client. Voulez-vous vraiment candidater à ce projet en tant que développeur ?');
       if (!confirmed) return;
     }
+    
+    console.log('🔍 DEBUG: Vérification des candidatures existantes...');
     
     // Vérifier si une candidature existe déjà
     try {
@@ -280,6 +293,7 @@ function ProjectsContent() {
           console.log('⚠️ DEBUG - Pas de conversation trouvée pour cette candidature');
         }
 
+        console.log('📢 DEBUG: Affichage alerte candidature existante');
         // Afficher l'alerte stylée pour candidature existante
         setExistingApplicationData({
           status: existingApplication.status,
@@ -293,6 +307,7 @@ function ProjectsContent() {
       console.log('🔍 DEBUG - Aucune candidature existante trouvée, continuer...');
     }
     
+    console.log('📝 DEBUG: Ouverture modal de candidature');
     // Ouvrir la modal de candidature
     setSelectedProject(project);
     setShowApplicationModal(true);
@@ -629,15 +644,28 @@ function ProjectsContent() {
   }
 
   const ProjectCard = ({ project }: { project: Project }) => {
-    // Fonction pour gérer la candidature avec preventDefault
+    // Fonction pour gérer la candidature avec preventDefault et debug
     const handleApply = (e: React.MouseEvent) => {
+      console.log('🔥 DEBUG: Bouton candidature cliqué!', {
+        projectId: project.id,
+        projectTitle: project.title,
+        userId: user?.id,
+        clientId: project.client_id
+      });
+      
       e.preventDefault();
       e.stopPropagation();
-      handleApplyToProject(project);
+      
+      try {
+        handleApplyToProject(project);
+        console.log('✅ DEBUG: handleApplyToProject appelé avec succès');
+      } catch (error) {
+        console.error('❌ DEBUG: Erreur dans handleApplyToProject:', error);
+      }
     };
 
     return (
-      <div className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1">
+      <div className="group bg-gray-50 rounded-2xl p-4 border-2 border-gray-200 hover:border-black transition-colors duration-300 hover:shadow-lg">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
           <span className="px-3 py-1 bg-black text-white text-xs font-bold rounded-full w-fit">
             {getTypeIcon(project.project_type)} {project.project_type || 'Projet'}
@@ -706,14 +734,16 @@ function ProjectsContent() {
             {t('projects.see')} →
           </button>
           
-          {/* Bouton candidater amélioré */}
+          {/* Bouton candidater RENFORCÉ */}
           {user?.id !== project.client_id && (
             <button 
               onClick={handleApply}
-              className="border-2 border-gray-300 text-gray-700 hover:border-black hover:bg-gray-50 font-bold px-4 py-2 rounded-lg text-sm transition-colors duration-300 flex items-center justify-center min-w-[48px]"
+              onMouseDown={handleApply}
+              className="border-2 border-gray-300 text-gray-700 hover:border-black hover:bg-gray-50 font-bold px-6 py-2 rounded-lg text-sm transition-colors duration-300 flex items-center justify-center min-w-[60px] cursor-pointer"
               title="Candidater à ce projet"
+              style={{ minWidth: '60px', minHeight: '40px' }}
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-5 w-5" />
             </button>
           )}
         </div>
