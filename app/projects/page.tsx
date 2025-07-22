@@ -390,6 +390,14 @@ function ProjectsContent() {
     e.preventDefault();
     if (!user) return;
 
+    // 🎯 POPUP IMMÉDIAT - Afficher le popup de traitement dès la soumission
+    setInfoPopupData({
+      title: 'Création en cours...',
+      message: 'Votre projet est en cours de création. Cette opération peut prendre quelques instants. Veuillez patienter...',
+      type: 'processing'
+    });
+    setShowInfoPopup(true);
+
     setCreateLoading(true);
     try {
       console.log('=== CREATION PROJET ===');
@@ -423,15 +431,32 @@ function ProjectsContent() {
       
       console.log('Project created successfully:', data);
 
-      // Fermer la modal et recharger les projets
+      // Fermer la modal et afficher popup de succès
       closeCreateModal();
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 5000);
+      
+      // Mettre à jour le popup pour le succès
+      setInfoPopupData({
+        title: 'Projet créé avec succès !',
+        message: '🎉 Votre projet a été créé et publié avec succès ! Il est maintenant visible par tous les développeurs. Vous recevrez des candidatures dans votre messagerie.',
+        type: 'success'
+      });
+      
       await loadProjects(); // Recharger la liste
+      
+      // Fermer le popup de succès après 5 secondes
+      setTimeout(() => {
+        setShowInfoPopup(false);
+      }, 5000);
       
     } catch (error: any) {
       console.error('Erreur lors de la création:', error);
-      alert(`Erreur lors de la création du projet: ${error.message}`);
+      
+      // Mettre à jour le popup pour afficher l'erreur
+      setInfoPopupData({
+        title: 'Erreur de création',
+        message: `Une erreur s'est produite lors de la création de votre projet : ${error.message}. Veuillez réessayer.`,
+        type: 'info'
+      });
     } finally {
       setCreateLoading(false);
     }

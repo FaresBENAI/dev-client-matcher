@@ -370,10 +370,10 @@ export default function ClientDashboard() {
     e.preventDefault();
     if (!user) return;
 
-    // Afficher le popup d'information immédiatement
+    // 🎯 POPUP IMMÉDIAT - Afficher le popup de traitement dès la soumission
     setInfoPopupData({
-      title: 'Création en cours',
-      message: 'La création de votre projet peut prendre quelques minutes. Nous analysons vos besoins et préparons votre projet pour recevoir les meilleures candidatures de développeurs.',
+      title: 'Création en cours...',
+      message: 'Votre projet est en cours de création. Cette opération peut prendre quelques instants. Veuillez patienter...',
       type: 'processing'
     });
     setShowInfoPopup(true);
@@ -414,17 +414,22 @@ export default function ClientDashboard() {
       closeCreateModal();
       await loadDashboardData(user.id); // Recharger les données du dashboard
       
-      // Afficher popup de succès
+      // Mettre à jour le popup pour le succès
       setInfoPopupData({
-        title: 'Projet créé !',
-        message: '🎉 Votre projet a été créé avec succès ! Il est maintenant visible par tous les développeurs de la plateforme. Vous recevrez des notifications dès que des développeurs candidateront.',
+        title: 'Projet créé avec succès !',
+        message: '🎉 Votre projet a été créé et publié avec succès ! Il est maintenant visible par tous les développeurs de la plateforme. Vous recevrez des notifications dès que des développeurs candidateront.',
         type: 'success'
       });
+      
+      // Fermer le popup de succès après 5 secondes
+      setTimeout(() => {
+        setShowInfoPopup(false);
+      }, 5000);
       
     } catch (error: any) {
       console.error('Erreur lors de la création:', error);
       
-      // Afficher popup d'erreur
+      // Mettre à jour le popup pour afficher l'erreur
       setInfoPopupData({
         title: 'Erreur de création',
         message: `Une erreur s'est produite lors de la création de votre projet : ${error.message}. Veuillez réessayer.`,
