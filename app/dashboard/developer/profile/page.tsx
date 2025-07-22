@@ -525,20 +525,20 @@ export default function DeveloperProfilePage() {
         <div className="space-y-6">
           
           {/* Photo de profil */}
-          <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6">
-            <h2 className="text-xl font-black text-black mb-4 flex items-center gap-2">
+          <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-black text-black mb-4 flex items-center gap-2">
               <Camera className="h-5 w-5" />
               Photo de profil *
             </h2>
             
-            <div className="flex items-center gap-6">
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
               <div className="relative">
-                <div className="w-32 h-32 bg-gray-100 rounded-full border-4 border-gray-200 overflow-hidden">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-100 rounded-full border-4 border-gray-200 overflow-hidden">
                   {imagePreview ? (
                     <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <User className="h-12 w-12 text-gray-400" />
+                      <User className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
                     </div>
                   )}
                 </div>
@@ -550,8 +550,8 @@ export default function DeveloperProfilePage() {
                 )}
               </div>
               
-              <div>
-                <label className="bg-black text-white px-4 py-2 font-black hover:bg-gray-800 cursor-pointer inline-flex items-center gap-2">
+              <div className="text-center sm:text-left w-full sm:w-auto">
+                <label className="bg-black text-white px-4 py-3 font-black hover:bg-gray-800 cursor-pointer inline-flex items-center gap-2 rounded-lg text-sm sm:text-base">
                   <Upload className="h-4 w-4" />
                   Choisir une photo
                   <input
@@ -561,7 +561,7 @@ export default function DeveloperProfilePage() {
                     className="hidden"
                   />
                 </label>
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-xs sm:text-sm text-gray-600 mt-2">
                   Format JPG, PNG ou GIF. Max 5MB. <span className="text-red-600 font-bold">Obligatoire</span>
                 </p>
               </div>
@@ -569,13 +569,13 @@ export default function DeveloperProfilePage() {
           </div>
 
           {/* Informations de base */}
-          <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6">
-            <h2 className="text-xl font-black text-black mb-4 flex items-center gap-2">
+          <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-black text-black mb-4 flex items-center gap-2">
               <User className="h-5 w-5" />
               Informations personnelles
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-black text-black mb-2">
                   Nom complet *
@@ -585,7 +585,7 @@ export default function DeveloperProfilePage() {
                   required
                   value={formData.full_name}
                   onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                  className="w-full px-3 sm:px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold text-sm sm:text-base rounded-lg"
                   placeholder="Votre nom complet"
                 />
               </div>
@@ -598,7 +598,7 @@ export default function DeveloperProfilePage() {
                   type="email"
                   disabled
                   value={formData.email}
-                  className="w-full px-4 py-3 border-2 border-gray-200 bg-gray-50 font-bold text-gray-600"
+                  className="w-full px-3 sm:px-4 py-3 border-2 border-gray-200 bg-gray-50 font-bold text-gray-600 text-sm sm:text-base rounded-lg"
                 />
               </div>
               
@@ -610,7 +610,7 @@ export default function DeveloperProfilePage() {
                   type="text"
                   value={formData.location}
                   onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                  className="w-full px-3 sm:px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold text-sm sm:text-base rounded-lg"
                   placeholder="Ville, Pays"
                 />
               </div>
@@ -623,7 +623,7 @@ export default function DeveloperProfilePage() {
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                  className="w-full px-3 sm:px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold text-sm sm:text-base rounded-lg"
                   placeholder="+33 6 12 34 56 78"
                 />
               </div>
@@ -631,17 +631,17 @@ export default function DeveloperProfilePage() {
           </div>
 
           {/* Langues parlées */}
-          <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6">
-            <h2 className="text-xl font-black text-black mb-4 flex items-center gap-2">
+          <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-black text-black mb-4 flex items-center gap-2">
               <Globe className="h-5 w-5" />
               Langues parlées * (Max 2)
             </h2>
             
-            <div className="flex gap-3 mb-4">
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="flex-1 px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                className="flex-1 px-3 sm:px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold text-sm sm:text-base"
                 disabled={formData.languages.length >= 2}
               >
                 <option value="">Sélectionner une langue</option>
@@ -656,9 +656,10 @@ export default function DeveloperProfilePage() {
                 type="button"
                 onClick={addLanguage}
                 disabled={!selectedLanguage || formData.languages.length >= 2}
-                className="bg-black text-white px-4 py-3 font-black hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="bg-black text-white px-4 py-3 font-black hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg w-full sm:w-auto flex items-center justify-center gap-2"
               >
                 <Plus className="h-5 w-5" />
+                <span className="sm:hidden">Ajouter</span>
               </button>
             </div>
             
@@ -667,7 +668,7 @@ export default function DeveloperProfilePage() {
                 {formData.languages.map((langCode) => (
                   <span
                     key={langCode}
-                    className="bg-black text-white px-4 py-2 font-bold flex items-center gap-2"
+                    className="bg-black text-white px-3 sm:px-4 py-2 font-bold flex items-center gap-2 rounded-lg text-sm sm:text-base"
                   >
                     <span className="text-lg">{LANGUAGES[langCode]?.flag}</span>
                     {LANGUAGES[langCode]?.name}
@@ -685,16 +686,16 @@ export default function DeveloperProfilePage() {
           </div>
 
           {/* Compétences IA */}
-          <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6">
-            <h2 className="text-xl font-black text-black mb-4 flex items-center gap-2">
+          <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-black text-black mb-4 flex items-center gap-2">
               🧠 Compétences IA * (Min 3, Max 8)
             </h2>
             
-            <div className="flex gap-3 mb-4">
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <select
                 value={selectedSkill}
                 onChange={(e) => setSelectedSkill(e.target.value)}
-                className="flex-1 px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
+                className="flex-1 px-3 sm:px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold text-sm sm:text-base"
                 disabled={formData.skills.length >= 8}
               >
                 <option value="">Sélectionner une compétence</option>
@@ -709,9 +710,10 @@ export default function DeveloperProfilePage() {
                 type="button"
                 onClick={addSkill}
                 disabled={!selectedSkill || formData.skills.length >= 8}
-                className="bg-black text-white px-4 py-3 font-black hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                className="bg-black text-white px-4 py-3 font-black hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg self-center w-full sm:w-auto flex items-center justify-center gap-2"
               >
                 <Plus className="h-5 w-5" />
+                <span className="sm:hidden">Ajouter</span>
               </button>
             </div>
             
@@ -720,7 +722,7 @@ export default function DeveloperProfilePage() {
                 {formData.skills.map((skill) => (
                   <span
                     key={skill}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 text-sm font-bold flex items-center gap-2"
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 text-sm font-bold flex items-center gap-2 rounded-full"
                   >
                     {skill}
                     <button

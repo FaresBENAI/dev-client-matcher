@@ -472,29 +472,29 @@ export default function ClientDashboard() {
     <div className="min-h-screen bg-gray-50">
       
       {/* Header avec fond noir */}
-      <div className="bg-black text-white py-8">
+      <div className="bg-black text-white py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-black mb-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl font-black mb-2">
                 {t('dashboard.client.title')}
               </h1>
-              <p className="text-gray-300">
+              <p className="text-gray-300 text-sm sm:text-base">
                 {t('dashboard.client.welcome')} {userProfile?.full_name || user?.email} - {t('dashboard.client.subtitle')}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
               <button
                 onClick={refreshData}
                 disabled={loading}
-                className="bg-gray-800 text-white px-4 py-3 font-bold rounded-lg hover:bg-gray-700 transition-all duration-300 flex items-center gap-2 disabled:opacity-50"
+                className="bg-gray-800 text-white px-4 py-3 font-bold rounded-lg hover:bg-gray-700 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 {t('dashboard.refresh')}
               </button>
               <button
                 onClick={handleCreateProject}
-                className="bg-white text-black px-6 py-3 font-black rounded-lg hover:bg-gray-100 transition-all duration-300 flex items-center gap-2"
+                className="bg-white text-black px-6 py-3 font-black rounded-lg hover:bg-gray-100 transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 <Plus className="h-5 w-5" />
                 {t('dashboard.new.project')}
