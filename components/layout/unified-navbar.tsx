@@ -119,17 +119,39 @@ function NavbarContent() {
         { 
           event: '*', 
           schema: 'public', 
-          table: 'messages',
-          filter: `sender_id=eq.${user.id}` 
+          table: 'messages'
         }, 
         () => {
           loadUnreadCount(user.id);
         }
       )
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'messages'
+        }, 
+        (payload) => {
+          // Si un message est marqué comme lu, mettre à jour le compteur
+          if (payload.new.is_read !== payload.old.is_read) {
+            loadUnreadCount(user.id);
+          }
+        }
+      )
       .subscribe();
+
+    // Écouter les événements personnalisés de marquage de messages
+    const handleMessagesRead = (event) => {
+      if (event.detail.userId === user.id) {
+        loadUnreadCount(user.id);
+      }
+    };
+
+    window.addEventListener('messagesRead', handleMessagesRead);
 
     return () => {
       supabase.removeChannel(subscription);
+      window.removeEventListener('messagesRead', handleMessagesRead);
     };
   }, [user]);
 

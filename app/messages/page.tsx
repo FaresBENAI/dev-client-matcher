@@ -268,21 +268,34 @@ export default function MessagesPage() {
 
   const markMessagesAsRead = async (conversationId: string) => {
     if (!user) return;
-    
+
     try {
+      // Marquer tous les messages non lus comme lus
       const { error } = await supabase
         .from('messages')
         .update({ is_read: true })
         .eq('conversation_id', conversationId)
-        .neq('sender_id', user.id);
+        .neq('sender_id', user.id) // Messages reçus par l'utilisateur actuel
+        .is('is_read', false);
 
-      if (!error) {
-        await loadConversations(user.id);
+      if (error) {
+        console.error('Erreur marquage messages comme lus:', error);
+        return;
       }
+
+      // Mettre à jour la liste des conversations pour refléter les changements
+      await loadConversations(user.id);
+      
+      // Déclencher une mise à jour du compteur de notifications dans la navbar
+      // En utilisant un événement personnalisé
+      window.dispatchEvent(new CustomEvent('messagesRead', { 
+        detail: { conversationId, userId: user.id } 
+      }));
+
     } catch (error) {
-      console.error('Erreur lors du marquage des messages:', error);
+      console.error('Erreur générale marquage messages:', error);
     }
-  }
+  };
 
   const loadApplicationData = async (projectId: string, developerId: string) => {
     try {
@@ -585,44 +598,65 @@ export default function MessagesPage() {
                   const otherParticipant = getOtherParticipant(conversation)
                   const isSelected = selectedConversation?.id === conversation.id
                   
+                  // Compter les messages non lus pour cet utilisateur
+                  const unreadCount = conversation.messages?.filter(msg => 
+                    !msg.is_read && msg.sender_id !== user?.id
+                  ).length || 0
+                  
+                  // Déterminer le contenu à afficher (dernier message ou message de candidature)
+                  let displayContent = ''
+                  let displayTime = ''
+                  
+                  if (lastMessage) {
+                    displayContent = lastMessage.content
+                    displayTime = new Date(lastMessage.created_at).toLocaleString()
+                  }
+                  
                   return (
                     <div
                       key={conversation.id}
                       onClick={() => selectConversation(conversation)}
-                    className={`p-3 md:p-4 border-b border-gray-100 cursor-pointer transition-colors ${
+                      className={`p-3 md:p-4 border-b border-gray-100 cursor-pointer transition-colors ${
                         isSelected ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
-                      }`}
+                      } ${unreadCount > 0 ? 'border-l-4 border-l-black bg-gray-50' : ''}`}
                     >
                       <div className="flex items-start space-x-3">
-                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                        {otherParticipant?.avatar ? (
+                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                          {otherParticipant?.avatar ? (
                             <img
                               src={otherParticipant.avatar}
                               alt={otherParticipant.name}
                               className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs md:text-sm">
-                            {(otherParticipant?.name || 'U').charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs md:text-sm">
+                              {(otherParticipant?.name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                          )}
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-sm md:text-base text-black truncate">
-                          {otherParticipant?.name || t('messages.anonymous.user')}
+                          <div className="flex items-center justify-between mb-1">
+                            <h3 className="font-bold text-sm md:text-base text-black truncate">
+                              {otherParticipant?.name || t('messages.anonymous.user')}
                             </h3>
-                        <p className="text-xs text-gray-500 mb-1">
-                          {conversation.projects?.title || t('messages.general.conversation')}
-                        </p>
-                            {lastMessage && (
-                          <p className="text-xs md:text-sm text-gray-600 truncate">
-                            {lastMessage.content}
+                            {unreadCount > 0 && (
+                              <span className="bg-black text-white text-xs font-bold px-2 py-1 rounded-full min-w-[20px] text-center">
+                                {unreadCount}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mb-1">
+                            {conversation.projects?.title || t('messages.general.conversation')}
+                          </p>
+                          {displayContent && (
+                            <p className={`text-xs md:text-sm truncate ${unreadCount > 0 ? 'font-bold text-black' : 'text-gray-600'}`}>
+                              {displayContent}
                             </p>
                           )}
-                          {lastMessage && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            {new Date(lastMessage.created_at).toLocaleString()}
+                          {displayTime && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {displayTime}
                             </p>
                           )}
                         </div>
