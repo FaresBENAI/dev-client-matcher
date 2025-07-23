@@ -950,21 +950,21 @@ export default function SignupPage() {
                 )}
 
                 <div className="flex space-x-4">
-                  <Button
+                  <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="bg-white border-2 border-black text-black hover:bg-black hover:text-white py-3 px-6"
+                    className="bg-white border-2 border-black text-black hover:bg-black hover:text-white py-3 px-6 font-bold rounded-xl transition-all duration-300"
                   >
                     ← Retour
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     type="button"
                     onClick={handleFinalSubmit}
                     disabled={loading || !profilePhoto}
-                    className="flex-1 bg-black text-white hover:bg-gray-800 border-2 border-black py-3 text-lg font-bold disabled:bg-gray-400 disabled:border-gray-400"
+                    className="flex-1 bg-black text-white hover:bg-gray-800 border-2 border-black py-3 text-lg font-bold disabled:bg-gray-400 disabled:border-gray-400 rounded-xl transition-all duration-300"
                   >
                     {loading ? t('signup.creating') : t('signup.create.developer.profile')}
-                  </Button>
+                  </button>
                 </div>
               </div>
             )}
