@@ -358,9 +358,12 @@ export default function MessagesPage() {
       if (error) throw error
 
       setNewMessage('')
+      
+      // Forcer le rechargement des conversations pour mettre à jour l'aperçu
+      await loadConversations(user.id)
       await markMessagesAsRead(selectedConversation.id)
-      loadMessages(selectedConversation.id)
-      loadConversations(user.id)
+      await loadMessages(selectedConversation.id)
+      
     } catch (error) {
       console.error('Erreur lors de l\'envoi du message:', error)
     } finally {
@@ -773,7 +776,7 @@ export default function MessagesPage() {
                             const StatusIcon = getStatusIcon(projectData.status);
                             return <StatusIcon className="h-4 w-4 text-gray-600" />;
                           })()}
-                          <span className="font-bold text-gray-800 text-sm">Statut du Projet</span>
+                          <span className="font-bold text-gray-800 text-sm">{t('project.detail.project.status')}</span>
                           <span className={`px-2 py-1 text-xs font-bold border rounded ${getStatusColor(projectData.status)}`}>
                             {getStatusLabel(projectData.status)}
                           </span>
@@ -784,7 +787,7 @@ export default function MessagesPage() {
                             className="bg-gray-600 text-white px-2 py-1 rounded font-bold hover:bg-gray-700 transition-colors text-xs flex items-center"
                           >
                             <Settings className="h-3 w-3 mr-1" />
-                            Modifier
+                            {t('btn.edit')}
                           </button>
                         )}
                       </div>
@@ -792,13 +795,13 @@ export default function MessagesPage() {
                       {/* Progression compacte */}
                       <div className="mb-2">
                         <div className="flex justify-between text-xs text-gray-600 mb-1">
-                          <span>Progression</span>
+                          <span>{t('project.detail.progress')}</span>
                           <span className="font-medium">
                             {projectData.status === 'completed' ? '100%' : 
                              projectData.status === 'in_progress' ? '50%' : 
                              projectData.status === 'open' ? '10%' : '0%'}
                           </span>
-                  </div>
+                        </div>
                         <div className="w-full bg-gray-200 rounded-full h-1.5">
                           <div 
                             className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -815,17 +818,17 @@ export default function MessagesPage() {
                       <div className="flex justify-between text-xs text-gray-600">
                         <div className="flex items-center space-x-3">
                           <div>
-                            <span className="font-medium">💼 Budget:</span>
+                            <span className="font-medium">💼 {t('project.detail.budget')}:</span>
                             <span className="ml-1">
                               {projectData.budget_min && projectData.budget_max 
                                 ? `${projectData.budget_min}€ - ${projectData.budget_max}€`
-                                : 'À négocier'
+                                : t('dashboard.budget.negotiate')
                               }
                             </span>
                           </div>
                         </div>
                         <div>
-                          <span className="font-medium">📅 Créé:</span>
+                          <span className="font-medium">📅 {t('project.detail.created')}:</span>
                           <span className="ml-1">
                             {new Date(projectData.created_at).toLocaleDateString('fr-FR', {
                               day: '2-digit',
