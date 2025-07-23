@@ -783,9 +783,6 @@ const translations = {
     'profile.developer.actions': 'Actions',
     'profile.developer.rate': 'Rate this developer',
     'profile.developer.edit.profile': 'Edit my profile',
-    'profile.developer.availability.available': 'Available',
-    'profile.developer.availability.busy': 'Busy',
-    'profile.developer.availability.unavailable': 'Unavailable',
     
     // Project Details Page
     'project.details.back.to.projects': 'Back to projects',
