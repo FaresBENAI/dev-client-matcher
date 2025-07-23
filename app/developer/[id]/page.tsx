@@ -392,7 +392,7 @@ export default function DeveloperProfilePage() {
                       <span>{developer.location}</span>
                     </div>
                   )}
-
+                  
                   <div className="flex items-center text-gray-600">
                     <Mail className="h-4 w-4 mr-3 text-gray-400" />
                     <span>{developer.email}</span>
@@ -404,7 +404,7 @@ export default function DeveloperProfilePage() {
                       <span>{developer.phone}</span>
                     </div>
                   )}
-
+                  
                   {(developer.portfolio_url || developer.website_url) && (
                     <div className="flex items-center text-gray-600">
                       <Globe className="h-4 w-4 mr-3 text-gray-400" />
@@ -475,7 +475,7 @@ export default function DeveloperProfilePage() {
                       )}
                     </div>
                   ) : (
-                    <Link
+                    <Link 
                       href="/dashboard/developer/profile"
                       className="w-full bg-black text-white py-3 px-6 rounded-lg font-bold hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
                     >
@@ -483,7 +483,7 @@ export default function DeveloperProfilePage() {
                       {t('profile.developer.edit.profile')}
                     </Link>
                   )}
-                </div>
+                  </div>
               </div>
             </div>
 
@@ -525,7 +525,7 @@ export default function DeveloperProfilePage() {
               </div>
 
               {/* Langues */}
-              <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
+                <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
                 <h2 className="text-xl font-black text-black mb-6">{t('profile.developer.languages')}</h2>
                 {developer.languages && developer.languages.length > 0 ? (
                   <div className="flex flex-wrap gap-3">
@@ -543,7 +543,7 @@ export default function DeveloperProfilePage() {
                     {t('profile.developer.no.languages')}
                   </p>
                 )}
-              </div>
+                </div>
 
               {/* Portfolio & Liens */}
               {(developer.portfolio_url || developer.github_url || developer.linkedin_url || developer.website_url) && (
@@ -590,7 +590,7 @@ export default function DeveloperProfilePage() {
               )}
 
               {/* Avis & Évaluations */}
-              <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
+                <div className="bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-gray-300 transition-all duration-300">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-black text-black">{t('profile.developer.ratings.reviews')}</h2>
                   <button
@@ -631,7 +631,7 @@ export default function DeveloperProfilePage() {
                               <StarRating rating={rating.rating} />
                               <span className="text-sm text-gray-600">
                                 {t('profile.developer.ratings.by')} {rating.client_name || t('profile.developer.ratings.anonymous')}
-                              </span>
+                                </span>
                             </div>
                             <span className="text-xs text-gray-400">
                               {new Date(rating.created_at).toLocaleDateString()}
@@ -649,9 +649,9 @@ export default function DeveloperProfilePage() {
                           )}
                         </div>
                       ))}
-                    </div>
-                  </div>
-                ) : (
+                          </div>
+                        </div>
+                      ) : (
                   <div className="text-center py-8">
                     <Star className="h-16 w-16 mx-auto mb-4 text-gray-300" />
                     <h3 className="text-lg font-semibold text-gray-600 mb-2">
@@ -660,9 +660,9 @@ export default function DeveloperProfilePage() {
                     <p className="text-gray-500">
                       {t('profile.developer.ratings.first.review')}
                     </p>
-                  </div>
-                )}
-              </div>
+                        </div>
+                      )}
+                    </div>
             </div>
           </div>
         </div>

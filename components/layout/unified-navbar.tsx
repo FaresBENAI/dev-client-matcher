@@ -28,18 +28,38 @@ function NavbarContent() {
   // Fonction pour charger les messages non lus
   const loadUnreadCount = async (userId) => {
     try {
-      const { data, error } = await supabase
-        .from('messages')
+      // 1. Récupérer toutes les conversations de l'utilisateur
+      const { data: conversations, error: convError } = await supabase
+        .from('conversations')
         .select('id')
-        .eq('sender_id', userId)
-        .eq('is_read', false);
+        .or(`client_id.eq.${userId},developer_id.eq.${userId}`);
 
-      if (error) {
-        console.error('Erreur chargement messages non lus:', error);
+      if (convError) {
+        console.error('Erreur chargement conversations:', convError);
         return;
       }
 
-      setUnreadCount(data?.length || 0);
+      if (!conversations || conversations.length === 0) {
+        setUnreadCount(0);
+        return;
+      }
+
+      // 2. Compter les messages non lus reçus par l'utilisateur
+      const conversationIds = conversations.map(conv => conv.id);
+      
+      const { data: unreadMessages, error: msgError } = await supabase
+        .from('messages')
+        .select('id')
+        .in('conversation_id', conversationIds)
+        .neq('sender_id', userId) // Messages reçus (pas envoyés par l'utilisateur)
+        .eq('is_read', false);
+
+      if (msgError) {
+        console.error('Erreur comptage messages non lus:', msgError);
+        return;
+      }
+
+      setUnreadCount(unreadMessages?.length || 0);
     } catch (error) {
       console.error('Erreur:', error);
     }

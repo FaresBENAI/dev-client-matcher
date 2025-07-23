@@ -222,7 +222,7 @@ function ProjectsContent() {
       
       // Redirection après un court délai
       setTimeout(() => {
-        router.push('/auth/login?redirect=projects&action=apply');
+      router.push('/auth/login?redirect=projects&action=apply');
       }, 1500);
       return;
     }
@@ -327,7 +327,7 @@ function ProjectsContent() {
         console.log('📢 DEBUG: Affichage alerte candidature existante');
         // Fermer le popup de traitement
         setShowInfoPopup(false);
-        
+
         // Afficher l'alerte stylée pour candidature existante
         setExistingApplicationData({
           status: existingApplication.status,
@@ -486,9 +486,9 @@ function ProjectsContent() {
       const { data: newApplication, error: appError } = await supabase
         .from('project_applications')
         .insert({
-          developer_id: user.id,
-          project_id: selectedProject.id,
-          status: 'pending'
+        developer_id: user.id,
+        project_id: selectedProject.id,
+        status: 'pending'
         })
         .select()
         .single();
@@ -530,9 +530,9 @@ function ProjectsContent() {
         const { data: newConversation, error: convError } = await supabase
           .from('conversations')
           .insert({
-            client_id: selectedProject.client_id,
-            developer_id: user.id,
-            project_id: selectedProject.id,
+          client_id: selectedProject.client_id,
+          developer_id: user.id,
+          project_id: selectedProject.id,
             subject: `Candidature pour "${selectedProject.title}"`,
             status: 'active',
             created_at: new Date().toISOString(),

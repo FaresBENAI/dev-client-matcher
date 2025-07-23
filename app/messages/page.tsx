@@ -533,14 +533,14 @@ export default function MessagesPage() {
         {/* Header mobile uniquement */}
         <div className="md:hidden absolute top-0 left-0 right-0 bg-white border-b border-gray-200 z-10 p-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <button 
-                onClick={() => router.back()}
-                className="flex items-center text-gray-600 hover:text-black transition-colors mr-4"
-              >
-                <ArrowLeft className="h-5 w-5 mr-2" />
+          <div className="flex items-center">
+            <button 
+              onClick={() => router.back()}
+              className="flex items-center text-gray-600 hover:text-black transition-colors mr-4"
+            >
+              <ArrowLeft className="h-5 w-5 mr-2" />
                 {t('messages.back')}
-              </button>
+            </button>
               <h1 className="text-xl font-black text-black">{t('nav.messages')}</h1>
             </div>
           </div>
@@ -568,76 +568,76 @@ export default function MessagesPage() {
         <div className="w-full md:w-1/3 bg-white border-r border-gray-200 flex flex-col mt-16 md:mt-24">
           <div className="p-4 md:p-6 border-b border-gray-200">
             <h2 className="text-lg md:text-xl font-bold text-black flex items-center">
-              <MessageCircle className="h-5 w-5 mr-2" />
+                <MessageCircle className="h-5 w-5 mr-2" />
               {t('messages.conversations')} ({conversations.length})
-            </h2>
-          </div>
-          
-          <div className="overflow-y-auto h-full">
-            {conversations.length === 0 ? (
+              </h2>
+            </div>
+            
+            <div className="overflow-y-auto h-full">
+              {conversations.length === 0 ? (
               <div className="p-4 md:p-6 text-center text-gray-500">
                 <MessageCircle className="h-8 md:h-12 w-8 md:w-12 mx-auto mb-4 text-gray-300" />
                 <p className="text-sm md:text-base">{t('messages.no.conversations')}</p>
-              </div>
-            ) : (
-              conversations.map((conversation) => {
-                const lastMessage = conversation.messages?.[conversation.messages.length - 1]
-                const otherParticipant = getOtherParticipant(conversation)
-                const isSelected = selectedConversation?.id === conversation.id
-                
-                return (
-                  <div
-                    key={conversation.id}
-                    onClick={() => selectConversation(conversation)}
+                </div>
+              ) : (
+                conversations.map((conversation) => {
+                  const lastMessage = conversation.messages?.[conversation.messages.length - 1]
+                  const otherParticipant = getOtherParticipant(conversation)
+                  const isSelected = selectedConversation?.id === conversation.id
+                  
+                  return (
+                    <div
+                      key={conversation.id}
+                      onClick={() => selectConversation(conversation)}
                     className={`p-3 md:p-4 border-b border-gray-100 cursor-pointer transition-colors ${
-                      isSelected ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3">
+                        isSelected ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-start space-x-3">
                       <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                         {otherParticipant?.avatar ? (
-                          <img
-                            src={otherParticipant.avatar}
-                            alt={otherParticipant.name}
-                            className="w-full h-full object-cover"
+                            <img
+                              src={otherParticipant.avatar}
+                              alt={otherParticipant.name}
+                              className="w-full h-full object-cover"
                           />
                         ) : (
                           <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs md:text-sm">
                             {(otherParticipant?.name || 'U').charAt(0).toUpperCase()}
                           </div>
                         )}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-sm md:text-base text-black truncate">
                           {otherParticipant?.name || t('messages.anonymous.user')}
-                        </h3>
+                            </h3>
                         <p className="text-xs text-gray-500 mb-1">
                           {conversation.projects?.title || t('messages.general.conversation')}
                         </p>
-                        {lastMessage && (
+                            {lastMessage && (
                           <p className="text-xs md:text-sm text-gray-600 truncate">
                             {lastMessage.content}
-                          </p>
-                        )}
-                        {lastMessage && (
+                            </p>
+                          )}
+                          {lastMessage && (
                           <p className="text-xs text-gray-400 mt-1">
                             {new Date(lastMessage.created_at).toLocaleString()}
-                          </p>
-                        )}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })
-            )}
+                  )
+                })
+              )}
+            </div>
           </div>
-        </div>
 
         {/* Zone des messages - cachée sur mobile si aucune conversation sélectionnée */}
         <div className={`flex-1 flex-col mt-16 md:mt-24 ${selectedConversation ? 'flex' : 'hidden md:flex'}`}>
-          {selectedConversation ? (
-            <>
+            {selectedConversation ? (
+              <>
               {/* Header de la conversation enrichi */}
               <div className="bg-white border-b border-gray-200">
                 {/* Header principal */}
@@ -661,13 +661,13 @@ export default function MessagesPage() {
                         ) : (
                           <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs md:text-sm">
                             {(otherParticipant?.name || 'U').charAt(0).toUpperCase()}
-                          </div>
+                        </div>
                         )}
                       </div>
                       <div>
                         <h3 className="font-bold text-sm md:text-base text-black">
                           {otherParticipant?.name || t('messages.anonymous.user')}
-                        </h3>
+                          </h3>
                         <p className="text-xs md:text-sm text-gray-500">
                           {projectData?.title || selectedConversation.projects?.title || t('messages.general.conversation')}
                         </p>
@@ -707,9 +707,9 @@ export default function MessagesPage() {
                                 </span>
                                 <span className="text-xs text-gray-500">
                                   ({developerRating.total_ratings} {t('messages.ratings')})
-                                </span>
-                              </div>
+                              </span>
                             </div>
+                        </div>
                           )}
                           
                           {/* Bouton pour noter */}
@@ -721,13 +721,13 @@ export default function MessagesPage() {
                               <Star className="h-4 w-4 mr-2" />
                               {t('messages.rate')}
                             </button>
-                          )}
-                        </div>
+                        )}
+                      </div>
                       )}
                     </div>
-                  </div>
-                </div>
-
+                          </div>
+                        </div>
+                        
                 {/* Barre de statut du projet */}
                 {projectData && (
                   <div className="px-4 md:px-6 pb-4">
@@ -745,7 +745,7 @@ export default function MessagesPage() {
                           </span>
                         </div>
                         {userProfile?.user_type === 'client' && user?.id === projectData.client_id && (
-                          <button
+                          <button 
                             onClick={() => setShowStatusModal(true)}
                             className="bg-gray-600 text-white px-2 py-1 rounded font-bold hover:bg-gray-700 transition-colors text-xs flex items-center"
                           >
@@ -764,7 +764,7 @@ export default function MessagesPage() {
                              projectData.status === 'in_progress' ? '50%' : 
                              projectData.status === 'open' ? '10%' : '0%'}
                           </span>
-                        </div>
+                  </div>
                         <div className="w-full bg-gray-200 rounded-full h-1.5">
                           <div 
                             className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -804,109 +804,109 @@ export default function MessagesPage() {
                     </div>
                   </div>
                 )}
-              </div>
+                </div>
 
-              {/* Messages */}
+                {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 md:space-y-4">
-                {messages.length === 0 ? (
-                  <div className="text-center text-gray-500 py-8">
+                  {messages.length === 0 ? (
+                    <div className="text-center text-gray-500 py-8">
                     <MessageCircle className="h-8 md:h-12 w-8 md:w-12 mx-auto mb-4 text-gray-300" />
                     <p className="text-sm md:text-base">{t('messages.no.messages')}</p>
                     <p className="text-xs md:text-sm mt-2">{t('messages.start.conversation')}</p>
-                  </div>
-                ) : (
-                  messages.map((message) => {
-                    const isOwnMessage = message.sender_id === user?.id
-                    const senderProfile = profiles[message.sender_id]
-                    
-                    return (
-                      <div
-                        key={message.id}
-                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                      >
+                    </div>
+                  ) : (
+                    messages.map((message) => {
+                      const isOwnMessage = message.sender_id === user?.id
+                      const senderProfile = profiles[message.sender_id]
+                      
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                        >
                         <div className={`flex items-end space-x-2 max-w-[85%] md:max-w-xs lg:max-w-md ${
-                          isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''
-                        }`}>
-                          {/* Avatar dans les messages */}
-                          {!isOwnMessage && (
-                            <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                              {senderProfile?.avatar_url ? (
-                                <img
-                                  src={senderProfile.avatar_url}
+                            isOwnMessage ? 'flex-row-reverse space-x-reverse' : ''
+                          }`}>
+                            {/* Avatar dans les messages */}
+                            {!isOwnMessage && (
+                              <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                                {senderProfile?.avatar_url ? (
+                                  <img
+                                    src={senderProfile.avatar_url}
                                   alt={senderProfile.full_name || t('messages.user')}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none'
-                                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                                  }}
-                                />
-                              ) : null}
-                              <div className={`w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs ${senderProfile?.avatar_url ? 'hidden' : ''}`}>
-                                {(senderProfile?.full_name || 'U').charAt(0).toUpperCase()}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none'
+                                      e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                                    }}
+                                  />
+                                ) : null}
+                                <div className={`w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs ${senderProfile?.avatar_url ? 'hidden' : ''}`}>
+                                  {(senderProfile?.full_name || 'U').charAt(0).toUpperCase()}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                          
+                            )}
+                            
                           {/* Message */}
                           <div className={`px-3 py-2 rounded-lg max-w-full ${
-                            isOwnMessage 
-                              ? 'bg-black text-white' 
+                                isOwnMessage
+                                  ? 'bg-black text-white'
                               : 'bg-gray-200 text-gray-900'
                           }`}>
                             <p className="text-xs md:text-sm break-words whitespace-pre-wrap">
                               {message.content}
                             </p>
                             <p className={`text-xs mt-1 ${
-                              isOwnMessage ? 'text-gray-300' : 'text-gray-500'
+                                  isOwnMessage ? 'text-gray-300' : 'text-gray-500'
                             }`}>
                               {new Date(message.created_at).toLocaleTimeString('fr-FR', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </p>
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
+                      )
+                    })
+                  )}
+                </div>
 
               {/* Zone de saisie */}
               <div className="p-3 md:p-6 border-t border-gray-200 bg-white">
                 <div className="flex space-x-2 md:space-x-4">
-                  <textarea
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
+                    <textarea
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={handleKeyPress}
                     placeholder={t('messages.type.message')}
                     className="flex-1 p-2 md:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent resize-none text-sm md:text-base"
-                    rows={2}
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={sendingMessage || !newMessage.trim()}
+                      rows={2}
+                    />
+                    <button
+                      onClick={sendMessage}
+                      disabled={sendingMessage || !newMessage.trim()}
                     className="bg-black text-white px-3 md:px-6 py-2 rounded-lg font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                  >
-                    {sendingMessage ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </button>
+                    >
+                      {sendingMessage ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </>
-          ) : (
+              </>
+            ) : (
             <div className="flex-1 flex items-center justify-center text-gray-500 bg-white">
-              <div className="text-center">
+                <div className="text-center">
                 <MessageCircle className="h-12 md:h-16 w-12 md:w-16 mx-auto mb-4 text-gray-300" />
                 <p className="text-base md:text-lg font-semibold mb-2">{t('messages.select.conversation')}</p>
                 <p className="text-sm md:text-base">{t('messages.select.conversation.desc')}</p>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
         {/* Modal de changement de statut */}
         {showStatusModal && projectData && (
@@ -914,7 +914,7 @@ export default function MessagesPage() {
             <div className="bg-white rounded-lg max-w-md w-full">
               <div className="p-6 border-b border-gray-200">
                 <h3 className="text-lg font-bold text-black">Modifier le statut du projet</h3>
-              </div>
+        </div>
               
               <div className="p-6">
                 <div className="mb-4">
@@ -932,8 +932,8 @@ export default function MessagesPage() {
                     <option value="paused">En pause</option>
                     <option value="cancelled">Annulé</option>
                   </select>
-                </div>
-                
+      </div>
+
                 <div className="flex space-x-3">
                   <button
                     onClick={() => setShowStatusModal(false)}
@@ -954,23 +954,23 @@ export default function MessagesPage() {
         )}
 
         {/* Modal de notation */}
-        {showRatingModal && selectedConversation && otherParticipant && userProfile && (
-          <RatingModal
-            isOpen={showRatingModal}
-            onClose={() => setShowRatingModal(false)}
-            developerId={otherParticipant.id}
-            developerName={otherParticipant.name}
+      {showRatingModal && selectedConversation && otherParticipant && userProfile && (
+        <RatingModal
+          isOpen={showRatingModal}
+          onClose={() => setShowRatingModal(false)}
+          developerId={otherParticipant.id}
+          developerName={otherParticipant.name}
             projectTitle={projectData?.title || selectedConversation.projects?.title}
-            currentUser={userProfile}
-            onRatingSubmitted={() => {
-              console.log('Note soumise avec succès')
-              if (user) {
-                loadConversations(user.id)
-              }
-            }}
-          />
-        )}
+          currentUser={userProfile}
+          onRatingSubmitted={() => {
+            console.log('Note soumise avec succès')
+            if (user) {
+              loadConversations(user.id)
+            }
+          }}
+        />
+      )}
       </div>
     </div>
   )
-} 
+}

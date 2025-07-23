@@ -15,7 +15,7 @@ export default function LanguageSwitcher() {
             : 'text-gray-600 hover:text-black hover:bg-gray-200'
         }`}
       >
-        🇫🇷 FR
+        FR
       </button>
       <button
         onClick={() => setLanguage('en')}
@@ -25,7 +25,7 @@ export default function LanguageSwitcher() {
             : 'text-gray-600 hover:text-black hover:bg-gray-200'
         }`}
       >
-        🇺🇸 EN
+        EN
       </button>
     </div>
   )

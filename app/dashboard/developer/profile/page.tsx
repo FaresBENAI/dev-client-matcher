@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { Camera, Upload, X, Plus, Globe, Briefcase, MapPin, Calendar, Mail, User, Check, AlertCircle } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const supabase = createClient()
 
@@ -51,6 +52,7 @@ export default function DeveloperProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', content: '' });
+  const { t } = useLanguage();
   
   // États du formulaire
   const [formData, setFormData] = useState({
@@ -506,8 +508,8 @@ export default function DeveloperProfilePage() {
         
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6 mb-6">
-          <h1 className="text-3xl font-black text-black mb-2">Profil Développeur IA</h1>
-          <p className="text-gray-600">Complétez votre profil pour attirer les meilleurs clients</p>
+          <h1 className="text-3xl font-black text-black mb-2">{t('profile.developer.title')}</h1>
+          <p className="text-gray-600">{t('profile.developer.subtitle')}</p>
         </div>
 
         {/* Message de feedback */}
@@ -528,7 +530,7 @@ export default function DeveloperProfilePage() {
           <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-black text-black mb-4 flex items-center gap-2">
               <Camera className="h-5 w-5" />
-              Photo de profil *
+              {t('profile.developer.photo.title')} *
             </h2>
             
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
@@ -553,7 +555,7 @@ export default function DeveloperProfilePage() {
               <div className="text-center sm:text-left w-full sm:w-auto">
                 <label className="bg-black text-white px-4 py-3 font-black hover:bg-gray-800 cursor-pointer inline-flex items-center gap-2 rounded-lg text-sm sm:text-base">
                   <Upload className="h-4 w-4" />
-                  Choisir une photo
+                  {t('profile.developer.photo.choose')}
                   <input
                     type="file"
                     accept="image/*"
@@ -562,7 +564,7 @@ export default function DeveloperProfilePage() {
                   />
                 </label>
                 <p className="text-xs sm:text-sm text-gray-600 mt-2">
-                  Format JPG, PNG ou GIF. Max 5MB. <span className="text-red-600 font-bold">Obligatoire</span>
+                  {t('profile.developer.photo.format')} Max 5MB. <span className="text-red-600 font-bold">{t('profile.developer.photo.required')}</span>
                 </p>
               </div>
             </div>
@@ -572,13 +574,13 @@ export default function DeveloperProfilePage() {
           <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-black text-black mb-4 flex items-center gap-2">
               <User className="h-5 w-5" />
-              Informations personnelles
+              {t('profile.developer.personal.title')}
             </h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-black text-black mb-2">
-                  Nom complet *
+                  {t('profile.developer.personal.full_name')} *
                 </label>
                 <input
                   type="text"
@@ -586,13 +588,13 @@ export default function DeveloperProfilePage() {
                   value={formData.full_name}
                   onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
                   className="w-full px-3 sm:px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold text-sm sm:text-base rounded-lg"
-                  placeholder="Votre nom complet"
+                  placeholder={t('profile.developer.personal.full_name_placeholder')}
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-black text-black mb-2">
-                  Email
+                  {t('profile.developer.personal.email')}
                 </label>
                 <input
                   type="email"
@@ -604,27 +606,27 @@ export default function DeveloperProfilePage() {
               
               <div>
                 <label className="block text-sm font-black text-black mb-2">
-                  Localisation
+                  {t('profile.developer.personal.location')}
                 </label>
                 <input
                   type="text"
                   value={formData.location}
                   onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
                   className="w-full px-3 sm:px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold text-sm sm:text-base rounded-lg"
-                  placeholder="Ville, Pays"
+                  placeholder={t('profile.developer.personal.location_placeholder')}
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-black text-black mb-2">
-                  Téléphone
+                  {t('profile.developer.personal.phone')}
                 </label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                   className="w-full px-3 sm:px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold text-sm sm:text-base rounded-lg"
-                  placeholder="+33 6 12 34 56 78"
+                  placeholder={t('profile.developer.personal.phone_placeholder')}
                 />
               </div>
             </div>
@@ -634,7 +636,7 @@ export default function DeveloperProfilePage() {
           <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-black text-black mb-4 flex items-center gap-2">
               <Globe className="h-5 w-5" />
-              Langues parlées * (Max 2)
+              {t('profile.developer.languages.title')} * ({t('profile.developer.languages.max')})
             </h2>
             
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -644,7 +646,7 @@ export default function DeveloperProfilePage() {
                 className="flex-1 px-3 sm:px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold text-sm sm:text-base"
                 disabled={formData.languages.length >= 2}
               >
-                <option value="">Sélectionner une langue</option>
+                <option value="">{t('profile.developer.languages.select')}</option>
                 {Object.entries(LANGUAGES).map(([code, lang]) => (
                   <option key={code} value={code} disabled={formData.languages.includes(code)}>
                     {lang.flag} {lang.name}
@@ -659,7 +661,7 @@ export default function DeveloperProfilePage() {
                 className="bg-black text-white px-4 py-3 font-black hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg w-full sm:w-auto flex items-center justify-center gap-2"
               >
                 <Plus className="h-5 w-5" />
-                <span className="sm:hidden">Ajouter</span>
+                <span className="sm:hidden">{t('profile.developer.languages.add')}</span>
               </button>
             </div>
             
@@ -688,7 +690,7 @@ export default function DeveloperProfilePage() {
           {/* Compétences IA */}
           <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-4 sm:p-6">
             <h2 className="text-lg sm:text-xl font-black text-black mb-4 flex items-center gap-2">
-              🧠 Compétences IA * (Min 3, Max 8)
+              🧠 {t('profile.developer.skills.title')} * ({t('profile.developer.skills.min')}, {t('profile.developer.skills.max')})
             </h2>
             
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -698,7 +700,7 @@ export default function DeveloperProfilePage() {
                 className="flex-1 px-3 sm:px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold text-sm sm:text-base"
                 disabled={formData.skills.length >= 8}
               >
-                <option value="">Sélectionner une compétence</option>
+                <option value="">{t('profile.developer.skills.select')}</option>
                 {AI_SKILLS.map((skill) => (
                   <option key={skill} value={skill} disabled={formData.skills.includes(skill)}>
                     {skill}
@@ -713,7 +715,7 @@ export default function DeveloperProfilePage() {
                 className="bg-black text-white px-4 py-3 font-black hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg self-center w-full sm:w-auto flex items-center justify-center gap-2"
               >
                 <Plus className="h-5 w-5" />
-                <span className="sm:hidden">Ajouter</span>
+                <span className="sm:hidden">{t('profile.developer.skills.add')}</span>
               </button>
             </div>
             
@@ -738,14 +740,14 @@ export default function DeveloperProfilePage() {
             )}
             
             <p className="text-sm text-gray-600 mt-2">
-              {formData.skills.length}/8 compétences sélectionnées
+              {formData.skills.length}/{t('profile.developer.skills.max')} {t('profile.developer.skills.selected')}
             </p>
           </div>
 
           {/* Biographie */}
           <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6">
             <h2 className="text-xl font-black text-black mb-4">
-              Biographie *
+              {t('profile.developer.bio.title')} *
             </h2>
             
             <textarea
@@ -757,10 +759,10 @@ export default function DeveloperProfilePage() {
                 setFormData(prev => ({ ...prev, bio: e.target.value }));
               }}
               className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold resize-none"
-              placeholder="Décrivez votre expérience en IA, vos spécialités, et ce qui vous rend unique..."
+              placeholder={t('profile.developer.bio.placeholder')}
             />
             <p className="text-sm text-gray-600 mt-2">
-              Présentez votre expertise en intelligence artificielle de manière engageante.
+              {t('profile.developer.bio.description')}
             </p>
           </div>
 
@@ -768,13 +770,13 @@ export default function DeveloperProfilePage() {
           <div className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-6">
             <h2 className="text-xl font-black text-black mb-4 flex items-center gap-2">
               <Briefcase className="h-5 w-5" />
-              Informations professionnelles
+              {t('profile.developer.professional.title')}
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-black text-black mb-2">
-                  Années d'expérience
+                  {t('profile.developer.professional.experience_years')}
                 </label>
                 <input
                   type="number"
@@ -783,14 +785,14 @@ export default function DeveloperProfilePage() {
                   value={formData.experience_years}
                   onChange={(e) => setFormData(prev => ({ ...prev, experience_years: e.target.value }))}
                   className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
-                  placeholder="3"
+                  placeholder={t('profile.developer.professional.experience_years_placeholder')}
                 />
               </div>
               
               {/* 🆕 NOUVEAU: Section TJM avec option "à définir" */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-black text-black mb-2">
-                  💰 Taux Journalier Moyen (TJM)
+                  💰 {t('profile.developer.professional.daily_rate')}
                 </label>
                 
                 {/* Checkbox "À définir" */}
@@ -807,7 +809,7 @@ export default function DeveloperProfilePage() {
                       className="w-4 h-4 border-2 border-gray-300 rounded bg-white checked:bg-black checked:border-black focus:ring-black"
                     />
                     <span className="text-sm text-gray-700 font-medium">
-                      📋 À définir avec le client (négociable selon le projet)
+                      📋 {t('profile.developer.professional.daily_rate_undefined')}
                     </span>
                   </label>
                 </div>
@@ -820,7 +822,7 @@ export default function DeveloperProfilePage() {
                       min="0"
                       value={formData.daily_rate}
                       onChange={(e) => setFormData(prev => ({ ...prev, daily_rate: e.target.value }))}
-                      placeholder="400"
+                      placeholder={t('profile.developer.professional.daily_rate_placeholder')}
                       className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold pr-12"
                     />
                     <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">
@@ -829,14 +831,15 @@ export default function DeveloperProfilePage() {
                   </div>
                 ) : (
                   <div className="bg-gray-100 border-2 border-gray-300 rounded-lg px-4 py-3 text-gray-600 font-medium">
-                    🤝 TJM à négocier selon la complexité et la durée du projet
+                    🤝 {t('profile.developer.professional.daily_rate_negotiable')}
                   </div>
                 )}
                 
                 <p className="text-xs text-gray-500 mt-2">
                   {formData.daily_rate_defined 
-                    ? "Votre TJM sera affiché publiquement sur votre profil" 
-                    : "Les clients pourront vous contacter pour discuter du tarif"}
+                    ? t('profile.developer.professional.daily_rate_public')
+                    : t('profile.developer.professional.daily_rate_contact')
+                  }
                 </p>
               </div>
             </div>
@@ -844,29 +847,29 @@ export default function DeveloperProfilePage() {
             <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-black text-black mb-2">
-                  Disponibilité
+                  {t('profile.developer.professional.availability')}
                 </label>
                 <select
                   value={formData.availability}
                   onChange={(e) => setFormData(prev => ({ ...prev, availability: e.target.value }))}
                   className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
                 >
-                  <option value="available">🟢 Disponible</option>
-                  <option value="busy">🟡 Occupé</option>
-                  <option value="unavailable">🔴 Indisponible</option>
+                  <option value="available">{t('profile.developer.professional.availability_available')}</option>
+                  <option value="busy">{t('profile.developer.professional.availability_busy')}</option>
+                  <option value="unavailable">{t('profile.developer.professional.availability_unavailable')}</option>
                 </select>
               </div>
               
               <div>
                 <label className="block text-sm font-black text-black mb-2">
-                  Site web / Portfolio
+                  {t('profile.developer.professional.website')}
                 </label>
                 <input
                   type="url"
                   value={formData.website}
                   onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
                   className="w-full px-4 py-3 border-2 border-gray-200 focus:border-black focus:outline-none font-bold"
-                  placeholder="https://monportfolio.com"
+                  placeholder={t('profile.developer.professional.website_placeholder')}
                 />
               </div>
             </div>
@@ -882,19 +885,19 @@ export default function DeveloperProfilePage() {
               {saving ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Sauvegarde en cours...
+                  {t('profile.developer.save.saving')}
                 </>
               ) : (
                 <>
                   <Check className="h-5 w-5" />
-                  Sauvegarder le profil
+                  {t('profile.developer.save.save')}
                 </>
               )}
             </button>
             
             <div className="mt-4 p-3 bg-blue-50 border-2 border-blue-200 rounded">
               <p className="text-sm text-blue-800 font-bold">
-                💡 <strong>Nouveau :</strong> Vous pouvez maintenant choisir d'afficher votre TJM ou de le laisser "à définir" pour négocier avec chaque client.
+                💡 <strong>{t('profile.developer.save.new_feature')}</strong> {t('profile.developer.save.new_feature_description')}
               </p>
             </div>
           </div>

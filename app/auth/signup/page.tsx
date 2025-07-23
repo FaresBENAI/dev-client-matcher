@@ -251,29 +251,29 @@ export default function SignupPage() {
       console.log('🌐 URL actuelle:', window.location.href)
       console.log('🌐 Origin:', window.location.origin)
       
-      console.log('📝 Données:', { 
-        email: basicData.email, 
-        password: basicData.password.length + ' caractères', 
-        fullName: basicData.fullName,
-        userType 
-      })
+    console.log('📝 Données:', { 
+      email: basicData.email, 
+      password: basicData.password.length + ' caractères', 
+      fullName: basicData.fullName,
+      userType 
+    })
 
       // 🔍 DEBUG - Vérifier l'état de Supabase
       console.log('🔧 Configuration Supabase:')
       console.log('- URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
       console.log('- Anon Key disponible:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
-      try {
-        // Validation photo obligatoire pour développeurs
-        if (userType === 'developer' && !profilePhoto) {
+    try {
+      // Validation photo obligatoire pour développeurs
+      if (userType === 'developer' && !profilePhoto) {
           updateDebugInfo('Validation failed: Missing profile photo')
-          setError('Une photo de profil est obligatoire pour les développeurs')
-          setLoading(false)
-          return
-        }
+        setError('Une photo de profil est obligatoire pour les développeurs')
+        setLoading(false)
+        return
+      }
 
         updateDebugInfo(`Preparing Supabase request... (Attempt ${retryCount + 1})`)
-        console.log('📤 Envoi requête Supabase...')
+      console.log('📤 Envoi requête Supabase...')
 
         // 🔍 DEBUG - Test de connectivité avant signup
         console.log('🔍 Test connectivité Supabase...')
@@ -287,31 +287,31 @@ export default function SignupPage() {
           updateDebugInfo('Supabase connectivity failed', { supabaseStatus: 'failed', error: connectError.message })
         }
 
-        // Préparer les métadonnées utilisateur
-        const userMetadata = {
-          full_name: basicData.fullName,
-          phone: basicData.phone,
-          user_type: userType
-        }
+      // Préparer les métadonnées utilisateur
+      const userMetadata = {
+        full_name: basicData.fullName,
+        phone: basicData.phone,
+        user_type: userType
+      }
 
-        // Ajouter les données développeur si applicable
-        if (userType === 'developer') {
-          // 🆕 NOUVEAU: Gérer le TJM selon la checkbox (correspond à la BDD)
-          const dailyRateValue = devData.daily_rate_defined ? (devData.daily_rate ? parseInt(devData.daily_rate) : null) : null
-          
-          Object.assign(userMetadata, {
-            title: devData.title,
-            bio: devData.bio,
-            experience_years: devData.experience_years ? parseInt(devData.experience_years) : 0,
-            daily_rate: dailyRateValue,
-            daily_rate_defined: devData.daily_rate_defined, // 🆕 NOUVEAU
-            skills: devData.skills,
-            specializations: devData.specializations,
-            github_url: devData.github_url,
-            linkedin_url: devData.linkedin_url,
-            portfolio_url: devData.portfolio_url
-          })
-        }
+      // Ajouter les données développeur si applicable
+      if (userType === 'developer') {
+        // 🆕 NOUVEAU: Gérer le TJM selon la checkbox (correspond à la BDD)
+        const dailyRateValue = devData.daily_rate_defined ? (devData.daily_rate ? parseInt(devData.daily_rate) : null) : null
+        
+        Object.assign(userMetadata, {
+          title: devData.title,
+          bio: devData.bio,
+          experience_years: devData.experience_years ? parseInt(devData.experience_years) : 0,
+          daily_rate: dailyRateValue,
+          daily_rate_defined: devData.daily_rate_defined, // 🆕 NOUVEAU
+          skills: devData.skills,
+          specializations: devData.specializations,
+          github_url: devData.github_url,
+          linkedin_url: devData.linkedin_url,
+          portfolio_url: devData.portfolio_url
+        })
+      }
 
         console.log('📊 Métadonnées utilisateur complètes:', userMetadata)
 
@@ -332,8 +332,8 @@ export default function SignupPage() {
         try {
           // Tentative avec le client Supabase normal
           const result = await supabase.auth.signUp({
-            email: basicData.email,
-            password: basicData.password,
+        email: basicData.email,
+        password: basicData.password,
             options: signUpOptions
           })
           authData = result.data
@@ -388,11 +388,11 @@ export default function SignupPage() {
         })
 
         console.log('📊 REPONSE SUPABASE COMPLETE:')
-        console.log('✅ Data:', authData)
-        console.log('❌ Error:', authError)
+      console.log('✅ Data:', authData)
+      console.log('❌ Error:', authError)
 
         // 🔍 DEBUG - Analyse détaillée de l'erreur
-        if (authError) {
+      if (authError) {
           console.log('🚨 ERREUR DETAILS COMPLETES:')
           console.log('- Message:', authError.message)
           console.log('- Status:', authError.status)
@@ -452,9 +452,9 @@ export default function SignupPage() {
           }
 
           throw authError
-        }
+      }
 
-        if (!authData.user) {
+      if (!authData.user) {
           console.log('❌ Aucun utilisateur retourné par Supabase')
           updateDebugInfo('No user returned by Supabase')
           throw new Error('Erreur lors de la création du compte')
@@ -472,29 +472,29 @@ export default function SignupPage() {
           attempt: retryCount + 1
         })
 
-        // Upload photo si développeur
-        let photoUrl = null
-        if (userType === 'developer' && profilePhoto) {
-          console.log('📸 Upload de la photo...')
+      // Upload photo si développeur
+      let photoUrl = null
+      if (userType === 'developer' && profilePhoto) {
+        console.log('📸 Upload de la photo...')
           updateDebugInfo('Uploading profile photo...')
-          photoUrl = await uploadProfilePhoto(authData.user.id)
-          
-          if (photoUrl) {
-            console.log('🔄 Mise à jour du profil avec la photo...')
+        photoUrl = await uploadProfilePhoto(authData.user.id)
+        
+        if (photoUrl) {
+          console.log('🔄 Mise à jour du profil avec la photo...')
             updateDebugInfo('Updating profile with photo...')
-            // Attendre un peu pour que le trigger ait créé le profil
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            
-            const { error: updateError } = await supabase
-              .from('profiles')
-              .update({ profile_photo_url: photoUrl })
-              .eq('id', authData.user.id)
+          // Attendre un peu pour que le trigger ait créé le profil
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ profile_photo_url: photoUrl })
+            .eq('id', authData.user.id)
 
-            if (updateError) {
-              console.error('❌ Erreur mise à jour photo:', updateError)
+          if (updateError) {
+            console.error('❌ Erreur mise à jour photo:', updateError)
               updateDebugInfo('Photo update failed', { error: updateError.message })
-            } else {
-              console.log('✅ Photo mise à jour dans le profil')
+          } else {
+            console.log('✅ Photo mise à jour dans le profil')
               updateDebugInfo('Photo updated successfully')
             }
           }
@@ -525,7 +525,7 @@ export default function SignupPage() {
         
         // Note: La redirection se fera via les boutons du modal
 
-      } catch (err) {
+    } catch (err) {
         console.error('❌ ERREUR GENERALE COMPLETE:')
         console.error('- Message:', err.message)
         console.error('- Stack:', err.stack)
@@ -993,7 +993,7 @@ export default function SignupPage() {
                     }`}>
                       {debugInfo.supabaseStatus}
                     </span>
-                  </div>
+          </div>
                   <div><strong>Réseau:</strong> 
                     <span className={`ml-1 px-2 py-1 rounded ${
                       debugInfo.networkStatus === 'ok' ? 'bg-green-200 text-green-800' :
@@ -1002,11 +1002,11 @@ export default function SignupPage() {
                     }`}>
                       {debugInfo.networkStatus}
                     </span>
-                  </div>
+        </div>
                   {debugInfo.errorMessage && (
                     <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
                       <strong>Erreur:</strong> {debugInfo.errorMessage}
-                    </div>
+      </div>
                   )}
                   {debugInfo.recommendation && (
                     <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
