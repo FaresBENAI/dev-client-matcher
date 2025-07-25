@@ -268,7 +268,7 @@ export default function MessagesPage() {
 
   const markMessagesAsRead = async (conversationId: string) => {
     if (!user) return;
-
+    
     try {
       // Marquer tous les messages non lus comme lus
       const { error } = await supabase
@@ -284,7 +284,7 @@ export default function MessagesPage() {
       }
 
       // Mettre à jour la liste des conversations pour refléter les changements
-      await loadConversations(user.id);
+        await loadConversations(user.id);
       
       // Déclencher une mise à jour du compteur de notifications dans la navbar
       // En utilisant un événement personnalisé
@@ -634,7 +634,7 @@ export default function MessagesPage() {
                           ) : (
                             <div className="w-full h-full bg-gray-400 flex items-center justify-center text-white font-bold text-xs md:text-sm">
                               {(otherParticipant?.name || 'U').charAt(0).toUpperCase()}
-                            </div>
+                          </div>
                           )}
                         </div>
                         
@@ -801,7 +801,7 @@ export default function MessagesPage() {
                              projectData.status === 'in_progress' ? '50%' : 
                              projectData.status === 'open' ? '10%' : '0%'}
                           </span>
-                        </div>
+                  </div>
                         <div className="w-full bg-gray-200 rounded-full h-1.5">
                           <div 
                             className={`h-1.5 rounded-full transition-all duration-300 ${
